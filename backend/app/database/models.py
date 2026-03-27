@@ -39,6 +39,18 @@ class RemediationStatus(str, enum.Enum):
     FAILED = "failed"
 
 
+class SimulatorStatus(str, enum.Enum):
+    STOPPED = "stopped"
+    RUNNING = "running"
+    PAUSED = "paused"
+
+
+class SimulatorType(str, enum.Enum):
+    VM = "vm"
+    DATABASE = "db"
+    METRICS = "metrics"
+
+
 class InfrastructureNode(Base):
     __tablename__ = "infrastructure_nodes"
 
@@ -176,3 +188,26 @@ class RunbookEntry(Base):
     times_used = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class Simulator(Base):
+    """Simulator instance for log playback with optional metrics."""
+    __tablename__ = "simulators"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), unique=True, nullable=False)
+    simulator_type = Column(Enum(SimulatorType), nullable=False)
+    status = Column(Enum(SimulatorStatus), default=SimulatorStatus.STOPPED)
+    log_file_content = Column(Text, nullable=True)
+    interval_seconds = Column(Integer, default=5)
+    current_line_index = Column(Integer, default=0)
+    total_lines = Column(Integer, default=0)
+    last_advance_at = Column(DateTime, nullable=True)
+    # Performance metrics simulation
+    metrics_enabled = Column(Boolean, default=False)
+    metrics_config = Column(JSON, default=dict)   # {cpu_percent: 65, memory_percent: 70, ...}
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Simulator {self.name} ({self.simulator_type.value}) - {self.status.value}>"

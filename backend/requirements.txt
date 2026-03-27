@@ -1,8 +1,10 @@
 # FastAPI & server
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
+python-multipart==0.0.20
 python-dotenv==1.0.1
 pydantic==2.10.4
+eval_type_backport==0.3.1
 
 # Database
 sqlalchemy==2.0.36
@@ -10,10 +12,10 @@ aiosqlite==0.20.0
 
 # LangChain / LangGraph / LLM
 langchain==0.3.14
-langchain-openai==0.3.0
+langchain-ollama==0.2.2
 langchain-core==0.3.29
 langgraph==0.2.60
-openai==1.58.1
+ollama==0.4.4
 
 # Vector DB (lightweight, no C++ build tools needed)
 numpy>=1.26.0

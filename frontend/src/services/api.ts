@@ -50,3 +50,32 @@ export const removeDataSource = (provider: string) =>
   request<any>(`/datasources/${provider}`, { method: 'DELETE' });
 export const ingestMetrics = (body: any) =>
   request<any>('/datasources/ingest', { method: 'POST', body: JSON.stringify(body) });
+
+/* ── Simulators ─────────────────────────────────────────── */
+export const getSimulators = () => request<any[]>('/simulators/');
+export const getSimulator = (id: number) => request<any>(`/simulators/${id}`);
+export const deleteSimulator = (id: number) =>
+  request<{ status: string }>(`/simulators/${id}`, { method: 'DELETE' });
+export const simulatorAction = (id: number, action: string) =>
+  request<any>(`/simulators/${id}/action`, {
+    method: 'POST',
+    body: JSON.stringify({ action }),
+  });
+
+export const updateSimulatorMetrics = (id: number, metrics_enabled: boolean, metrics_config: Record<string, number>) =>
+  request<any>(`/simulators/${id}/metrics`, {
+    method: 'PUT',
+    body: JSON.stringify({ metrics_enabled, metrics_config }),
+  });
+
+export const createSimulator = async (formData: FormData): Promise<any> => {
+  const res = await fetch(`${BASE}/simulators/`, {
+    method: 'POST',
+    body: formData, // No Content-Type header — browser sets it with boundary for multipart
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+};

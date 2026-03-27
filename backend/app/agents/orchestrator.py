@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 LangGraph Orchestrator — the brain of the AIOps platform.
 
@@ -11,7 +12,7 @@ human-in-the-loop at the remediation approval step.
 import datetime
 import json
 import logging
-from typing import TypedDict, Literal, Any
+from typing import TypedDict, Literal, Any, Optional
 
 from langgraph.graph import StateGraph, END
 
@@ -45,9 +46,9 @@ class OrchestratorState(TypedDict, total=False):
     severity: str
     needs_human_approval: bool
     human_decision: str  # "approved" | "rejected" | "pending"
-    incident_id: int | None
+    incident_id: Optional[int]
     status: str  # current pipeline stage
-    error: str | None
+    error: Optional[str]
 
     # Metadata
     started_at: str

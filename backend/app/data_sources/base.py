@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Pluggable data source interface.
 

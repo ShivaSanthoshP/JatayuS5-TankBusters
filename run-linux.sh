@@ -63,8 +63,8 @@ ensure_env_file() {
     fi
   fi
 
-  if ! grep -Eq '^OPENAI_API_KEY=.+$' "$BACKEND_DIR/.env"; then
-    log WARN "OPENAI_API_KEY is not set in backend/.env. Agent features may fail until you add it."
+  if ! grep -Eq '^OLLAMA_BASE_URL=.+$' "$BACKEND_DIR/.env"; then
+    log WARN "OLLAMA_BASE_URL is not set in backend/.env — defaulting to http://localhost:11434. Make sure Ollama is running."
   fi
 }
 

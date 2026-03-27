@@ -8,6 +8,9 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.data_sources.simulator import SimulatorDataSource
 from app.agents.monitoring import statistical_anomaly_check
+from app.database.session import SessionLocal
+from app.database.models import SimulatorStatus
+from app.services.simulator_service import SimulatorService
 
 logger = logging.getLogger("itops.ws")
 
@@ -94,3 +97,98 @@ async def websocket_metrics(websocket: WebSocket):
         manager.disconnect(websocket)
     finally:
         await sim.disconnect()
+
+
+def _apply_variance(config: dict) -> dict:
+    """Add ±5% random variance to metric values for realism."""
+    import random
+    result = {}
+    for key, value in config.items():
+        if isinstance(value, (int, float)) and value > 0:
+            spread = value * 0.05
+            result[key] = round(max(0.0, value + random.uniform(-spread, spread)), 2)
+        else:
+            result[key] = value
+    return result
+
+
+@router.websocket("/ws/simulator-logs/{simulator_id}")
+async def websocket_simulator_logs(websocket: WebSocket, simulator_id: int):
+    """
+    Stream log lines for a simulator.  The background advancement loop in
+    main.py drives line progression; this endpoint just observes DB state
+    and pushes new lines + status updates to the connected client.
+
+    Messages sent:
+    - {"type": "log_line",    "line": "...", "line_number": N, "total_lines": M}
+    - {"type": "status",      "status": "running|paused|stopped|finished", "current_line": N, "total_lines": M}
+    - {"type": "metric_event","metrics": {...}, "timestamp": T}
+    - {"type": "error",       "message": "..."}
+    """
+    await websocket.accept()
+    db = SessionLocal()
+    try:
+        svc = SimulatorService(db)
+        sim = svc.get_simulator(simulator_id)
+
+        if not sim:
+            await websocket.send_json({"type": "error", "message": "Simulator not found"})
+            await websocket.close()
+            return
+
+        # Track how many lines we've already sent to this client
+        last_sent_index = 0
+
+        # Send initial status
+        await websocket.send_json({
+            "type": "status",
+            "status": sim.status.value,
+            "current_line": sim.current_line_index,
+            "total_lines": sim.total_lines,
+        })
+
+        while True:
+            db.refresh(sim)
+            current_idx = sim.current_line_index
+
+            # Stream any lines the background task has advanced past
+            if current_idx > last_sent_index and sim.log_file_content:
+                lines = sim.log_file_content.strip().split("\n")
+                for i in range(last_sent_index, min(current_idx, len(lines))):
+                    await websocket.send_json({
+                        "type": "log_line",
+                        "line": lines[i],
+                        "line_number": i + 1,
+                        "total_lines": sim.total_lines,
+                        "timestamp": asyncio.get_event_loop().time(),
+                    })
+                last_sent_index = current_idx
+
+            # Status pulse every tick
+            await websocket.send_json({
+                "type": "status",
+                "status": sim.status.value,
+                "current_line": current_idx,
+                "total_lines": sim.total_lines,
+            })
+
+            # Metrics pulse when enabled and running
+            if (
+                sim.metrics_enabled
+                and sim.metrics_config
+                and sim.status == SimulatorStatus.RUNNING
+            ):
+                await websocket.send_json({
+                    "type": "metric_event",
+                    "metrics": _apply_variance(sim.metrics_config),
+                    "timestamp": asyncio.get_event_loop().time(),
+                })
+
+            await asyncio.sleep(1)
+
+    except WebSocketDisconnect:
+        logger.info(f"Simulator WS disconnected: {simulator_id}")
+    except Exception as e:
+        logger.error(f"Simulator WS error: {e}")
+    finally:
+        db.close()

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Simulated infrastructure data source.
 

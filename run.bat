@@ -46,10 +46,10 @@ if not exist "%BACKEND_DIR%\.env" (
     )
 )
 
-findstr /R /C:"^OPENAI_API_KEY=." "%BACKEND_DIR%\.env" >nul 2>&1
+findstr /R /C:"^OLLAMA_BASE_URL=." "%BACKEND_DIR%\.env" >nul 2>&1
 if errorlevel 1 (
-    echo [WARN] OPENAI_API_KEY is not set in backend\.env
-    echo        Agent features may fail until you add it.
+    echo [WARN] OLLAMA_BASE_URL is not set in backend\.env
+    echo        Defaulting to http://localhost:11434 — make sure Ollama is running.
     echo.
 )
 

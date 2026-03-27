@@ -5,6 +5,7 @@ import Agents from './pages/Agents';
 import Incidents from './pages/Incidents';
 import Infrastructure from './pages/Infrastructure';
 import DataSources from './pages/DataSources';
+import Simulators from './pages/Simulators';
 import Runbooks from './pages/Runbooks';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/infrastructure" element={<Infrastructure />} />
           <Route path="/datasources" element={<DataSources />} />
+          <Route path="/simulators" element={<Simulators />} />
           <Route path="/runbooks" element={<Runbooks />} />
         </Route>
       </Routes>

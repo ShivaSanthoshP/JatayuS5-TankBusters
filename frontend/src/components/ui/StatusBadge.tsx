@@ -23,6 +23,12 @@ const COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   connected:  { bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-400' },
   configured: { bg: 'bg-blue-500/10',  text: 'text-blue-400',  dot: 'bg-blue-400' },
   error:      { bg: 'bg-red-500/10',   text: 'text-red-400',   dot: 'bg-red-400' },
+
+  // Simulator statuses
+  running:  { bg: 'bg-green-500/10',  text: 'text-green-500',  dot: 'bg-green-500' },
+  paused:   { bg: 'bg-amber-500/10',  text: 'text-amber-500',  dot: 'bg-amber-500' },
+  stopped:  { bg: 'bg-slate-500/10',  text: 'text-slate-500',  dot: 'bg-slate-400' },
+  finished: { bg: 'bg-blue-500/10',   text: 'text-blue-400',   dot: 'bg-blue-400' },
 };
 
 export default function StatusBadge({ status, pulse = false }: { status: string; pulse?: boolean }) {

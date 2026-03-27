@@ -21,22 +21,53 @@ const NODE_ICONS: Record<string, React.ElementType> = {
   queue: Wifi,
 };
 
+const PAGE_SIZE = 6;
+
 export default function Infrastructure() {
   const { data: nodes, loading } = usePolling<InfraNode[]>(api.getNodes, 10000);
   const [selectedNode, setSelectedNode] = useState<InfraNode | null>(null);
+  const [filter, setFilter] = useState<'all' | 'critical' | 'degraded' | 'healthy'>('all');
+  const [page, setPage] = useState(0);
 
   if (loading && !nodes) return <Loader text="Loading infrastructure..." />;
 
+  const filtered = (nodes ?? []).filter((n) => filter === 'all' || n.status === filter);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const counts = {
+    all:      (nodes ?? []).length,
+    critical: (nodes ?? []).filter((n) => n.status === 'critical').length,
+    degraded: (nodes ?? []).filter((n) => n.status === 'degraded').length,
+    healthy:  (nodes ?? []).filter((n) => n.status === 'healthy').length,
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Infrastructure</h1>
-        <p className="text-sm text-slate-500 mt-1">All monitored nodes and their metric histories</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Infrastructure</h1>
+          <p className="text-sm text-slate-500 mt-1">Monitored nodes and their metric histories</p>
+        </div>
+        {/* Filter pills */}
+        <div className="flex items-center gap-1.5">
+          {(['all', 'critical', 'degraded', 'healthy'] as const).map((f) => (
+            <button key={f} onClick={() => { setFilter(f); setPage(0); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                filter === f
+                  ? 'bg-accent text-white'
+                  : 'bg-black/5 text-slate-500 hover:bg-black/10'
+              }`}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)} {counts[f] > 0 ? `(${counts[f]})` : ''}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Node grid ─────────────────────────────────────────── */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {nodes?.map((node, i) => {
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {visible.map((node, i) => {
           const Icon = NODE_ICONS[node.node_type] || Server;
           return (
             <motion.div
@@ -76,13 +107,30 @@ export default function Infrastructure() {
             </motion.div>
           );
         })}
-        {(!nodes || nodes.length === 0) && (
+        {visible.length === 0 && (
           <div className="col-span-full text-center py-16 text-slate-400">
             <Server size={32} className="mx-auto mb-3 opacity-30" />
-            <p>No nodes registered yet. Start the backend to begin monitoring.</p>
+            <p>{filter === 'all' ? 'No nodes registered yet.' : `No ${filter} nodes.`}</p>
           </div>
         )}
       </div>
+
+      {/* ── Pagination ────────────────────────────────────────── */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+            className="px-3 py-1.5 text-xs bg-black/5 text-slate-600 rounded-lg disabled:opacity-30 hover:bg-black/10 transition-colors"
+          >
+            ← Prev
+          </button>
+          <span className="text-xs text-slate-400">{page + 1} / {totalPages}</span>
+          <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
+            className="px-3 py-1.5 text-xs bg-black/5 text-slate-600 rounded-lg disabled:opacity-30 hover:bg-black/10 transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+      )}
 
       {/* ── Node detail modal ─────────────────────────────────── */}
       <AnimatePresence>

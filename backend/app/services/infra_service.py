@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Service layer for infrastructure and metrics management."""
 
 import datetime

@@ -6,10 +6,10 @@ statistical thresholds + LLM reasoning for context-aware detection.
 """
 
 import datetime
-from langchain_openai import ChatOpenAI
+from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 
-from app.config import OPENAI_API_KEY, OPENAI_MODEL, AGENT_TEMPERATURE
+from app.config import OLLAMA_BASE_URL, OLLAMA_MODEL, AGENT_TEMPERATURE
 
 MONITORING_SYSTEM_PROMPT = """\
 You are the Monitoring Agent in an enterprise IT Operations platform.
@@ -60,10 +60,10 @@ _llm = None
 def _get_llm():
     global _llm
     if _llm is None:
-        _llm = ChatOpenAI(
-            model=OPENAI_MODEL,
+        _llm = ChatOllama(
+            model=OLLAMA_MODEL,
             temperature=AGENT_TEMPERATURE,
-            api_key=OPENAI_API_KEY,
+            base_url=OLLAMA_BASE_URL,
         )
     return _llm
 

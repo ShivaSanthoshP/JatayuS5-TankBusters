@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Remediation Executor — simulates running remediation scripts.
 

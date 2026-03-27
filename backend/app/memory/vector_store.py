@@ -1,7 +1,8 @@
+from __future__ import annotations
 """
 Institutional Memory System — lightweight vector store.
 
-Uses OpenAI embeddings + numpy cosine similarity for RAG.
+Uses Ollama embeddings + numpy cosine similarity for RAG.
 Persists to a JSON file on disk. No C++ build tools required.
 """
 
@@ -11,17 +12,15 @@ import os
 from pathlib import Path
 
 import numpy as np
-from openai import OpenAI
+import ollama
 
-from app.config import OPENAI_API_KEY, CHROMA_PERSIST_DIR
+from app.config import OLLAMA_BASE_URL, OLLAMA_EMBEDDING_MODEL, CHROMA_PERSIST_DIR
 
 logger = logging.getLogger("itops.memory")
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-
 
 class InstitutionalMemory:
-    """Vector store for incident knowledge and runbooks using OpenAI embeddings."""
+    """Vector store for incident knowledge and runbooks using Ollama embeddings."""
 
     def __init__(self):
         self._persist_dir = Path(CHROMA_PERSIST_DIR)
@@ -32,7 +31,8 @@ class InstitutionalMemory:
         self._incidents: list[dict] = self._load(self._incidents_path)
         self._runbooks: list[dict] = self._load(self._runbooks_path)
 
-        self._client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
+        # Initialize Ollama client
+        self._client = ollama.Client(host=OLLAMA_BASE_URL)
 
     @staticmethod
     def _load(path: Path) -> list[dict]:
@@ -55,11 +55,11 @@ class InstitutionalMemory:
         if not self._client:
             return None
         try:
-            response = self._client.embeddings.create(
-                model=EMBEDDING_MODEL,
-                input=text[:8000],  # Truncate to model limit
+            response = self._client.embed(
+                model=OLLAMA_EMBEDDING_MODEL,
+                input=text[:8000],  # Truncate to reasonable limit
             )
-            return response.data[0].embedding
+            return response["embeddings"][0]
         except Exception as e:
             logger.warning(f"Embedding failed: {e}")
             return None
@@ -151,7 +151,7 @@ class InstitutionalMemory:
                     scored.append((keyword_score, entry))
             scored.sort(key=lambda x: x[0], reverse=True)
         else:
-            # Pure keyword fallback when OpenAI is unavailable
+            # Pure keyword fallback when Ollama is unavailable
             scored = []
             for entry in collection:
                 score = self._keyword_score(query, entry.get("document", ""))

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Dynamic IT Operations Orchestrator — FastAPI Application
 
@@ -14,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database.session import init_db, SessionLocal
-from app.api.routes import infrastructure, incidents, agents, ws, datasources
+from app.api.routes import infrastructure, incidents, agents, ws, datasources, simulators
 from app.services.infra_service import InfraService
 from app.agents.orchestrator import run_pipeline
 from app.agents.monitoring import statistical_anomaly_check
@@ -28,8 +29,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("itops")
 
-# Background task handle
+# Background task handles
 _monitoring_task: asyncio.Task | None = None
+_simulator_task: asyncio.Task | None = None
 
 
 async def background_monitoring_loop():
@@ -54,9 +56,22 @@ async def background_monitoring_loop():
             try:
                 infra_svc = InfraService(db)
                 from app.services.incident_service import IncidentService
+                from app.database.models import Simulator as _SimModel, SimulatorType as _SimType, SimulatorStatus as _SimStatus
                 incident_svc = IncidentService(db)
 
+                # Build set of fleet-node names whose metrics simulator is active (RUNNING)
+                active_fleet = set(
+                    row.name for row in db.query(_SimModel.name)
+                    .filter(
+                        _SimModel.simulator_type == _SimType.METRICS,
+                        _SimModel.status == _SimStatus.RUNNING,
+                    ).all()
+                )
+
                 for event in batch:
+                    # Skip fleet nodes whose metrics simulator has been stopped/paused
+                    if event.node_name not in active_fleet:
+                        continue
                     # Ensure node exists and store metric
                     node = infra_svc.ensure_node_exists(event)
                     metrics_dict = {
@@ -122,28 +137,85 @@ async def background_monitoring_loop():
         await sim.disconnect()
 
 
+async def background_simulator_advancement():
+    """
+    Advance log lines for all running simulators at their configured intervals.
+    Runs every second and advances any simulator whose interval has elapsed.
+    """
+    import datetime as dt
+    from app.database.models import Simulator as SimModel, SimulatorStatus as SimStatus
+    from app.services.simulator_service import SimulatorService
+
+    logger.info("Simulator advancement loop started")
+    while True:
+        await asyncio.sleep(1)
+        db = SessionLocal()
+        try:
+            now = dt.datetime.utcnow()
+            running = (
+                db.query(SimModel)
+                .filter(SimModel.status == SimStatus.RUNNING)
+                .all()
+            )
+            for sim in running:
+                reference = sim.last_advance_at or sim.updated_at or now
+                elapsed = (now - reference).total_seconds()
+                if elapsed >= sim.interval_seconds:
+                    svc = SimulatorService(db)
+                    _, finished = svc.advance_line(sim.id)
+                    sim.last_advance_at = now
+                    if finished:
+                        svc.set_status(sim.id, SimStatus.STOPPED)
+                    else:
+                        db.commit()
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error(f"Simulator advancement error: {e}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
+        finally:
+            db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan: start/stop background monitoring."""
-    global _monitoring_task
+    global _monitoring_task, _simulator_task
 
     # Initialize database
     init_db()
     logger.info("Database initialized")
 
-    # Start background monitoring
+    # Seed fleet nodes as metrics-type simulators (so they appear in the Simulators page)
+    from app.data_sources.simulator import _build_fleet
+    from app.services.simulator_service import SimulatorService as _SimSvc
+    _seed_db = SessionLocal()
+    try:
+        fleet_nodes = _build_fleet()
+        seeded = _SimSvc(_seed_db).seed_fleet_simulators(fleet_nodes)
+        if seeded:
+            logger.info(f"Seeded {seeded} fleet metrics simulators into DB")
+    finally:
+        _seed_db.close()
+
+    # Start background tasks
     _monitoring_task = asyncio.create_task(background_monitoring_loop())
+    _simulator_task = asyncio.create_task(background_simulator_advancement())
     logger.info("Background monitoring started")
 
     yield
 
     # Shutdown
-    if _monitoring_task:
-        _monitoring_task.cancel()
-        try:
-            await _monitoring_task
-        except asyncio.CancelledError:
-            pass
+    for task in (_monitoring_task, _simulator_task):
+        if task:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
     logger.info("Application shutdown complete")
 
 
@@ -173,6 +245,7 @@ app.include_router(infrastructure.router, prefix="/api")
 app.include_router(incidents.router, prefix="/api")
 app.include_router(agents.router, prefix="/api")
 app.include_router(datasources.router, prefix="/api")
+app.include_router(simulators.router, prefix="/api")
 app.include_router(ws.router)
 
 

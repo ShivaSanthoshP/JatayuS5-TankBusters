@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  LayoutDashboard, Bot, AlertTriangle, Server, Database, BookOpen,
+  LayoutDashboard, Bot, AlertTriangle, Server, Database, BookOpen, Cpu,
 } from 'lucide-react';
 
 const NAV = [
@@ -9,7 +9,8 @@ const NAV = [
   { to: '/agents',         icon: Bot,             label: 'Agents' },
   { to: '/incidents',      icon: AlertTriangle,   label: 'Incidents' },
   { to: '/infrastructure', icon: Server,          label: 'Infrastructure' },
-  { to: '/datasources',    icon: Database,         label: 'Data Sources' },
+  { to: '/datasources',    icon: Database,        label: 'Data Sources' },
+  { to: '/simulators',     icon: Cpu,             label: 'Simulators' },
   { to: '/runbooks',       icon: BookOpen,        label: 'Runbooks' },
 ];
 

@@ -6,7 +6,8 @@ This project has a FastAPI backend and a Vite React frontend.
 
 - Python 3.10+ installed
 - Node.js 18+ and npm installed
-- OpenAI API key
+- [Ollama](https://ollama.com) installed and running locally (`ollama serve`)
+  - Pull required models: `ollama pull qwen2.5-coder:7b && ollama pull nomic-embed-text`
 
 ---
 

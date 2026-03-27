@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Pydantic schemas for API request/response models."""
 
 import datetime
@@ -162,3 +163,31 @@ class RunbookEntryOut(BaseModel):
     created_at: datetime.datetime | None
 
     model_config = {"from_attributes": True}
+
+
+# ── Simulator ──────────────────────────────────────────────────────
+
+class SimulatorOut(BaseModel):
+    id: int
+    name: str
+    simulator_type: str
+    status: str
+    log_file_content: str | None = None
+    interval_seconds: int
+    current_line_index: int
+    total_lines: int
+    metrics_enabled: bool = False
+    metrics_config: dict = Field(default_factory=dict)
+    created_at: datetime.datetime | None
+    updated_at: datetime.datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class SimulatorAction(BaseModel):
+    action: str = Field(..., pattern="^(start|stop|pause|reset)$")
+
+
+class SimulatorMetricsUpdate(BaseModel):
+    metrics_enabled: bool
+    metrics_config: dict = Field(default_factory=dict)

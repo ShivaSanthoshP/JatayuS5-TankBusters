@@ -170,3 +170,42 @@ export interface WsMetricEvent {
   anomaly_severity: string | null;
   metadata: Record<string, unknown>;
 }
+
+export interface SimulatorMetrics {
+  cpu_percent?: number;
+  memory_percent?: number;
+  disk_percent?: number;
+  network_in_mbps?: number;
+  network_out_mbps?: number;
+  request_rate?: number;
+  error_rate?: number;
+  latency_ms?: number;
+  [key: string]: number | undefined;
+}
+
+export interface Simulator {
+  id: number;
+  name: string;
+  simulator_type: 'vm' | 'db' | 'metrics';
+  status: 'stopped' | 'running' | 'paused';
+  log_file_content: string | null;
+  interval_seconds: number;
+  current_line_index: number;
+  total_lines: number;
+  metrics_enabled: boolean;
+  metrics_config: SimulatorMetrics;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface SimulatorLogEvent {
+  type: 'log_line' | 'status' | 'metric_event' | 'error';
+  line?: string;
+  line_number?: number;
+  total_lines?: number;
+  status?: string;
+  message?: string;
+  timestamp?: number;
+  current_line?: number;
+  metrics?: SimulatorMetrics;
+}
