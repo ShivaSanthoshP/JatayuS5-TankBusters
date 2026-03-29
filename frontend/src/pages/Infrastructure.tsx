@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Server, Database, Globe, HardDrive, Cpu, MemoryStick, Wifi, X,
+  Server, Database, Globe, HardDrive, Cpu, MemoryStick, Wifi, Radio, X,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -18,15 +18,15 @@ const NODE_ICONS: Record<string, React.ElementType> = {
   database: Database,
   load_balancer: Globe,
   cache: HardDrive,
-  queue: Wifi,
+  queue: Radio,
 };
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 12;
 
 export default function Infrastructure() {
   const { data: nodes, loading } = usePolling<InfraNode[]>(api.getNodes, 10000);
   const [selectedNode, setSelectedNode] = useState<InfraNode | null>(null);
-  const [filter, setFilter] = useState<'all' | 'critical' | 'degraded' | 'healthy'>('all');
+  const [filter, setFilter] = useState<'all' | 'critical' | 'degraded' | 'healthy' | 'offline'>('all');
   const [page, setPage] = useState(0);
 
   if (loading && !nodes) return <Loader text="Loading infrastructure..." />;
@@ -40,6 +40,7 @@ export default function Infrastructure() {
     critical: (nodes ?? []).filter((n) => n.status === 'critical').length,
     degraded: (nodes ?? []).filter((n) => n.status === 'degraded').length,
     healthy:  (nodes ?? []).filter((n) => n.status === 'healthy').length,
+    offline:  (nodes ?? []).filter((n) => n.status === 'offline').length,
   };
 
   return (
@@ -51,7 +52,7 @@ export default function Infrastructure() {
         </div>
         {/* Filter pills */}
         <div className="flex items-center gap-1.5">
-          {(['all', 'critical', 'degraded', 'healthy'] as const).map((f) => (
+          {(['all', 'critical', 'degraded', 'healthy', 'offline'] as const).map((f) => (
             <button key={f} onClick={() => { setFilter(f); setPage(0); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 filter === f
@@ -79,18 +80,21 @@ export default function Infrastructure() {
               onClick={() => setSelectedNode(node)}
               className={`glass p-4 cursor-pointer space-y-3 ${
                 node.status === 'critical' ? 'border-red-400/30 glow-red' :
-                node.status === 'degraded' ? 'border-amber-400/30 glow-amber' : ''
+                node.status === 'degraded' ? 'border-amber-400/30 glow-amber' :
+                node.status === 'offline' ? 'border-slate-400/20 opacity-60' : ''
               }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                     node.status === 'healthy' ? 'bg-green-100' :
-                    node.status === 'degraded' ? 'bg-amber-100' : 'bg-red-100'
+                    node.status === 'degraded' ? 'bg-amber-100' :
+                    node.status === 'offline' ? 'bg-slate-100' : 'bg-red-100'
                   }`}>
                     <Icon size={16} className={
                       node.status === 'healthy' ? 'text-green-600' :
-                      node.status === 'degraded' ? 'text-amber-600' : 'text-red-600'
+                      node.status === 'degraded' ? 'text-amber-600' :
+                      node.status === 'offline' ? 'text-slate-400' : 'text-red-600'
                     } />
                   </div>
                   <div>

@@ -1,13 +1,10 @@
 """WebSocket endpoint for real-time metric streaming."""
 
 import asyncio
-import json
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from app.data_sources.simulator import SimulatorDataSource
-from app.agents.monitoring import statistical_anomaly_check
 from app.database.session import SessionLocal
 from app.database.models import SimulatorStatus
 from app.services.simulator_service import SimulatorService
@@ -29,7 +26,10 @@ class ConnectionManager:
         logger.info(f"WS connected. Total: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        try:
+            self.active_connections.remove(websocket)
+        except ValueError:
+            pass  # already removed by broadcast()
         logger.info(f"WS disconnected. Total: {len(self.active_connections)}")
 
     async def broadcast(self, message: dict):
@@ -51,52 +51,22 @@ async def websocket_metrics(websocket: WebSocket):
     """
     Stream real-time simulated metrics over WebSocket.
 
-    Each message contains the full fleet snapshot with anomaly flags.
-    Frontend can use this for live dashboard updates.
+    Data is pushed by the background monitoring loop via
+    ``manager.broadcast()``, so this endpoint simply keeps the
+    connection alive and removes it on disconnect.
     """
     await manager.connect(websocket)
-    sim = SimulatorDataSource()
-    await sim.connect()
-
     try:
-        async for batch in sim.stream_metrics():
-            payload = []
-            for event in batch:
-                metrics_dict = {
-                    "cpu_percent": event.cpu_percent,
-                    "memory_percent": event.memory_percent,
-                    "disk_percent": event.disk_percent,
-                    "network_in_mbps": event.network_in_mbps,
-                    "network_out_mbps": event.network_out_mbps,
-                    "request_rate": event.request_rate,
-                    "error_rate": event.error_rate,
-                    "latency_ms": event.latency_ms,
-                }
-                stat_check = statistical_anomaly_check(metrics_dict)
-
-                payload.append({
-                    "node_name": event.node_name,
-                    "node_type": event.node_type,
-                    "provider": event.provider,
-                    "region": event.region,
-                    "metrics": metrics_dict,
-                    "is_anomaly": stat_check.get("is_anomaly", False),
-                    "anomaly_severity": stat_check.get("max_severity") if stat_check.get("is_anomaly") else None,
-                    "metadata": event.metadata,
-                })
-
-            await websocket.send_json({
-                "type": "metric_batch",
-                "data": payload,
-                "timestamp": asyncio.get_event_loop().time(),
-            })
+        # Block until the client disconnects.  The monitoring loop in
+        # main.py calls ``manager.broadcast()`` every tick, which sends
+        # the data to all connected clients automatically.
+        while True:
+            await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
         logger.error(f"WS error: {e}")
         manager.disconnect(websocket)
-    finally:
-        await sim.disconnect()
 
 
 def _apply_variance(config: dict) -> dict:

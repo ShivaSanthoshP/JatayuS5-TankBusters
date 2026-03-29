@@ -4,6 +4,7 @@ import {
   Server, Database, Play, Pause, Square, Trash2, Plus, X,
   Upload, Clock, FileText, RotateCcw, Wifi, WifiOff, Terminal,
   ChevronRight, Activity, ToggleLeft, ToggleRight, BarChart2,
+  Globe, HardDrive, Radio,
 } from 'lucide-react';
 import StatusBadge from '../components/ui/StatusBadge';
 import Loader from '../components/ui/Loader';
@@ -15,9 +16,12 @@ import type { Simulator, SimulatorMetrics } from '../types';
 /* ── Constants ────────────────────────────────────────────────── */
 
 const TYPE_META: Record<string, { icon: React.ElementType; label: string; gradient: string; iconColor: string }> = {
-  vm:      { icon: Server,    label: 'EC2 / VM',      gradient: 'from-blue-500/10 to-blue-50/60',    iconColor: '#3b82f6' },
-  db:      { icon: Database,  label: 'Database',      gradient: 'from-violet-500/10 to-violet-50/60', iconColor: '#8b5cf6' },
-  metrics: { icon: BarChart2, label: 'Fleet Metrics', gradient: 'from-teal-500/10 to-teal-50/60',    iconColor: '#14b8a6' },
+  vm:            { icon: Server,    label: 'EC2 / VM',       gradient: 'from-blue-500/10 to-blue-50/60',    iconColor: '#3b82f6' },
+  db:            { icon: Database,  label: 'Database',       gradient: 'from-violet-500/10 to-violet-50/60', iconColor: '#8b5cf6' },
+  cache:         { icon: HardDrive, label: 'Cache (Redis)',  gradient: 'from-red-500/10 to-red-50/60',      iconColor: '#ef4444' },
+  load_balancer: { icon: Globe,     label: 'Load Balancer',  gradient: 'from-amber-500/10 to-amber-50/60',  iconColor: '#f59e0b' },
+  queue:         { icon: Radio,     label: 'Message Queue',  gradient: 'from-emerald-500/10 to-emerald-50/60', iconColor: '#10b981' },
+  metrics:       { icon: BarChart2, label: 'Fleet Metrics',  gradient: 'from-teal-500/10 to-teal-50/60',    iconColor: '#14b8a6' },
 };
 
 const METRIC_DEFS: { key: keyof SimulatorMetrics; label: string; unit: string; max: number; color: string }[] = [
@@ -170,7 +174,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1.5">Instance Type *</label>
             <div className="grid grid-cols-2 gap-2">
-              {(['vm', 'db'] as const).map((t) => {
+              {(['vm', 'db', 'cache', 'load_balancer', 'queue'] as const).map((t) => {
                 const meta = TYPE_META[t];
                 const Icon = meta.icon;
                 return (

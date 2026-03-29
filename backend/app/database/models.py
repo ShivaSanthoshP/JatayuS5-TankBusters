@@ -48,6 +48,9 @@ class SimulatorStatus(str, enum.Enum):
 class SimulatorType(str, enum.Enum):
     VM = "vm"
     DATABASE = "db"
+    CACHE = "cache"
+    LOAD_BALANCER = "load_balancer"
+    QUEUE = "queue"
     METRICS = "metrics"
 
 

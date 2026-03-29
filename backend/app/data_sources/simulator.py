@@ -21,15 +21,41 @@ from app.config import (
 from app.data_sources.base import DataSource, MetricEvent
 
 # ── Fleet definition ────────────────────────────────────────────────
+# Realistic production infrastructure fleet.  Server count scales with
+# NUM_SIMULATED_SERVERS; supporting infra (LBs, DBs, caches, queues,
+# monitoring) uses fixed counts that mirror a real environment.
+
+_APP_SERVER_COUNT = max(1, NUM_SIMULATED_SERVERS // 3)
+
 _FLEET_TEMPLATES = [
-    {"name": "web-server-{i}", "type": "server", "region": "us-east-1", "count": max(1, NUM_SIMULATED_SERVERS // 3)},
-    {"name": "api-server-{i}", "type": "server", "region": "us-west-2", "count": max(1, NUM_SIMULATED_SERVERS // 3)},
-    {"name": "postgres-primary", "type": "database", "region": "us-east-1", "count": 1},
-    {"name": "postgres-replica-{i}", "type": "database", "region": "us-east-1", "count": 1},
-    {"name": "redis-cache-{i}", "type": "cache", "region": "us-east-1", "count": 1},
-    {"name": "lb-frontend", "type": "load_balancer", "region": "us-east-1", "count": 1},
-    {"name": "rabbitmq-{i}", "type": "queue", "region": "us-west-2", "count": 1},
+    # --- Load-balancing tier ---
+    {"name": "prod-nginx-{i}",        "type": "load_balancer", "region": "us-east-1", "provider": "aws",   "count": 2},
+    # --- Application tier ---
+    {"name": "prod-api-{i}",          "type": "server",        "region": "us-east-1", "provider": "aws",   "count": _APP_SERVER_COUNT},
+    {"name": "prod-web-{i}",          "type": "server",        "region": "us-east-1", "provider": "aws",   "count": _APP_SERVER_COUNT},
+    {"name": "prod-worker-{i}",       "type": "server",        "region": "us-west-2", "provider": "aws",   "count": _APP_SERVER_COUNT},
+    # --- Data tier ---
+    {"name": "prod-pg-primary",       "type": "database",      "region": "us-east-1", "provider": "aws",   "count": 1},
+    {"name": "prod-pg-replica-{i}",   "type": "database",      "region": "us-east-1", "provider": "aws",   "count": 2},
+    {"name": "prod-mysql-analytics",  "type": "database",      "region": "us-west-2", "provider": "aws",   "count": 1},
+    # --- Cache tier ---
+    {"name": "prod-redis-{i}",        "type": "cache",         "region": "us-east-1", "provider": "aws",   "count": 2},
+    # --- Message-queue tier ---
+    {"name": "prod-kafka-{i}",        "type": "queue",         "region": "us-west-2", "provider": "aws",   "count": 3},
+    # --- Search & analytics ---
+    {"name": "prod-elastic-{i}",      "type": "server",        "region": "us-east-1", "provider": "aws",   "count": 2},
+    # --- Monitoring ---
+    {"name": "prod-prometheus",       "type": "server",        "region": "us-east-1", "provider": "aws",   "count": 1},
 ]
+
+# Deterministic subnet prefixes per node type
+_SUBNET_MAP = {
+    "load_balancer": "10.0.1",
+    "server":        "10.0.2",
+    "database":      "10.0.10",
+    "cache":         "10.0.20",
+    "queue":         "10.0.30",
+}
 
 # ── Anomaly scenarios ──────────────────────────────────────────────
 ANOMALY_SCENARIOS = [
@@ -67,22 +93,36 @@ ANOMALY_SCENARIOS = [
 
 
 def _build_fleet() -> list[dict]:
-    """Expand fleet templates into individual node definitions."""
-    fleet = []
-    counters: dict[str, int] = {}
+    """Expand fleet templates into individual node definitions.
+
+    IPs are deterministic (sequential within each subnet) so every call
+    produces the same fleet — this keeps the monitoring loop, WS stream,
+    and seeded simulators consistent.
+    """
+    fleet: list[dict] = []
+    name_seen: dict[str, int] = {}
+    subnet_counters: dict[str, int] = {}
+
     for tpl in _FLEET_TEMPLATES:
         for i in range(tpl["count"]):
             name = tpl["name"].format(i=i + 1)
-            if name in counters:
-                counters[name] += 1
-                name = f"{name}-{counters[name]}"
+            if name in name_seen:
+                name_seen[name] += 1
+                name = f"{name}-{name_seen[name]}"
             else:
-                counters[name] = 1
+                name_seen[name] = 1
+
+            subnet = _SUBNET_MAP.get(tpl["type"], "10.0.100")
+            seq = subnet_counters.get(subnet, 0) + 1
+            subnet_counters[subnet] = seq
+            ip = f"{subnet}.{seq + 10}"
+
             fleet.append({
                 "name": name,
                 "type": tpl["type"],
                 "region": tpl["region"],
-                "ip": f"10.0.{random.randint(1, 254)}.{random.randint(1, 254)}",
+                "provider": tpl.get("provider", "aws"),
+                "ip": ip,
             })
     return fleet
 
@@ -128,17 +168,30 @@ class SimulatorDataSource(DataSource):
             "latency_ms": max(1, 25 + 10 * hour_factor + random.gauss(0, 5)),
         }
 
-        # Node-type adjustments
+        # Node-type adjustments for realistic profiles
         if node["type"] == "database":
             base["cpu_percent"] *= 0.7
             base["memory_percent"] = min(100, base["memory_percent"] * 1.3)
             base["disk_percent"] = min(100, base["disk_percent"] * 1.2)
+            base["latency_ms"] *= 1.4        # slightly higher query latency
         elif node["type"] == "cache":
             base["memory_percent"] = min(100, base["memory_percent"] * 1.5)
-            base["latency_ms"] *= 0.3
+            base["latency_ms"] *= 0.3         # sub-ms cache hits
+            base["request_rate"] *= 2.5       # high throughput
+            base["disk_percent"] *= 0.2       # minimal disk
         elif node["type"] == "load_balancer":
-            base["request_rate"] *= 3
-            base["cpu_percent"] *= 0.5
+            base["request_rate"] *= 3         # aggregates all traffic
+            base["cpu_percent"] *= 0.5        # mostly I/O bound
+            base["latency_ms"] *= 0.5         # pass-through latency
+            base["network_in_mbps"] *= 2      # high bandwidth
+            base["network_out_mbps"] *= 2
+        elif node["type"] == "queue":
+            base["cpu_percent"] *= 0.6        # I/O heavy, not CPU heavy
+            base["memory_percent"] = min(100, base["memory_percent"] * 1.2)
+            base["disk_percent"] = min(100, base["disk_percent"] * 1.3)  # message storage
+            base["network_in_mbps"] *= 1.5    # ingesting messages
+            base["network_out_mbps"] *= 1.5
+            base["request_rate"] *= 2         # message throughput
 
         return base
 
@@ -180,7 +233,7 @@ class SimulatorDataSource(DataSource):
             events.append(MetricEvent(
                 node_name=node["name"],
                 node_type=node["type"],
-                provider="simulated",
+                provider=node.get("provider", "aws"),
                 region=node["region"],
                 ip_address=node["ip"],
                 cpu_percent=round(metrics["cpu_percent"], 2),

@@ -186,7 +186,7 @@ export interface SimulatorMetrics {
 export interface Simulator {
   id: number;
   name: string;
-  simulator_type: 'vm' | 'db' | 'metrics';
+  simulator_type: 'vm' | 'db' | 'cache' | 'load_balancer' | 'queue' | 'metrics';
   status: 'stopped' | 'running' | 'paused';
   log_file_content: string | null;
   interval_seconds: number;

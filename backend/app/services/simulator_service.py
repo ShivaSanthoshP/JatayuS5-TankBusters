@@ -2,11 +2,22 @@ from __future__ import annotations
 """Service layer for simulator management."""
 
 import logging
+import random
 from sqlalchemy.orm import Session
 
-from app.database.models import Simulator, SimulatorStatus, SimulatorType
+from app.database.models import Simulator, SimulatorStatus, SimulatorType, InfrastructureNode
 
 logger = logging.getLogger("itops.simulator_service")
+
+# Maps user-creatable simulator types to infrastructure node types
+SIMULATOR_TO_NODE_TYPE = {
+    SimulatorType.VM: "server",
+    SimulatorType.DATABASE: "database",
+    SimulatorType.CACHE: "cache",
+    SimulatorType.LOAD_BALANCER: "load_balancer",
+    SimulatorType.QUEUE: "queue",
+    # METRICS type is handled separately (fleet nodes)
+}
 
 
 class SimulatorService:
@@ -15,6 +26,56 @@ class SimulatorService:
     def __init__(self, db: Session):
         self.db = db
 
+    # ── Infrastructure node synchronisation ──────────────────────
+
+    def _sync_infra_node(
+        self, name: str, sim_type: SimulatorType, status: str = "offline",
+    ) -> InfrastructureNode | None:
+        """Create or update an InfrastructureNode that mirrors a simulator.
+
+        Fleet (metrics-type) simulators are handled by the monitoring loop,
+        so this only applies to user-creatable types (vm, db, cache, lb, queue).
+        """
+        node_type = SIMULATOR_TO_NODE_TYPE.get(sim_type)
+        if node_type is None:
+            return None  # metrics type — skip
+
+        node = (
+            self.db.query(InfrastructureNode)
+            .filter(InfrastructureNode.node_name == name)
+            .first()
+        )
+        if node:
+            node.status = status
+        else:
+            node = InfrastructureNode(
+                node_name=name,
+                node_type=node_type,
+                provider="simulated",
+                region="us-east-1",
+                ip_address=f"10.1.{random.randint(1,254)}.{random.randint(1,254)}",
+                status=status,
+            )
+            self.db.add(node)
+        self.db.flush()
+        return node
+
+    def _delete_infra_node(self, name: str) -> None:
+        """Remove the InfrastructureNode that mirrors a simulator."""
+        node = (
+            self.db.query(InfrastructureNode)
+            .filter(InfrastructureNode.node_name == name)
+            .first()
+        )
+        if node:
+            # Delete related metric snapshots first (cascade may handle, but be safe)
+            from app.database.models import MetricSnapshot
+            self.db.query(MetricSnapshot).filter(MetricSnapshot.node_id == node.id).delete()
+            self.db.delete(node)
+            self.db.flush()
+
+    # ── CRUD ──────────────────────────────────────────────────────
+
     def create_simulator(
         self,
         name: str,
@@ -22,17 +83,23 @@ class SimulatorService:
         log_content: str | None,
         interval: int,
     ) -> Simulator:
-        """Create a new simulator instance."""
+        """Create a new simulator instance and its matching infrastructure node."""
         total_lines = len(log_content.strip().split('\n')) if log_content else 0
+        sim_type = SimulatorType(simulator_type)
         sim = Simulator(
             name=name,
-            simulator_type=SimulatorType(simulator_type),
+            simulator_type=sim_type,
             log_file_content=log_content,
             interval_seconds=interval,
             total_lines=total_lines,
             status=SimulatorStatus.STOPPED,
         )
         self.db.add(sim)
+        self.db.flush()
+
+        # Create a matching infrastructure node (offline until started)
+        self._sync_infra_node(name, sim_type, status="offline")
+
         self.db.commit()
         self.db.refresh(sim)
         logger.info(f"Created simulator: {sim.name} with {total_lines} lines")
@@ -68,23 +135,36 @@ class SimulatorService:
         return sim
 
     def delete_simulator(self, simulator_id: int) -> bool:
-        """Delete a simulator."""
+        """Delete a simulator and its matching infrastructure node."""
         sim = self.get_simulator(simulator_id)
         if not sim:
             return False
+        name = sim.name
+        self._delete_infra_node(name)
         self.db.delete(sim)
         self.db.commit()
-        logger.info(f"Deleted simulator: {sim.name}")
+        logger.info(f"Deleted simulator: {name}")
         return True
 
     def set_status(self, simulator_id: int, status: SimulatorStatus) -> Simulator | None:
-        """Set a simulator's status."""
+        """Set a simulator's status and sync the matching infrastructure node."""
         sim = self.get_simulator(simulator_id)
         if not sim:
             return None
         sim.status = status
         if status == SimulatorStatus.STOPPED:
             sim.current_line_index = 0  # Reset position on stop
+
+        # Mirror status to the infrastructure node
+        infra_status_map = {
+            SimulatorStatus.RUNNING: "healthy",
+            SimulatorStatus.PAUSED: "degraded",
+            SimulatorStatus.STOPPED: "offline",
+        }
+        self._sync_infra_node(
+            sim.name, sim.simulator_type, status=infra_status_map.get(status, "offline"),
+        )
+
         self.db.commit()
         self.db.refresh(sim)
         logger.info(f"Simulator {sim.name} status changed to {status.value}")

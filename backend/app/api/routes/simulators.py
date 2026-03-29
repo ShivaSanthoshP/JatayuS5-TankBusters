@@ -67,10 +67,11 @@ async def create_simulator(
     svc = SimulatorService(db)
 
     # Validate simulator type
-    if simulator_type not in ("vm", "db", "metrics"):
+    valid_types = ("vm", "db", "cache", "load_balancer", "queue", "metrics")
+    if simulator_type not in valid_types:
         raise HTTPException(
             status_code=400,
-            detail="Invalid simulator_type. Must be 'vm', 'db', or 'metrics'."
+            detail=f"Invalid simulator_type. Must be one of: {', '.join(valid_types)}"
         )
 
     # Check for duplicate name
