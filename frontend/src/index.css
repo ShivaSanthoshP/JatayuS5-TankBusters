@@ -1,0 +1,244 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #f8fafc;
+  --color-accent: #047857;
+  /* Rich dark green */
+  --color-accent-dim: #064e3b;
+  /* Deeper green */
+  --color-accent-bright: #059669;
+  /* Bright but controlled green */
+}
+
+/* ═══ GLOBAL STYLES & PREMIUM LIGHT GREY THEME ═══ */
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  color: #1c1917;
+  /* Warm dark stone */
+
+  /* Very light premium slate-grey background to provide soft contrast against pure white glass cards */
+  background-color: #f8fafc;
+  background-image: none;
+  background-attachment: fixed;
+}
+
+/* Improve text rendering */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  letter-spacing: -0.025em;
+}
+
+/* ═══ EXPERT FROSTED GREENISH GLASS CORE ═══ */
+.glass {
+  background: rgba(16, 185, 129, 0.04);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 20px;
+  box-shadow:
+    0 8px 32px rgba(16, 185, 129, 0.03),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-sm {
+  background: rgba(16, 185, 129, 0.03);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(16, 185, 129, 0.12);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 16px rgba(16, 185, 129, 0.02),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hover effects for premium glass cards */
+.glass:hover,
+.glass-sm:hover {
+  background: rgba(16, 185, 129, 0.07);
+  box-shadow:
+    0 16px 40px rgba(16, 185, 129, 0.05),
+    inset 0 2px 2px rgba(255, 255, 255, 0.9);
+  border-color: rgba(16, 185, 129, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Glow Utilities */
+.glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.2), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+@keyframes pulse-green {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+}
+
+.pulse-live {
+  animation: pulse-green 2s ease-in-out infinite;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.5);
+}
+
+.bg-grid {
+  /* Removed to maximize gradient visibility */
+  display: none;
+}
+
+/* ═══ PERFECT FROSTED GLASS NAVBAR ═══ */
+.glass-navbar-pill {
+  /* Frosted greenish clear one */
+  background: rgba(16, 185, 129, 0.08);
+  /* Very subtle emerald tint */
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  /* Faint green border */
+  border-radius: 9999px;
+  box-shadow:
+    0 8px 32px rgba(16, 185, 129, 0.05),
+    /* Subtle green glow shadow */
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  /* Crisp glass highlight */
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-navbar-pill:hover {
+  background: rgba(16, 185, 129, 0.12);
+  /* Slightly stronger tint on hover */
+  box-shadow:
+    0 12px 40px rgba(16, 185, 129, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+/* ═══ iOS GLASS NAV TAB ═══ */
+.glass-nav-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 9999px;
+  color: #64748b;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.glass-nav-tab:hover:not(.glass-nav-tab-active) {
+  background: rgba(241, 245, 249, 0.6);
+  color: #334155;
+}
+
+.glass-nav-tab-active {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.glass-nav-tab-indicator {
+  background: #ffffff;
+  border-radius: 9999px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* ═══ iOS GLASS DROPDOWN ═══ */
+.glass-dropdown {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(48px) saturate(250%);
+  -webkit-backdrop-filter: blur(48px) saturate(250%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.15),
+    0 8px 24px rgba(0, 0, 0, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  position: relative;
+}
+
+@property --liquid-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes liquidRotate {
+  0% {
+    --liquid-angle: 0deg;
+  }
+
+  100% {
+    --liquid-angle: 360deg;
+  }
+}
+
+.liquid-glass {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Added subtle gradient border for the iOS pop instead of a harsh generic gradient */
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--liquid-angle),
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(16, 185, 129, 0.6) 20%,
+      rgba(56, 189, 248, 0.5) 40%,
+      rgba(255, 255, 255, 0.1) 60%,
+      rgba(52, 211, 153, 0.6) 80%,
+      rgba(16, 185, 129, 0.2) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: liquidRotate 10s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
