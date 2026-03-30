@@ -30,9 +30,18 @@ Enterprises struggle to manage complex IT infrastructure across multi-cloud envi
   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌─────────────┐    ┌──────────┐
   │ Monitor  │───▶│ Predict  │───▶│ Diagnose │───▶│ Remediate   │───▶│ Report   │
   │  Agent   │    │  Agent   │    │  Agent   │    │   Agent     │    │  Agent   │
-  └──────────┘    └──────────┘    └──────────┘    └─────────────┘    └──────────┘
-   Anomaly         Failure         Root Cause      Shell Scripts      Executive
-   Detection       Forecasting     Analysis        + Rollback         Summaries
+  └──────────┘    └──────────┘    └────┬─────┘    └──────┬──────┘    └────┬─────┘
+   Anomaly         Failure             │                 │                │
+   Detection       Forecasting         │  ┌──────────┐   │                │
+                                       ├─▶│          │◀──┘                │
+                                       │  │ Vector   │                    │
+                                  READ │  │   DB     │ READ               │
+                                       │  │  (RAG)   │                    │
+                                       └─▶│          │◀───────────────────┘
+                                          │ Past     │           WRITE
+                                          │ Incidents│     (stores resolved
+                                          │ Runbooks │       incidents &
+                                          └──────────┘        runbooks)
 ```
 
 Each agent is purpose-built for its domain and communicates findings to the next through a **LangGraph state machine**, enabling fully autonomous incident lifecycle management — from the first anomaly signal to a validated remediation script.
