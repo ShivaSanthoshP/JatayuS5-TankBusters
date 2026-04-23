@@ -1,6 +1,7 @@
 """WebSocket endpoint for real-time metric streaming."""
 
 import asyncio
+import datetime
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -8,6 +9,10 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.database.session import SessionLocal
 from app.database.models import SimulatorStatus
 from app.services.simulator_service import SimulatorService
+
+
+def _now_iso() -> str:
+    return datetime.datetime.utcnow().isoformat() + "Z"
 
 logger = logging.getLogger("itops.ws")
 
@@ -139,7 +144,7 @@ async def websocket_simulator_logs(websocket: WebSocket, simulator_id: int):
                         "line": lines[i],
                         "line_number": i + 1,
                         "total_lines": sim.total_lines,
-                        "timestamp": asyncio.get_event_loop().time(),
+                        "timestamp": _now_iso(),
                     })
                 last_sent_index = current_idx
 
@@ -160,7 +165,7 @@ async def websocket_simulator_logs(websocket: WebSocket, simulator_id: int):
                 await websocket.send_json({
                     "type": "metric_event",
                     "metrics": _apply_variance(sim.metrics_config),
-                    "timestamp": asyncio.get_event_loop().time(),
+                    "timestamp": _now_iso(),
                 })
 
             await asyncio.sleep(1)

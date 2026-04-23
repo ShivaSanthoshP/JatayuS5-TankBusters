@@ -376,7 +376,7 @@ async def background_monitoring_loop():
                     await ws_manager.broadcast({
                         "type": "metric_batch",
                         "data": ws_payload,
-                        "timestamp": asyncio.get_event_loop().time(),
+                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
                     })
 
             except Exception as e:

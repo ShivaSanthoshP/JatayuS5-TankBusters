@@ -256,7 +256,7 @@ export interface SimulatorLogEvent {
   total_lines?: number;
   status?: string;
   message?: string;
-  timestamp?: number;
+  timestamp?: string;
   current_line?: number;
   metrics?: SimulatorMetrics;
 }
