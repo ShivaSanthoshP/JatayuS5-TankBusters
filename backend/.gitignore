@@ -2,7 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .env
-itops.db
+itops.db*
 chroma_db/
 *.egg-info/
 dist/
