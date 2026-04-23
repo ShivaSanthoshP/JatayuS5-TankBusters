@@ -22,6 +22,7 @@ from app.agents.predictive import predict_failure
 from app.agents.diagnostic import diagnose
 from app.agents.remediation import generate_remediation
 from app.agents.reporting import generate_report
+from app.config import utc_now
 
 logger = logging.getLogger("itops.orchestrator")
 
@@ -72,7 +73,7 @@ async def _emit_progress(
         "agent": agent,
         "phase": phase,
         "message": message,
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": utc_now().isoformat(),
         **details,
     }
 
@@ -89,7 +90,7 @@ async def _emit_progress(
 async def monitoring_node(state: OrchestratorState) -> dict:
     """Run the Monitoring Agent to detect anomalies."""
     logger.info("Orchestrator: Running Monitoring Agent")
-    started = datetime.datetime.utcnow()
+    started = utc_now()
     await _emit_progress(state, "monitoring", "started", "Monitoring agent started")
 
     result = await analyze_metrics(
@@ -100,7 +101,7 @@ async def monitoring_node(state: OrchestratorState) -> dict:
     trace_entry = {
         "agent": "monitoring",
         "started_at": started.isoformat(),
-        "completed_at": datetime.datetime.utcnow().isoformat(),
+        "completed_at": utc_now().isoformat(),
         "is_anomaly": result.get("is_anomaly", False),
     }
 
@@ -126,7 +127,7 @@ async def monitoring_node(state: OrchestratorState) -> dict:
 async def predictive_node(state: OrchestratorState) -> dict:
     """Run the Predictive Agent to forecast failure trajectory."""
     logger.info("Orchestrator: Running Predictive Agent")
-    started = datetime.datetime.utcnow()
+    started = utc_now()
     await _emit_progress(state, "predictive", "started", "Predictive agent started")
 
     result = await predict_failure(
@@ -139,7 +140,7 @@ async def predictive_node(state: OrchestratorState) -> dict:
     trace_entry = {
         "agent": "predictive",
         "started_at": started.isoformat(),
-        "completed_at": datetime.datetime.utcnow().isoformat(),
+        "completed_at": utc_now().isoformat(),
         "failure_probability": result.get("failure_probability", 0),
     }
 
@@ -169,7 +170,7 @@ async def predictive_node(state: OrchestratorState) -> dict:
 async def diagnostic_node(state: OrchestratorState) -> dict:
     """Run the Diagnostic Agent for root cause analysis."""
     logger.info("Orchestrator: Running Diagnostic Agent")
-    started = datetime.datetime.utcnow()
+    started = utc_now()
     await _emit_progress(state, "diagnostic", "started", "Diagnostic agent started")
 
     result = await diagnose(
@@ -182,7 +183,7 @@ async def diagnostic_node(state: OrchestratorState) -> dict:
     trace_entry = {
         "agent": "diagnostic",
         "started_at": started.isoformat(),
-        "completed_at": datetime.datetime.utcnow().isoformat(),
+        "completed_at": utc_now().isoformat(),
         "root_cause": result.get("root_cause", "unknown"),
         "confidence": result.get("confidence", 0),
     }
@@ -207,7 +208,7 @@ async def diagnostic_node(state: OrchestratorState) -> dict:
 async def remediation_node(state: OrchestratorState) -> dict:
     """Run the Remediation Agent to generate fix plan."""
     logger.info("Orchestrator: Running Remediation Agent")
-    started = datetime.datetime.utcnow()
+    started = utc_now()
     await _emit_progress(state, "remediation", "started", "Remediation agent started")
 
     result = await generate_remediation(
@@ -219,7 +220,7 @@ async def remediation_node(state: OrchestratorState) -> dict:
     trace_entry = {
         "agent": "remediation",
         "started_at": started.isoformat(),
-        "completed_at": datetime.datetime.utcnow().isoformat(),
+        "completed_at": utc_now().isoformat(),
         "steps_count": len(result.get("steps", [])),
         "canary_compatible": result.get("canary_compatible", False),
     }
@@ -244,7 +245,7 @@ async def remediation_node(state: OrchestratorState) -> dict:
 async def reporting_node(state: OrchestratorState) -> dict:
     """Run the Reporting Agent to generate incident report + runbook."""
     logger.info("Orchestrator: Running Reporting Agent")
-    started = datetime.datetime.utcnow()
+    started = utc_now()
     await _emit_progress(state, "reporting", "started", "Reporting agent started")
 
     result = await generate_report(
@@ -260,7 +261,7 @@ async def reporting_node(state: OrchestratorState) -> dict:
     trace_entry = {
         "agent": "reporting",
         "started_at": started.isoformat(),
-        "completed_at": datetime.datetime.utcnow().isoformat(),
+        "completed_at": utc_now().isoformat(),
     }
 
     trace = state.get("agent_trace", [])
@@ -270,7 +271,7 @@ async def reporting_node(state: OrchestratorState) -> dict:
     return {
         "reporting_result": result,
         "status": "resolved",
-        "completed_at": datetime.datetime.utcnow().isoformat(),
+        "completed_at": utc_now().isoformat(),
         "agent_trace": trace,
     }
 
@@ -366,7 +367,7 @@ async def run_pipeline(
         "incident_id": None,
         "status": "starting",
         "error": None,
-        "started_at": datetime.datetime.utcnow().isoformat(),
+        "started_at": utc_now().isoformat(),
         "completed_at": None,
         "agent_trace": [],
         "monitoring_result": {},

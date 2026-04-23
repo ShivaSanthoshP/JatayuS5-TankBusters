@@ -25,7 +25,7 @@ from app.agents.orchestrator import run_pipeline
 from app.agents.monitoring import preliminary_monitoring_check
 from app.data_sources.simulator import SimulatorDataSource
 from app.data_sources.base import MetricEvent, LogEvent, registry
-from app.config import SIMULATOR_INTERVAL_SECONDS
+from app.config import SIMULATOR_INTERVAL_SECONDS, utc_now
 
 logging.basicConfig(
     level=logging.INFO,
@@ -109,7 +109,7 @@ def _simulator_log_event(simulator_name: str, line: str) -> LogEvent:
 
     return LogEvent(
         node_name=simulator_name,
-        timestamp=datetime.datetime.utcnow(),
+        timestamp=utc_now(),
         level=level,
         source=source,
         message=line,
@@ -364,7 +364,7 @@ async def background_monitoring_loop():
                     await ws_manager.broadcast({
                         "type": "metric_batch",
                         "data": ws_payload,
-                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                        "timestamp": utc_now().isoformat() + "Z",
                     })
 
             except Exception as e:
@@ -384,7 +384,6 @@ async def background_simulator_advancement():
     Advance log lines for all running simulators at their configured intervals.
     Runs every second and advances any simulator whose interval has elapsed.
     """
-    import datetime as dt
     from app.database.models import Simulator as SimModel, SimulatorStatus as SimStatus, SimulatorType as SimType
     from app.services.simulator_service import SimulatorService
 
@@ -393,7 +392,7 @@ async def background_simulator_advancement():
         await asyncio.sleep(1)
         db = SessionLocal()
         try:
-            now = dt.datetime.utcnow()
+            now = utc_now()
             # Only advance log-playback simulators (not fleet metrics sims)
             running = (
                 db.query(SimModel)

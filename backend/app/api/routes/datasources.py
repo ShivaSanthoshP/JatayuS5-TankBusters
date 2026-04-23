@@ -1,6 +1,5 @@
 """Data source configuration & metric ingestion API routes."""
 
-import datetime
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -10,6 +9,7 @@ from app.database.session import get_db
 from app.data_sources.base import registry
 from app.services.infra_service import InfraService
 from app.data_sources.base import MetricEvent
+from app.config import utc_now
 
 logger = logging.getLogger("itops.api.datasources")
 
@@ -52,7 +52,7 @@ _configured_sources: list[dict] = [
         "enabled": True,
         "status": "connected",
         "config": {},
-        "created_at": datetime.datetime.utcnow().isoformat(),
+        "created_at": utc_now().isoformat(),
     }
 ]
 
@@ -187,7 +187,7 @@ def configure_datasource(body: DataSourceConfig):
         "enabled": body.enabled,
         "status": "configured",
         "config": body.config,
-        "created_at": datetime.datetime.utcnow().isoformat(),
+        "created_at": utc_now().isoformat(),
     }
     _configured_sources.append(new_source)
     return {"message": f"Configured {body.provider}", "source": _public_source(new_source)}

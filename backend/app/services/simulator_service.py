@@ -119,7 +119,7 @@ class SimulatorService:
 
     def get_simulator(self, simulator_id: int) -> Simulator | None:
         """Get a simulator by ID."""
-        return self.db.query(Simulator).get(simulator_id)
+        return self.db.get(Simulator, simulator_id)
 
     def get_simulator_by_name(self, name: str) -> Simulator | None:
         """Get a simulator by name."""

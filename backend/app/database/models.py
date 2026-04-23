@@ -5,6 +5,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, declarative_base
 
+from app.config import utc_now
+
 Base = declarative_base()
 
 
@@ -65,8 +67,8 @@ class InfrastructureNode(Base):
     status = Column(String(20), default="healthy")  # healthy, degraded, critical, offline
     ip_address = Column(String(45))
     metadata_ = Column("metadata", JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     metrics = relationship("MetricSnapshot", back_populates="node", cascade="all, delete-orphan")
     incidents = relationship("Incident", back_populates="node", cascade="all, delete-orphan")
@@ -80,7 +82,7 @@ class MetricSnapshot(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_id = Column(Integer, ForeignKey("infrastructure_nodes.id"), nullable=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=utc_now, index=True)
     cpu_percent = Column(Float)
     memory_percent = Column(Float)
     disk_percent = Column(Float)
@@ -122,14 +124,14 @@ class Incident(Base):
     description = Column(Text)
     severity = Column(Enum(Severity), default=Severity.MEDIUM)
     status = Column(Enum(IncidentStatus), default=IncidentStatus.DETECTED)
-    detected_at = Column(DateTime, default=datetime.datetime.utcnow)
+    detected_at = Column(DateTime, default=utc_now)
     resolved_at = Column(DateTime, nullable=True)
     root_cause = Column(Text, nullable=True)
     prediction_details = Column(JSON, default=dict)
     diagnostic_details = Column(JSON, default=dict)
     metric_snapshot_id = Column(Integer, ForeignKey("metric_snapshots.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     node = relationship("InfrastructureNode", back_populates="incidents")
     metric_snapshot = relationship("MetricSnapshot")
@@ -156,7 +158,7 @@ class Remediation(Base):
     execution_log = Column(Text, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     incident = relationship("Incident", back_populates="remediations")
 
@@ -174,7 +176,7 @@ class AgentLog(Base):
     input_data = Column(JSON, default=dict)
     output_data = Column(JSON, default=dict)
     duration_ms = Column(Integer, nullable=True)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime, default=utc_now)
 
     incident = relationship("Incident", back_populates="agent_logs")
 
@@ -189,8 +191,8 @@ class RunbookEntry(Base):
     source_incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True)
     effectiveness_score = Column(Float, default=0.0)
     times_used = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 class LogEntry(Base):
@@ -199,7 +201,7 @@ class LogEntry(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_id = Column(Integer, ForeignKey("infrastructure_nodes.id"), nullable=False)
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=utc_now, index=True)
     level = Column(String(20), nullable=False)  # INFO, WARN, ERROR, CRITICAL
     source = Column(String(100), nullable=False)  # e.g. nginx, kernel, app, systemd
     message = Column(Text, nullable=False)
@@ -227,8 +229,8 @@ class Simulator(Base):
     # Performance metrics simulation
     metrics_enabled = Column(Boolean, default=False)
     metrics_config = Column(JSON, default=dict)   # {cpu_percent: 65, memory_percent: 70, ...}
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
     def __repr__(self):
         return f"<Simulator {self.name} ({self.simulator_type.value}) - {self.status.value}>"

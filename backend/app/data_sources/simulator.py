@@ -20,6 +20,7 @@ from app.config import (
     ANOMALY_PROBABILITY,
 )
 from app.data_sources.base import DataSource, MetricEvent, LogEvent
+from app.config import utc_now
 
 # ── Fleet definition ────────────────────────────────────────────────
 # Realistic production infrastructure fleet.  Server count scales with
@@ -318,7 +319,7 @@ class SimulatorDataSource(DataSource):
 
     def generate_logs_for_event(self, event: MetricEvent) -> list[LogEvent]:
         """Generate realistic log lines correlated with a node's current state."""
-        now = datetime.datetime.utcnow()
+        now = utc_now()
         logs: list[LogEvent] = []
         anomaly_name = event.metadata.get("anomaly_scenario")
 

@@ -12,6 +12,8 @@ import datetime
 import logging
 import random
 
+from app.config import utc_now
+
 logger = logging.getLogger("itops.remediation")
 
 
@@ -49,7 +51,7 @@ class RemediationExecutor:
                 "order": step.get("order", 0),
                 "action": step.get("action", "unknown"),
                 "action_type": step.get("action_type", "unknown"),
-                "started_at": datetime.datetime.utcnow().isoformat(),
+                "started_at": utc_now().isoformat(),
             }
 
             if canary_compatible:
@@ -84,7 +86,7 @@ class RemediationExecutor:
                 await asyncio.sleep(min(step.get("estimated_duration_seconds", 5), 3))
                 step_log["status"] = "completed"
 
-            step_log["completed_at"] = datetime.datetime.utcnow().isoformat()
+            step_log["completed_at"] = utc_now().isoformat()
             execution_log.append(step_log)
 
             if not success:
@@ -95,7 +97,7 @@ class RemediationExecutor:
             "execution_log": execution_log,
             "total_steps": len(steps),
             "completed_steps": sum(1 for s in execution_log if s.get("status") == "completed"),
-            "completed_at": datetime.datetime.utcnow().isoformat(),
+            "completed_at": utc_now().isoformat(),
         }
 
     async def execute_rollback(self, remediation_plan: dict) -> dict:
@@ -112,13 +114,13 @@ class RemediationExecutor:
                     "order": step.get("order"),
                     "action": f"Rollback: {step.get('action')}",
                     "status": "completed",
-                    "timestamp": datetime.datetime.utcnow().isoformat(),
+                    "timestamp": utc_now().isoformat(),
                 })
 
         return {
             "success": True,
             "rollback_log": rollback_log,
-            "completed_at": datetime.datetime.utcnow().isoformat(),
+            "completed_at": utc_now().isoformat(),
         }
 
 

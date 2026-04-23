@@ -11,6 +11,7 @@ from app.database.models import (
     IncidentStatus, RemediationStatus, LogEntry,
 )
 from app.data_sources.base import MetricEvent, LogEvent
+from app.config import utc_now
 
 logger = logging.getLogger("itops.infra_service")
 
@@ -65,14 +66,14 @@ class InfraService:
     def update_node_status(self, node: InfrastructureNode, status: str) -> None:
         """Update node health status."""
         node.status = status
-        node.updated_at = datetime.datetime.utcnow()
+        node.updated_at = utc_now()
         self.db.flush()
 
     def get_all_nodes(self) -> list[InfrastructureNode]:
         return self.db.query(InfrastructureNode).order_by(InfrastructureNode.node_name).all()
 
     def get_node(self, node_id: int) -> InfrastructureNode | None:
-        return self.db.query(InfrastructureNode).get(node_id)
+        return self.db.get(InfrastructureNode, node_id)
 
     def get_node_by_name(self, name: str) -> InfrastructureNode | None:
         return (

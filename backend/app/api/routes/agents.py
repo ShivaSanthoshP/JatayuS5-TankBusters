@@ -20,6 +20,7 @@ from app.services.incident_service import IncidentService
 from app.data_sources.simulator import SimulatorDataSource
 from app.data_sources.base import MetricEvent
 from app.database.models import RunbookEntry
+from app.config import utc_now
 
 logger = logging.getLogger("itops.api.agents")
 
@@ -197,7 +198,7 @@ async def _run_pipeline_job(run_id: str, metrics: dict, metric_history: str, log
             run["status"] = "failed"
 
     run["result"] = _build_pipeline_result(state, incident_id)
-    run["completed_at"] = state.get("completed_at") or datetime.datetime.utcnow().isoformat()
+    run["completed_at"] = state.get("completed_at") or utc_now().isoformat()
     run["current_agent"] = None
     run["current_phase"] = None
     if run.get("status") != "failed":
@@ -222,7 +223,7 @@ async def start_pipeline_run(body: PipelineRunRequest, db: Session = Depends(get
         "progress_events": [],
         "result": None,
         "error": None,
-        "started_at": datetime.datetime.utcnow().isoformat(),
+        "started_at": utc_now().isoformat(),
         "completed_at": None,
     }
     asyncio.create_task(_run_pipeline_job(run_id, metrics, metric_history, log_history))

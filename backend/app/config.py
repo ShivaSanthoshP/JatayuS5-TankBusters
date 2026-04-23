@@ -1,8 +1,14 @@
+import datetime as _dt
 import os
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def utc_now() -> _dt.datetime:
+    """Naive UTC datetime, without the 3.12+ deprecation warning on utcnow()."""
+    return _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 

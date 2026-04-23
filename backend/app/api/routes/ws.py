@@ -1,7 +1,6 @@
 """WebSocket endpoint for real-time metric streaming."""
 
 import asyncio
-import datetime
 import logging
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -9,10 +8,11 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.database.session import SessionLocal
 from app.database.models import SimulatorStatus
 from app.services.simulator_service import SimulatorService, apply_metric_variance
+from app.config import utc_now
 
 
 def _now_iso() -> str:
-    return datetime.datetime.utcnow().isoformat() + "Z"
+    return utc_now().isoformat() + "Z"
 
 logger = logging.getLogger("itops.ws")
 

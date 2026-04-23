@@ -17,6 +17,7 @@ from app.remediation.artifacts import (
     primary_rollback_script,
     serialize_remediation_payload,
 )
+from app.config import utc_now
 logger = logging.getLogger("itops.incident_service")
 
 RECENT_DUPLICATE_WINDOW = datetime.timedelta(minutes=15)
@@ -174,7 +175,7 @@ class IncidentService:
                 existing_remediation.status = RemediationStatus.COMPLETED
                 existing_remediation.requires_approval = False
                 existing_remediation.rollback_script = primary_rollback_script(remediation_data)
-                existing_remediation.completed_at = datetime.datetime.utcnow()
+                existing_remediation.completed_at = utc_now()
             else:
                 rem = Remediation(
                     incident_id=incident.id,
@@ -184,7 +185,7 @@ class IncidentService:
                     status=RemediationStatus.COMPLETED,
                     requires_approval=False,
                     rollback_script=primary_rollback_script(remediation_data),
-                    completed_at=datetime.datetime.utcnow(),
+                    completed_at=utc_now(),
                 )
                 self.db.add(rem)
 
@@ -283,7 +284,7 @@ class IncidentService:
         return self._collapse_recent_duplicates(incidents, limit)
 
     def get_incident(self, incident_id: int) -> Incident | None:
-        return self.db.query(Incident).get(incident_id)
+        return self.db.get(Incident, incident_id)
 
     def get_incident_agent_logs(self, incident_id: int) -> list[AgentLog]:
         return (
@@ -311,7 +312,7 @@ class IncidentService:
         root_cause: str | None,
         issue_type: str | None,
     ) -> Incident | None:
-        cutoff = datetime.datetime.utcnow() - RECENT_DUPLICATE_WINDOW
+        cutoff = utc_now() - RECENT_DUPLICATE_WINDOW
         candidates = (
             self.db.query(Incident)
             .filter(
