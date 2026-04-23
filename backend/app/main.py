@@ -10,6 +10,7 @@ remediation with human-in-the-loop approval.
 import asyncio
 import datetime
 import logging
+import os
 import re
 import time
 from contextlib import asynccontextmanager
@@ -38,8 +39,45 @@ _monitoring_task: asyncio.Task | None = None
 _simulator_task: asyncio.Task | None = None
 _auto_pipeline_task: asyncio.Task | None = None
 _last_pipeline_dispatch: dict[tuple[int, str], float] = {}
+# Live tasks spawned via asyncio.create_task — we keep strong refs so the
+# event loop doesn't GC them mid-flight, and drop each when it's done.
+_inflight_pipeline_tasks: set[asyncio.Task] = set()
 
 PIPELINE_REPEAT_COOLDOWN_SECONDS = 300
+# Idle dispatch keys older than this get evicted so the dict can't grow forever.
+PIPELINE_DISPATCH_TTL_SECONDS = 3600
+# Max concurrent pipeline runs spawned from the monitoring / auto-run loops.
+# Protects the event loop and the SQLite writer during anomaly storms.
+PIPELINE_MAX_CONCURRENT = int(os.getenv("PIPELINE_MAX_CONCURRENT", "4"))
+_pipeline_spawn_semaphore: asyncio.Semaphore | None = None
+
+
+def _get_pipeline_semaphore() -> asyncio.Semaphore:
+    """Lazy init — asyncio primitives must bind to a running loop."""
+    global _pipeline_spawn_semaphore
+    if _pipeline_spawn_semaphore is None:
+        _pipeline_spawn_semaphore = asyncio.Semaphore(PIPELINE_MAX_CONCURRENT)
+    return _pipeline_spawn_semaphore
+
+
+def _prune_dispatch_history(now_monotonic: float) -> None:
+    """Drop dispatch keys older than the TTL so the dict stays bounded."""
+    cutoff = now_monotonic - PIPELINE_DISPATCH_TTL_SECONDS
+    stale = [key for key, ts in _last_pipeline_dispatch.items() if ts < cutoff]
+    for key in stale:
+        _last_pipeline_dispatch.pop(key, None)
+
+
+def _spawn_pipeline(coro) -> asyncio.Task:
+    """Spawn a pipeline coroutine with a concurrency cap and a live-tasks set."""
+    async def _bounded():
+        async with _get_pipeline_semaphore():
+            await coro
+
+    task = asyncio.create_task(_bounded())
+    _inflight_pipeline_tasks.add(task)
+    task.add_done_callback(_inflight_pipeline_tasks.discard)
+    return task
 
 SIMULATOR_LOG_LEVEL_PATTERNS = (
     ("CRITICAL", re.compile(r"\b(CRITICAL|FATAL|PANIC)\b", re.IGNORECASE)),
@@ -160,6 +198,7 @@ def _should_dispatch_pipeline(
     normalized_type = anomaly_type or "unknown"
     key = (node_id, normalized_type)
     now = time.monotonic()
+    _prune_dispatch_history(now)
 
     if not previous_is_anomaly or previous_anomaly_type != normalized_type:
         _last_pipeline_dispatch[key] = now
@@ -178,6 +217,7 @@ def _cooldown_allows_dispatch(node_id: int, anomaly_type: str | None) -> bool:
     normalized_type = anomaly_type or "unknown"
     key = (node_id, normalized_type)
     now = time.monotonic()
+    _prune_dispatch_history(now)
     last_dispatched = _last_pipeline_dispatch.get(key)
     if last_dispatched is None or (now - last_dispatched) >= PIPELINE_REPEAT_COOLDOWN_SECONDS:
         _last_pipeline_dispatch[key] = now
@@ -258,8 +298,10 @@ async def _process_event(
         ):
             logger.info(f"Anomaly on {event.node_name} ({max_sev}) — running pipeline")
             # Fire pipeline as a background task so the monitoring loop
-            # is never blocked by slow analysis.
-            asyncio.create_task(
+            # is never blocked by slow analysis. Concurrency-capped by
+            # PIPELINE_MAX_CONCURRENT so a fleet-wide anomaly storm can't
+            # spawn unbounded tasks.
+            _spawn_pipeline(
                 _run_pipeline_background(node.id, event.node_name, full_metrics, metric_history, log_history)
             )
         else:
@@ -508,7 +550,7 @@ async def auto_run_pipeline_loop():
                         continue
                     if not _cooldown_allows_dispatch(node.id, latest_anomaly.get("anomaly_type")):
                         continue
-                    asyncio.create_task(
+                    _spawn_pipeline(
                         _run_pipeline_background(node.id, node.node_name, full_metrics, metric_history, log_history)
                     )
                     dispatched += 1

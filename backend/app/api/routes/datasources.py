@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Data source configuration & metric ingestion API routes."""
 
 import logging

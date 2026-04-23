@@ -25,7 +25,20 @@ from app.config import utc_now
 logger = logging.getLogger("itops.api.agents")
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
+
+# Insertion-ordered. Evicts the oldest entry once we exceed MAX_PIPELINE_RUNS
+# so a client spamming /pipeline/start can't exhaust memory with retained
+# progress-event histories.
 _pipeline_runs: dict[str, dict] = {}
+MAX_PIPELINE_RUNS = 100
+
+
+def _register_pipeline_run(run_id: str, record: dict) -> None:
+    _pipeline_runs[run_id] = record
+    while len(_pipeline_runs) > MAX_PIPELINE_RUNS:
+        # Python dicts preserve insertion order; pop the oldest.
+        oldest = next(iter(_pipeline_runs))
+        _pipeline_runs.pop(oldest, None)
 
 
 def _persist_pipeline_incident(metrics: dict, state: dict) -> int | None:
@@ -214,7 +227,7 @@ async def start_pipeline_run(body: PipelineRunRequest, db: Session = Depends(get
     """Start a pipeline run in the background and return a run id for polling."""
     metrics, metric_history, log_history = _resolve_pipeline_context(body, db)
     run_id = uuid.uuid4().hex
-    _pipeline_runs[run_id] = {
+    _register_pipeline_run(run_id, {
         "run_id": run_id,
         "status": "queued",
         "node_name": metrics.get("node_name", "custom"),
@@ -225,7 +238,7 @@ async def start_pipeline_run(body: PipelineRunRequest, db: Session = Depends(get
         "error": None,
         "started_at": utc_now().isoformat(),
         "completed_at": None,
-    }
+    })
     asyncio.create_task(_run_pipeline_job(run_id, metrics, metric_history, log_history))
     return {"run_id": run_id, "status": "queued"}
 
