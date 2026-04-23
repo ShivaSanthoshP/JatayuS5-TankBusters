@@ -656,4 +656,66 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    """Liveness + dependency check.
+
+    Returns 200 with per-component status when everything is healthy,
+    503 when any critical component is down. Suitable for use as a
+    readiness probe.
+    """
+    from fastapi.responses import JSONResponse
+    from sqlalchemy import text
+
+    components: dict[str, dict] = {}
+    overall_ok = True
+
+    # DB
+    try:
+        db = SessionLocal()
+        try:
+            db.execute(text("SELECT 1"))
+            components["database"] = {"ok": True}
+        finally:
+            db.close()
+    except Exception as e:
+        components["database"] = {"ok": False, "error": str(e)[:200]}
+        overall_ok = False
+
+    # Vector store — only check that the singleton loads; embedding server is optional.
+    try:
+        from app.memory.vector_store import get_memory
+        mem = get_memory()
+        components["vector_store"] = {
+            "ok": True,
+            "incidents": mem.incident_count,
+            "runbooks": mem.runbook_count,
+        }
+    except Exception as e:
+        components["vector_store"] = {"ok": False, "error": str(e)[:200]}
+        overall_ok = False
+
+    # Background tasks
+    task_states = {
+        "monitoring": _monitoring_task,
+        "simulator_advancement": _simulator_task,
+        "auto_pipeline": _auto_pipeline_task,
+    }
+    for name, task in task_states.items():
+        if task is None:
+            components[name] = {"ok": False, "error": "not started"}
+            overall_ok = False
+        elif task.done():
+            exc = task.exception() if not task.cancelled() else None
+            components[name] = {
+                "ok": False,
+                "error": f"exited: {exc!r}" if exc else "exited cleanly (unexpected)",
+            }
+            overall_ok = False
+        else:
+            components[name] = {"ok": True}
+
+    payload = {
+        "status": "healthy" if overall_ok else "degraded",
+        "components": components,
+        "inflight_pipelines": len(_inflight_pipeline_tasks),
+    }
+    return JSONResponse(payload, status_code=200 if overall_ok else 503)
