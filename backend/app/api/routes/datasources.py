@@ -56,12 +56,40 @@ _configured_sources: list[dict] = [
     }
 ]
 
+# Keys that must never be echoed back to any caller. Values are replaced
+# with a fixed placeholder in all GET responses and in the echo payload of
+# POST /configure. Anything not listed here (regions, URLs, project IDs)
+# is returned as-is because the UI needs it for display.
+_SENSITIVE_CONFIG_KEYS: dict[str, set[str]] = {
+    "aws": {"aws_access_key_id", "aws_secret_access_key"},
+    "azure": {"client_secret"},
+    "gcp": {"credentials_json"},
+    "prometheus": {"auth_token"},
+}
+_REDACTED = "***"
+
+
+def _redact_config(provider: str, config: dict | None) -> dict:
+    """Return a copy of the config with sensitive values replaced."""
+    if not config:
+        return {}
+    sensitive = _SENSITIVE_CONFIG_KEYS.get(provider, set())
+    return {k: (_REDACTED if k in sensitive and v else v) for k, v in config.items()}
+
+
+def _public_source(source: dict) -> dict:
+    """Return a copy of a configured-source record safe to return over HTTP."""
+    return {
+        **source,
+        "config": _redact_config(source.get("provider", ""), source.get("config")),
+    }
+
 
 @router.get("/")
 def list_datasources():
     """List all configured data sources."""
     return {
-        "sources": _configured_sources,
+        "sources": [_public_source(s) for s in _configured_sources],
         "available_providers": [
             {
                 "id": "simulated",
@@ -150,7 +178,7 @@ def configure_datasource(body: DataSourceConfig):
         existing["enabled"] = body.enabled
         existing["config"] = body.config
         existing["status"] = "configured"
-        return {"message": f"Updated {body.provider}", "source": existing}
+        return {"message": f"Updated {body.provider}", "source": _public_source(existing)}
 
     new_source = {
         "id": f"{body.provider}-{len(_configured_sources)}",
@@ -162,7 +190,7 @@ def configure_datasource(body: DataSourceConfig):
         "created_at": datetime.datetime.utcnow().isoformat(),
     }
     _configured_sources.append(new_source)
-    return {"message": f"Configured {body.provider}", "source": new_source}
+    return {"message": f"Configured {body.provider}", "source": _public_source(new_source)}
 
 
 @router.post("/test")
