@@ -1,10 +1,12 @@
-import { Outlet } from 'react-router-dom';
-
+import { useEffect, useState, useRef } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Bot, AlertTriangle, Server, Database, BookOpen, Cpu, Play, Settings,
 } from 'lucide-react';
 import GlassNavbar from './common/GlassNavbar';
 import GlassTab from './common/GlassTab';
+import PageTransition from './common/PageTransition';
 import ParticleBackground from './ui/ParticleBackground';
 
 const NAV = [
@@ -20,27 +22,60 @@ const NAV = [
 ];
 
 export default function Layout() {
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const [condense, setCondense] = useState(0);
+
+  // Drive the navbar shrink based on scroll within the main pane.
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const c = Math.min(1, main.scrollTop / 80);
+        setCondense(c);
+      });
+    };
+    main.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      main.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  // Reset scroll on route change
+  useEffect(() => {
+    if (mainRef.current) mainRef.current.scrollTop = 0;
+  }, [location.pathname]);
+
   return (
     <div className="h-screen flex flex-col overflow-hidden relative">
       <ParticleBackground />
-      {/* ── Floating Liquid Glass Navbar ── */}
-      <GlassNavbar className="liquid-glass">
+
+      <GlassNavbar condense={condense} className="liquid-glass">
         {/* Left Branding */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-700/30">
-            <Server size={20} className="text-white" />
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center gpu"
+            style={{
+              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dim) 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 6px 16px -6px var(--color-accent-glow)',
+            }}
+          >
+            <Server size={17} className="text-[var(--color-surface)]" />
           </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-[15px] tracking-wide text-slate-900 leading-tight">
-              IT<span className="text-emerald-700">Ops</span>
+          <div className="flex flex-col leading-tight">
+            <span className="font-display text-[19px] text-[var(--color-ink)] leading-none">
+              IT<span className="text-[var(--color-accent)] italic">ops</span>
             </span>
-            <span className="text-[11px] font-semibold text-emerald-800/80 uppercase tracking-wider">
-              Orchestrator
+            <span className="label-eyebrow !text-[9px] mt-1 leading-none">
+              Mission Control
             </span>
           </div>
         </div>
 
-        {/* Center: Glass Navigation Tabs */}
         <nav className="hidden lg:flex items-center gap-1 mx-auto">
           {NAV.map((item) => (
             <GlassTab
@@ -48,21 +83,20 @@ export default function Layout() {
               to={item.to}
               icon={item.icon}
               label={item.label}
-              hideIcon={false}
             />
           ))}
         </nav>
 
-        {/* Right Status (Removed System Live indicator per request) */}
-        <div className="ml-auto flex items-center gap-3 shrink-0">
-          {/* Future actions/profile can go here */}
-        </div>
+        <div className="ml-auto flex items-center gap-3 shrink-0" />
       </GlassNavbar>
 
-      {/* ── Main Scrollable Content Area ── */}
-      <main className="flex-1 overflow-y-auto pt-[110px] w-full">
+      <main ref={mainRef} className="flex-1 overflow-y-auto pt-[100px] w-full">
         <div className="max-w-[1600px] mx-auto w-full px-8 pb-16">
-          <Outlet />
+          <AnimatePresence mode="wait">
+            <PageTransition routeKey={location.pathname}>
+              <Outlet />
+            </PageTransition>
+          </AnimatePresence>
         </div>
       </main>
     </div>

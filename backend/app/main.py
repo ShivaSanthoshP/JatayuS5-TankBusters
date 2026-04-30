@@ -8,7 +8,6 @@ remediation with human-in-the-loop approval.
 """
 
 import asyncio
-import datetime
 import logging
 import os
 import re
@@ -26,7 +25,7 @@ from app.agents.orchestrator import run_pipeline
 from app.agents.monitoring import preliminary_monitoring_check
 from app.data_sources.simulator import SimulatorDataSource
 from app.data_sources.base import MetricEvent, LogEvent, registry
-from app.config import SIMULATOR_INTERVAL_SECONDS, utc_now
+from app.config import utc_now
 
 logging.basicConfig(
     level=logging.INFO,

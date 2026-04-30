@@ -7,7 +7,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
-from app.data_sources.base import registry
 from app.services.infra_service import InfraService
 from app.data_sources.base import MetricEvent
 from app.config import utc_now

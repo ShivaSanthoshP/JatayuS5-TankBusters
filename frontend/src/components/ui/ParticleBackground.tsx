@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 
-// Delicate frosted greenish tones (no dark green) to perfectly match the UI
+// Whisper-quiet warm dust — ivory & teal flecks on cream
 const COLORS = [
-    'rgba(16, 185, 129, 0.25)', // Faint Emerald
-    'rgba(52, 211, 153, 0.35)', // Light Mint
-    'rgba(110, 231, 183, 0.45)', // Very Light Mint
+    'rgba(36, 71, 69, 0.10)',    // Faint Teal
+    'rgba(192, 138, 62, 0.10)',  // Faint Amber
+    'rgba(21, 25, 26, 0.06)',    // Faint Ink
+    'rgba(255, 253, 247, 0.50)', // Ivory Highlight
 ];
 
 class Particle {
@@ -99,8 +100,8 @@ export default function ParticleBackground() {
 
         const initParticles = () => {
             particles = [];
-            // Calculate particle density for a massive field of interactive dots
-            const count = Math.floor((window.innerWidth * window.innerHeight) / 1200);
+            // Sparse, contemplative density — the canvas should breathe
+            const count = Math.floor((window.innerWidth * window.innerHeight) / 4200);
             for (let i = 0; i < count; i++) {
                 particles.push(new Particle(window.innerWidth, window.innerHeight));
             }

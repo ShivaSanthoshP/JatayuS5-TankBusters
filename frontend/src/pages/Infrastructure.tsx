@@ -41,7 +41,7 @@ export default function Infrastructure() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Infrastructure</h1>
+          <h1 className="font-display text-[28px] leading-tight text-[var(--color-ink)]">Infrastructure</h1>
           <p className="text-sm text-slate-500 mt-1">Monitored nodes and their metric histories</p>
         </div>
         {/* Filter pills */}

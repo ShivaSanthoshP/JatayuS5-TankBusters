@@ -1,25 +1,88 @@
-import { motion } from 'framer-motion';
-import type { ReactNode } from 'react';
+import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
+import { useRef, type ReactNode } from 'react';
+import { spring, fadeUp } from '../../lib/motion';
+
+type Glow = 'green' | 'red' | 'amber' | 'none';
 
 interface Props {
   children: ReactNode;
   className?: string;
-  glow?: 'green' | 'red' | 'amber' | 'none';
+  glow?: Glow;
   hover?: boolean;
   onClick?: () => void;
+  /** subtle cursor-tracked tilt; off by default to avoid distraction */
+  tilt?: boolean;
 }
 
-export default function GlassCard({ children, className = '', glow = 'none', hover = true, onClick }: Props) {
-  const glowClass = glow === 'green' ? 'glow-green' : glow === 'red' ? 'glow-red' : glow === 'amber' ? 'glow-amber' : '';
+const GLOW_CLASS: Record<Glow, string> = {
+  green: 'glow-green',
+  red:   'glow-red',
+  amber: 'glow-amber',
+  none:  '',
+};
+
+/**
+ * GlassCard
+ * - Frosted .glass base + cursor-tracked specular sheen
+ * - Spring-lifted on hover (Apple smooth)
+ * - Optional tilt: ±2.5° rotation tracking the cursor (GPU transforms only)
+ * - Honors prefers-reduced-motion via the global CSS rule
+ */
+export default function GlassCard({
+  children,
+  className = '',
+  glow = 'none',
+  hover = true,
+  onClick,
+  tilt = false,
+}: Props) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const mx = useMotionValue(0.5);
+  const my = useMotionValue(0.5);
+
+  // Spring-smoothed pointer position drives both tilt and sheen
+  const sx = useSpring(mx, { stiffness: 220, damping: 28, mass: 0.8 });
+  const sy = useSpring(my, { stiffness: 220, damping: 28, mass: 0.8 });
+
+  const rotateY = useTransform(sx, [0, 1], tilt ? [2.5, -2.5] : [0, 0]);
+  const rotateX = useTransform(sy, [0, 1], tilt ? [-2, 2] : [0, 0]);
+
+  const handleMove = (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    mx.set(px);
+    my.set(py);
+    el.style.setProperty('--mx', `${px * 100}%`);
+    el.style.setProperty('--my', `${py * 100}%`);
+  };
+
+  const handleLeave = () => {
+    mx.set(0.5);
+    my.set(0.5);
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={hover ? { scale: 1.015, y: -2 } : undefined}
+      ref={ref}
+      variants={fadeUp}
+      initial="hidden"
+      animate="visible"
+      whileHover={hover ? { y: -2, scale: 1.004 } : undefined}
+      transition={spring.smooth}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
       onClick={onClick}
-      className={`glass p-6 ${glowClass} ${onClick ? 'cursor-pointer' : ''} ${className}`}
+      style={{
+        rotateX,
+        rotateY,
+        transformPerspective: 1100,
+        transformStyle: 'preserve-3d',
+      }}
+      className={`glass glass-cursor-sheen gpu p-6 ${GLOW_CLASS[glow]} ${onClick ? 'cursor-pointer' : ''} ${className}`}
     >
       {children}
     </motion.div>

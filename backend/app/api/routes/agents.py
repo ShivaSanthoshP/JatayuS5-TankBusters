@@ -3,7 +3,6 @@ from __future__ import annotations
 """Agent management & pipeline trigger API routes."""
 
 import asyncio
-import datetime
 import logging
 import uuid
 
@@ -288,7 +287,6 @@ async def trigger_pipeline_all_nodes(db: Session = Depends(get_db)):
     await sim.disconnect()
 
     infra_svc = InfraService(db)
-    incident_svc = IncidentService(db)
 
     results = []
     for event in snapshot:
@@ -368,6 +366,16 @@ def list_runbooks(limit: int = 2000, db: Session = Depends(get_db)):
             source_incident_id=e.source_incident_id,
             effectiveness_score=e.effectiveness_score,
             times_used=e.times_used,
+            issue_type=e.issue_type,
+            root_cause=e.root_cause,
+            causal_chain=e.causal_chain,
+            blast_radius=e.blast_radius,
+            blast_radius_severity=e.blast_radius_severity,
+            recommended_actions=e.recommended_actions,
+            remediation_summary=e.remediation_summary,
+            remediation_steps=e.remediation_steps,
+            artifacts=e.artifacts,
+            is_seeded=bool(e.is_seeded),
             created_at=e.created_at,
         )
         for e in entries

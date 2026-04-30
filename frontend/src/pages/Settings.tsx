@@ -61,10 +61,28 @@ const DEFAULT_GEMINI_MODELS = [
   'gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-pro', 'gemini-1.5-flash',
 ];
 
-const PROVIDER_META: Record<LlmProvider, { label: string; subtitle: string; Icon: React.ElementType; accent: string }> = {
-  ollama: { label: 'Ollama', subtitle: 'Local, free', Icon: Server, accent: 'emerald' },
-  openai: { label: 'OpenAI', subtitle: 'Cloud, API key', Icon: Sparkles, accent: 'indigo' },
-  gemini: { label: 'Google Gemini', subtitle: 'Cloud, API key', Icon: Cloud, accent: 'sky' },
+const PROVIDER_META: Record<LlmProvider, { label: string; subtitle: string; description: string; Icon: React.ElementType; accent: string }> = {
+  ollama: { 
+    label: 'Ollama', 
+    subtitle: 'Local & Free', 
+    description: 'Run AI models locally on your machine. No API costs, full privacy.',
+    Icon: Server, 
+    accent: 'emerald' 
+  },
+  openai: { 
+    label: 'OpenAI', 
+    subtitle: 'GPT-4 & GPT-4o', 
+    description: 'Industry-leading models. Requires API key with usage-based billing.',
+    Icon: Sparkles, 
+    accent: 'indigo' 
+  },
+  gemini: { 
+    label: 'Google Gemini', 
+    subtitle: 'Gemini 2.0', 
+    description: 'Google\'s latest AI models. Requires API key from Google AI Studio.',
+    Icon: Cloud, 
+    accent: 'sky' 
+  },
 };
 
 function formatBytes(bytes: number): string {
@@ -248,8 +266,8 @@ export default function Settings() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <SettingsIcon size={24} className="text-emerald-600" />
+          <h1 className="font-display text-[28px] leading-tight text-[var(--color-ink)] flex items-center gap-3">
+            <SettingsIcon size={22} className="text-[var(--color-accent)]" />
             Settings
           </h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -284,47 +302,69 @@ export default function Settings() {
         </div>
       )}
 
-      {/* ── Provider Picker ─────────────────────────────── */}
-      <GlassCard hover={false}>
-        <div className="flex items-center gap-2 mb-4">
-          <Brain size={18} className="text-emerald-600" />
-          <h2 className="text-sm font-semibold text-slate-700">Active LLM Provider</h2>
-          <span className="text-[11px] text-slate-400">— one at a time</span>
-        </div>
-        <div className="grid sm:grid-cols-3 gap-3">
-          {(Object.keys(PROVIDER_META) as LlmProvider[]).map((p) => {
-            const { label, subtitle, Icon } = PROVIDER_META[p];
-            const active = activeProvider === p;
-            return (
-              <button
-                key={p}
-                onClick={() => saveProvider(p)}
-                className={`glass-sm rounded-xl p-4 text-left transition-all border-2 ${
-                  active
-                    ? 'border-emerald-500 bg-emerald-50/50'
-                    : 'border-transparent hover:border-slate-300'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon size={16} className={active ? 'text-emerald-600' : 'text-slate-500'} />
-                  <span className={`text-sm font-semibold ${active ? 'text-emerald-700' : 'text-slate-700'}`}>
-                    {label}
-                  </span>
+      {/* ── AI Brain Selector ─────────────────────────────── */}
+      <GlassCard hover={false} className="relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-100/50 to-transparent rounded-bl-full pointer-events-none" />
+        
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Brain size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Choose Your AI Brain</h2>
+              <p className="text-xs text-slate-500">Select which Large Language Model powers your AIOps agents</p>
+            </div>
+          </div>
+          
+          <div className="grid sm:grid-cols-3 gap-4 mt-6">
+            {(Object.keys(PROVIDER_META) as LlmProvider[]).map((p) => {
+              const { label, subtitle, description, Icon } = PROVIDER_META[p];
+              const active = activeProvider === p;
+              return (
+                <button
+                  key={p}
+                  onClick={() => saveProvider(p)}
+                  className={`relative rounded-xl p-5 text-left transition-all duration-200 border-2 group ${
+                    active
+                      ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50/50 shadow-lg shadow-emerald-500/10'
+                      : 'border-slate-200 hover:border-emerald-300 hover:shadow-md bg-white/50'
+                  }`}
+                >
                   {active && (
-                    <span className="ml-auto text-[10px] bg-emerald-500 text-white px-1.5 py-0.5 rounded-full">
-                      active
-                    </span>
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+                      <Check size={14} className="text-white" />
+                    </div>
                   )}
-                </div>
-                <p className="text-[11px] text-slate-500">{subtitle}</p>
-              </button>
-            );
-          })}
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition-colors ${
+                    active 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-slate-100 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'
+                  }`}>
+                    <Icon size={20} />
+                  </div>
+                  <h3 className={`font-semibold mb-0.5 ${active ? 'text-emerald-700' : 'text-slate-700'}`}>
+                    {label}
+                  </h3>
+                  <p className={`text-xs font-medium mb-2 ${active ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    {subtitle}
+                  </p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    {description}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          
+          <div className="mt-5 p-3 rounded-lg bg-amber-50/80 border border-amber-200/50 flex items-start gap-2">
+            <AlertCircle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-amber-700">
+              <strong>Note:</strong> The embedding model for RAG (knowledge retrieval) always runs on Ollama, regardless of which chat provider you select above.
+            </p>
+          </div>
         </div>
-        <p className="text-[11px] text-slate-400 mt-3 flex items-start gap-1.5">
-          <AlertCircle size={12} className="mt-0.5 shrink-0" />
-          Embeddings (RAG) always run on Ollama regardless of the selected chat provider.
-        </p>
       </GlassCard>
 
       {/* ── Active provider's config ────────────────────── */}

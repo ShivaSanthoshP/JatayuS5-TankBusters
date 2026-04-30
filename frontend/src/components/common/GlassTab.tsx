@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
+import { spring } from '../../lib/motion';
 
 interface GlassTabProps {
   to: string;
@@ -23,15 +24,15 @@ const GlassTab: React.FC<GlassTabProps> = ({
   return (
     <NavLink to={to} onClick={onClick} end={to === '/'}>
       {({ isActive }) => (
-        <div className={`glass-nav-tab ${isActive ? 'glass-nav-tab-active' : ''}`}>
+        <div className={`glass-nav-tab press-tactile ${isActive ? 'glass-nav-tab-active' : ''}`}>
           {isActive && (
             <motion.div
               layoutId={layoutId}
               className="absolute inset-0 glass-nav-tab-indicator"
-              transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+              transition={spring.snappy}
             />
           )}
-          {!hideIcon && <Icon size={16} className="shrink-0 relative z-[1]" />}
+          {!hideIcon && <Icon size={15} className="shrink-0 relative z-[1]" />}
           <span className="relative z-[1]">{label}</span>
         </div>
       )}

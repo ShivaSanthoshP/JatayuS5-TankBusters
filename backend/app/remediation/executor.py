@@ -8,7 +8,6 @@ execution with canary rollout stages.
 """
 
 import asyncio
-import datetime
 import logging
 import random
 

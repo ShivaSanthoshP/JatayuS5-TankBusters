@@ -2,19 +2,29 @@ from __future__ import annotations
 """
 Remediation Agent — generates and manages remediation actions.
 
-Generates one concise remediation artifact per incident using
-deterministic templates so fixes can be reviewed and downloaded
-without waiting on another model call.
+Loads canonical templates from the runbook table (seeded via
+`scripts/seed_runbooks.py`). Each issue_type's runbook carries the
+remediation steps and shell artifacts as Python format-string templates;
+this agent renders them with concrete incident values at lookup time.
+Falls back to the configured LLM for novel issue types.
 """
 
 import asyncio
-import re
+import copy
 import logging
+import re
+import string
+
+from app.database.models import RunbookEntry
+from app.database.session import SessionLocal
+from app.remediation.artifacts import normalize_remediation_payload
 
 logger = logging.getLogger("itops.remediation")
 
-from app.remediation.artifacts import normalize_remediation_payload
 
+# Service inference: map node names / types to canonical service names so
+# the rendered remediation scripts target the right systemd unit. This is
+# parsing logic (not runbook content), so it stays in code.
 SERVICE_HINTS = [
     ("nginx", ("nginx", "load_balancer", "lb")),
     ("postgresql", ("postgres", "pg-", "database", "db")),
@@ -82,228 +92,78 @@ def _derive_issue_type(diagnostic_data: dict) -> str:
     return "error_spike"
 
 
-def _artifact(
-    artifact_id: str,
-    name: str,
-    purpose: str,
-    description: str,
-    content: str,
-) -> dict:
-    return {
-        "id": artifact_id,
-        "name": name,
-        "kind": "shell",
-        "language": "bash",
-        "purpose": purpose,
-        "description": description,
-        "content": content,
-    }
+# ── Template rendering ──────────────────────────────────────────────
+
+class _PartialFormatter(string.Formatter):
+    """str.format() variant that leaves unknown placeholders as-is.
+
+    `"a {x} b {y}".format(x=1)` raises KeyError and loses the rendered `{x}`
+    too. This formatter substitutes what it can and writes literal `{key}`
+    back for anything missing, so a typo or new placeholder in a runbook
+    template doesn't poison sibling substitutions.
+    """
+
+    def get_field(self, field_name, args, kwargs):
+        try:
+            return super().get_field(field_name, args, kwargs)
+        except (KeyError, IndexError, AttributeError):
+            return ("{" + field_name + "}", field_name)
+
+    def format_field(self, value, format_spec):
+        try:
+            return super().format_field(value, format_spec)
+        except (TypeError, ValueError):
+            return str(value)
 
 
-def _step(
-    order: int,
-    action: str,
-    action_type: str,
-    description: str,
-    script: str,
-    validation_command: str,
-    estimated_duration_seconds: int,
-    risk_level: str = "low",
-    rollback_script: str = "",
-) -> dict:
-    return {
-        "order": order,
-        "action": action,
-        "action_type": action_type,
-        "description": description,
-        "script": script,
-        "rollback_script": rollback_script,
-        "risk_level": risk_level,
-        "estimated_duration_seconds": estimated_duration_seconds,
-        "validation_command": validation_command,
-    }
+_FORMATTER = _PartialFormatter()
 
 
-def _render_script(lines: list[str]) -> str:
-    return "#!/usr/bin/env bash\nset -euo pipefail\n\n" + "\n".join(lines).strip() + "\n"
+def _render_value(value, context: dict):
+    """Recursively render every string in a nested template structure."""
+    if isinstance(value, str):
+        try:
+            return _FORMATTER.vformat(value, (), context)
+        except Exception as e:
+            logger.debug(f"Template render fallback for value={value!r}: {e}")
+            return value
+    if isinstance(value, dict):
+        return {k: _render_value(v, context) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_render_value(v, context) for v in value]
+    return value
 
 
-def _validation_snippet(service_name: str) -> list[str]:
-    return [
-        f"sudo systemctl is-active --quiet '{service_name}'",
-        f"journalctl -u '{service_name}' -n 20 --no-pager || true",
-    ]
-
-
-def _restart_service_plan(service_name: str, issue_type: str, metrics: dict) -> tuple[list[dict], list[dict], str]:
-    node_name = metrics.get("node_name", "unknown-node")
-    prefix = issue_type.replace("_", " ")
-
-    inspect_script = _render_script([
-        f"echo 'Inspecting {prefix} symptoms on {node_name}'",
-        "date",
-        "uptime",
-        "ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%mem | head -n 15",
-        "ss -s || true",
-    ])
-    restart_script = _render_script([
-        f"echo 'Restarting {service_name} to recover from {prefix}'",
-        f"sudo systemctl restart '{service_name}'",
-        "sleep 5",
-        *(_validation_snippet(service_name)),
-    ])
-    validate_script = _render_script([
-        f"echo 'Validating {service_name} health and current resource pressure'",
-        f"sudo systemctl is-active --quiet '{service_name}'",
-        "free -m || true",
-        "df -h / || true",
-        "journalctl -p warning -n 20 --no-pager || true",
-    ])
-
-    steps = [
-        _step(
-            1,
-            "Capture current node state",
-            "config_change",
-            "Collect quick process, socket, and uptime evidence before changing the service.",
-            inspect_script,
-            "uptime && ps -eo pid,cmd,%mem,%cpu --sort=-%mem | head",
-            30,
-        ),
-        _step(
-            2,
-            f"Restart {service_name}",
-            "restart_service",
-            "Recycle the local service to clear stuck workers, leaked memory, or exhausted connections.",
-            restart_script,
-            f"systemctl is-active --quiet {service_name}",
-            45,
-            rollback_script=_render_script([
-                f"echo 'Rollback for {service_name}: restart service again to restore a clean state'",
-                f"sudo systemctl restart '{service_name}'",
-            ]),
-        ),
-        _step(
-            3,
-            "Validate recovery",
-            "config_change",
-            "Confirm the service is healthy and key pressure indicators have eased.",
-            validate_script,
-            f"systemctl is-active --quiet {service_name} && journalctl -u {service_name} -n 20 --no-pager",
-            30,
-        ),
-    ]
-
-    artifact = _artifact(
-        "primary-apply",
-        "remediate.sh",
-        "apply",
-        f"Primary remediation script for {issue_type.replace('_', ' ')} on {node_name}.",
-        _render_script([
-            f"SERVICE=\"${{SERVICE_NAME:-{service_name}}}\"",
-            f"echo 'Capturing node state before remediating {issue_type.replace('_', ' ')}'",
-            "date",
-            "uptime",
-            "ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%mem | head -n 15",
-            "ss -s || true",
-            "",
-            "echo \"Restarting ${SERVICE}\"",
-            "sudo systemctl restart \"${SERVICE}\"",
-            "sleep 5",
-            "echo \"Validating ${SERVICE}\"",
-            "sudo systemctl is-active --quiet \"${SERVICE}\"",
-            "free -m || true",
-            "df -h / || true",
-            "journalctl -u \"${SERVICE}\" -n 20 --no-pager || true",
-        ]),
-    )
-    rollback = _artifact(
-        "primary-rollback",
-        "rollback.sh",
-        "rollback",
-        f"Simple rollback script for the {service_name} restart procedure.",
-        _render_script([
-            f"SERVICE=\"${{SERVICE_NAME:-{service_name}}}\"",
-            "echo \"Rolling back by restarting ${SERVICE} into a clean state\"",
-            "sudo systemctl restart \"${SERVICE}\"",
-            "sudo systemctl is-active --quiet \"${SERVICE}\"",
-        ]),
+def _render_template(steps: list[dict], artifacts: list[dict],
+                     summary: str, context: dict) -> tuple[list[dict], list[dict], str]:
+    return (
+        _render_value(copy.deepcopy(steps), context),
+        _render_value(copy.deepcopy(artifacts), context),
+        _render_value(summary, context),
     )
 
-    summary = f"Capture current state, restart {service_name}, and validate that service health and node pressure recover."
-    return steps, [artifact, rollback], summary
+
+def _load_template(issue_type: str) -> dict | None:
+    """Fetch the seeded runbook for an issue_type."""
+    db = SessionLocal()
+    try:
+        entry = (
+            db.query(RunbookEntry)
+            .filter(RunbookEntry.issue_type == issue_type)
+            .one_or_none()
+        )
+        if not entry or not entry.remediation_steps:
+            return None
+        return {
+            "steps": entry.remediation_steps,
+            "artifacts": entry.artifacts or [],
+            "summary": entry.remediation_summary or "",
+        }
+    finally:
+        db.close()
 
 
-def _disk_cleanup_plan(service_name: str, metrics: dict) -> tuple[list[dict], list[dict], str]:
-    node_name = metrics.get("node_name", "unknown-node")
-
-    cleanup_script = _render_script([
-        "echo 'Checking disk usage before cleanup'",
-        "df -h /",
-        "sudo journalctl --vacuum-time=7d || true",
-        "sudo find /var/log -xdev -type f -name '*.gz' -mtime +7 -delete || true",
-        "sudo find /tmp -xdev -type f -mtime +2 -delete || true",
-        "echo 'Disk usage after cleanup'",
-        "df -h /",
-        f"sudo systemctl restart '{service_name}'",
-        f"sudo systemctl is-active --quiet '{service_name}'",
-    ])
-    validate_script = _render_script([
-        "df -h /",
-        f"sudo systemctl is-active --quiet '{service_name}'",
-        f"journalctl -u '{service_name}' -n 20 --no-pager || true",
-    ])
-
-    steps = [
-        _step(
-            1,
-            "Check filesystem pressure",
-            "clear_disk",
-            "Verify that root volume usage is critically high before cleanup.",
-            _render_script(["df -h /", "sudo du -sh /var/log /tmp 2>/dev/null || true"]),
-            "df -h /",
-            20,
-            risk_level="medium",
-        ),
-        _step(
-            2,
-            "Free safe local disk space",
-            "clear_disk",
-            "Vacuum old journal files and remove stale compressed logs and temp files.",
-            cleanup_script,
-            "df -h /",
-            60,
-            risk_level="medium",
-        ),
-        _step(
-            3,
-            f"Restart {service_name} and validate",
-            "restart_service",
-            "Bring the service back cleanly after write capacity is restored.",
-            validate_script,
-            f"systemctl is-active --quiet {service_name} && df -h /",
-            30,
-            risk_level="medium",
-        ),
-    ]
-
-    artifact = _artifact(
-        "primary-apply",
-        "remediate.sh",
-        "apply",
-        f"Disk recovery script for {node_name}.",
-        cleanup_script,
-    )
-    summary = "Recover disk headroom by cleaning safe stale files, then restart and validate the affected service."
-    return steps, [artifact], summary
-
-
-KNOWN_ISSUE_TYPES = {
-    "memory_leak", "cpu_spike", "disk_full", "network_saturation",
-    "connection_pool_exhaustion", "cascading_failure", "latency_degradation",
-    "error_spike",
-}
-
+# ── RAG context ─────────────────────────────────────────────────────
 
 async def _similar_remediation_context(issue_type: str, root_cause: str) -> tuple[str, bool]:
     """Search past incidents and runbooks for similar remediation context."""
@@ -334,23 +194,32 @@ async def _similar_remediation_context(issue_type: str, root_cause: str) -> tupl
         return "No similar past incidents found.", False
 
 
+# ── Plan builder ────────────────────────────────────────────────────
+
 async def _build_plan(
     issue_type: str, service_name: str, metrics: dict,
     log_history: str, root_cause: str = "",
 ) -> tuple[list[dict], list[dict], str, bool, str]:
     """Return (steps, artifacts, summary, generated_locally, past_context).
 
-    Uses deterministic templates for known issue types and falls back
-    to the configured LLM for anything novel.
+    Loads templates from seeded runbooks and renders them with concrete
+    incident values. Falls back to the configured LLM for issue types
+    that have no seeded runbook.
     """
     past_context, used_rag = await _similar_remediation_context(issue_type, root_cause)
 
-    if issue_type == "disk_full":
-        steps, artifacts, summary = _disk_cleanup_plan(service_name, metrics)
-        return steps, artifacts, summary, True, past_context
+    context = {
+        "service_name": service_name,
+        "node_name": metrics.get("node_name", "unknown-node"),
+        "issue_type": issue_type,
+        "prefix": issue_type.replace("_", " "),
+    }
 
-    if issue_type in KNOWN_ISSUE_TYPES:
-        steps, artifacts, summary = _restart_service_plan(service_name, issue_type, metrics)
+    template = await asyncio.to_thread(_load_template, issue_type)
+    if template:
+        steps, artifacts, summary = _render_template(
+            template["steps"], template["artifacts"], template["summary"], context,
+        )
         return steps, artifacts, summary, True, past_context
 
     # ── LLM fallback for unknown issue types ─────────────────────
@@ -359,7 +228,7 @@ async def _build_plan(
         llm_result = await llm_remediate(
             issue_type=issue_type,
             service_name=service_name,
-            node_name=metrics.get("node_name", "unknown-node"),
+            node_name=context["node_name"],
             root_cause=root_cause,
             metrics=metrics,
             past_context=past_context,
@@ -367,16 +236,23 @@ async def _build_plan(
         if llm_result:
             steps, artifacts, summary = llm_result
             return steps, artifacts, summary, False, past_context
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"LLM remediation fallback failed: {e}")
 
-    # If LLM also fails, use the generic restart template
-    steps, artifacts, summary = _restart_service_plan(service_name, issue_type, metrics)
-    return steps, artifacts, summary, True, past_context
+    # Final fallback: try the generic error_spike template if it's seeded.
+    fallback = await asyncio.to_thread(_load_template, "error_spike")
+    if fallback:
+        steps, artifacts, summary = _render_template(
+            fallback["steps"], fallback["artifacts"], fallback["summary"], context,
+        )
+        return steps, artifacts, summary, True, past_context
+
+    # No template, no LLM — return an empty plan.
+    return [], [], "No remediation plan available — seed runbooks or enable LLM fallback.", False, past_context
 
 
 async def generate_remediation(diagnostic_data: dict, metrics: dict, log_history: str = "No logs available") -> dict:
-    """Generate a remediation plan — deterministic first, LLM fallback for unknowns."""
+    """Generate a remediation plan — DB-backed runbook first, LLM fallback for unknowns."""
     issue_type = _derive_issue_type(diagnostic_data)
     service_name = _infer_service_name(metrics, log_history)
     root_cause = diagnostic_data.get("root_cause", "")
@@ -386,13 +262,13 @@ async def generate_remediation(diagnostic_data: dict, metrics: dict, log_history
     used_rag = past_context != "No similar past incidents found."
 
     reasoning = (
-        f"Generated a local {issue_type.replace('_', ' ')} remediation plan for service "
+        f"Generated a runbook-backed {issue_type.replace('_', ' ')} remediation plan for service "
         f"{service_name} using the node role, root cause, and current log evidence."
     )
     if not generated_locally:
         reasoning = (
             f"Generated an LLM-assisted {issue_type.replace('_', ' ')} remediation plan for "
-            f"service {service_name} because no predefined template matched the issue type."
+            f"service {service_name} because no seeded runbook matched the issue type."
         )
 
     result = {

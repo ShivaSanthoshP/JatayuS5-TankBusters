@@ -591,7 +591,7 @@ export default function Simulators() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Simulators</h1>
+          <h1 className="font-display text-[28px] leading-tight text-[var(--color-ink)]">Simulators</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             EC2 / VM, database, and fleet metrics simulators — stream logs &amp; metrics in real time
           </p>

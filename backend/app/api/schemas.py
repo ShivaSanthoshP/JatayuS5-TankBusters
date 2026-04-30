@@ -2,7 +2,6 @@ from __future__ import annotations
 """Pydantic schemas for API request/response models."""
 
 import datetime
-from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -184,6 +183,16 @@ class RunbookEntryOut(BaseModel):
     source_incident_id: int | None
     effectiveness_score: float
     times_used: int
+    issue_type: str | None = None
+    root_cause: str | None = None
+    causal_chain: list[str] | None = None
+    blast_radius: list[str] | None = None
+    blast_radius_severity: str | None = None
+    recommended_actions: list[dict] | None = None
+    remediation_summary: str | None = None
+    remediation_steps: list[dict] | None = None
+    artifacts: list[dict] | None = None
+    is_seeded: bool = False
     created_at: datetime.datetime | None
 
     model_config = {"from_attributes": True}

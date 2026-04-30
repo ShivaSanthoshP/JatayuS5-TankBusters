@@ -1,4 +1,3 @@
-import datetime
 import enum
 from sqlalchemy import (
     Column, Integer, String, Float, Text, DateTime, Enum, Boolean, ForeignKey, JSON
@@ -191,6 +190,18 @@ class RunbookEntry(Base):
     source_incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True)
     effectiveness_score = Column(Float, default=0.0)
     times_used = Column(Integer, default=0)
+    # Deterministic-lookup fields (populated for seeded canonical runbooks,
+    # null for runbooks auto-created from incidents).
+    issue_type = Column(String(100), nullable=True, index=True, unique=True)
+    root_cause = Column(Text, nullable=True)
+    causal_chain = Column(JSON, nullable=True)
+    blast_radius = Column(JSON, nullable=True)
+    blast_radius_severity = Column(String(20), nullable=True)
+    recommended_actions = Column(JSON, nullable=True)
+    remediation_summary = Column(Text, nullable=True)
+    remediation_steps = Column(JSON, nullable=True)
+    artifacts = Column(JSON, nullable=True)
+    is_seeded = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=utc_now)
     updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 

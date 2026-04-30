@@ -50,7 +50,7 @@ export default function Incidents() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Incidents</h1>
+        <h1 className="font-display text-[28px] leading-tight text-[var(--color-ink)]">Incidents</h1>
         <p className="text-sm text-slate-500 mt-1">Detected anomalies, diagnostics, and remediation tracking</p>
       </div>
 

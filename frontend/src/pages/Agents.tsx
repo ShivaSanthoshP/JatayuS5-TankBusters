@@ -72,7 +72,7 @@ export default function Agents() {
         <div className="inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-2">
           <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest whitespace-nowrap">Autonomous AI Architecture</span>
         </div>
-        <h1 className="text-4xl font-extrabold text-slate-800 tracking-tight">The Orchestrator Sequence</h1>
+        <h1 className="font-display text-[40px] leading-[1.05] text-[var(--color-ink)] tracking-tight">The Orchestrator Sequence</h1>
         <p className="text-base text-slate-500 font-medium leading-relaxed">
           Five highly-specialized AI agents work in a continuous, deterministic pipeline.
           From the exact moment an anomaly is detected to the automated deployment of a resolution script,

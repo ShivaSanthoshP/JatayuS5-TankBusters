@@ -88,11 +88,11 @@ async def create_simulator(
         try:
             content = await log_file.read()
             log_content = content.decode('utf-8')
-        except UnicodeDecodeError:
+        except UnicodeDecodeError as err:
             raise HTTPException(
                 status_code=400,
-                detail="Log file must be a valid UTF-8 text file"
-            )
+                detail="Log file must be a valid UTF-8 text file",
+            ) from err
 
     sim = svc.create_simulator(
         name=name,

@@ -1,45 +1,60 @@
 import { motion } from 'framer-motion';
 
-const COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-  healthy:  { bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-400' },
-  degraded: { bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-400' },
-  critical: { bg: 'bg-red-500/10',   text: 'text-red-400',   dot: 'bg-red-400' },
-  offline:  { bg: 'bg-gray-500/10',  text: 'text-gray-400',  dot: 'bg-gray-400' },
+type Tone = { bg: string; text: string; border: string; dot: string };
 
-  low:      { bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-400' },
-  medium:   { bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-400' },
-  high:     { bg: 'bg-orange-500/10', text: 'text-orange-400', dot: 'bg-orange-400' },
+const TONES: Record<string, Tone> = {
+  // System / health
+  healthy:    { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
+  degraded:   { bg: 'rgba(192,138,62,0.12)',  text: '#8a6024', border: 'rgba(192,138,62,0.26)', dot: '#c08a3e' },
+  critical:   { bg: 'rgba(197,82,77,0.12)',   text: '#923a36', border: 'rgba(197,82,77,0.28)',  dot: '#c5524d' },
+  offline:    { bg: 'rgba(21,25,26,0.06)',    text: '#6f7470', border: 'rgba(21,25,26,0.12)',   dot: '#a4a8a1' },
 
-  detected:          { bg: 'bg-blue-500/10',   text: 'text-blue-400',   dot: 'bg-blue-400' },
-  analyzing:         { bg: 'bg-cyan-500/10',   text: 'text-cyan-400',   dot: 'bg-cyan-400' },
-  diagnosed:         { bg: 'bg-purple-500/10', text: 'text-purple-400', dot: 'bg-purple-400' },
-  awaiting_approval: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', dot: 'bg-yellow-400' },
-  remediating:       { bg: 'bg-blue-500/10',   text: 'text-blue-400',   dot: 'bg-blue-400' },
-  resolved:          { bg: 'bg-green-500/10',  text: 'text-green-400',  dot: 'bg-green-400' },
-  escalated:         { bg: 'bg-red-500/10',    text: 'text-red-400',    dot: 'bg-red-400' },
-  failed:            { bg: 'bg-red-500/10',    text: 'text-red-400',    dot: 'bg-red-400' },
+  // Severities
+  low:        { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
+  medium:     { bg: 'rgba(192,138,62,0.12)',  text: '#8a6024', border: 'rgba(192,138,62,0.26)', dot: '#c08a3e' },
+  high:       { bg: 'rgba(192,138,62,0.16)',  text: '#7a5320', border: 'rgba(192,138,62,0.32)', dot: '#b07a2e' },
 
-  active:     { bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-400' },
-  connected:  { bg: 'bg-green-500/10', text: 'text-green-400', dot: 'bg-green-400' },
-  configured: { bg: 'bg-blue-500/10',  text: 'text-blue-400',  dot: 'bg-blue-400' },
-  error:      { bg: 'bg-red-500/10',   text: 'text-red-400',   dot: 'bg-red-400' },
+  // Incident lifecycle
+  detected:          { bg: 'rgba(58,90,125,0.10)',  text: '#2d4660', border: 'rgba(58,90,125,0.22)', dot: '#3a5a7d' },
+  analyzing:         { bg: 'rgba(36,71,69,0.10)',   text: '#1c3837', border: 'rgba(36,71,69,0.22)',  dot: '#244745' },
+  diagnosed:         { bg: 'rgba(102,71,116,0.10)', text: '#4d3458', border: 'rgba(102,71,116,0.22)',dot: '#664774' },
+  awaiting_approval: { bg: 'rgba(192,138,62,0.12)', text: '#8a6024', border: 'rgba(192,138,62,0.26)',dot: '#c08a3e' },
+  remediating:       { bg: 'rgba(36,71,69,0.10)',   text: '#1c3837', border: 'rgba(36,71,69,0.22)',  dot: '#244745' },
+  resolved:          { bg: 'rgba(61,125,101,0.10)', text: '#2d5e4c', border: 'rgba(61,125,101,0.22)',dot: '#3d7d65' },
+  escalated:         { bg: 'rgba(197,82,77,0.12)',  text: '#923a36', border: 'rgba(197,82,77,0.28)', dot: '#c5524d' },
+  failed:            { bg: 'rgba(197,82,77,0.12)',  text: '#923a36', border: 'rgba(197,82,77,0.28)', dot: '#c5524d' },
+
+  // Connections
+  active:     { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
+  connected:  { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
+  configured: { bg: 'rgba(58,90,125,0.10)',   text: '#2d4660', border: 'rgba(58,90,125,0.22)',  dot: '#3a5a7d' },
+  error:      { bg: 'rgba(197,82,77,0.12)',   text: '#923a36', border: 'rgba(197,82,77,0.28)',  dot: '#c5524d' },
 
   // Simulator statuses
-  running:  { bg: 'bg-green-500/10',  text: 'text-green-500',  dot: 'bg-green-500' },
-  paused:   { bg: 'bg-amber-500/10',  text: 'text-amber-500',  dot: 'bg-amber-500' },
-  stopped:  { bg: 'bg-slate-500/10',  text: 'text-slate-500',  dot: 'bg-slate-400' },
-  finished: { bg: 'bg-blue-500/10',   text: 'text-blue-400',   dot: 'bg-blue-400' },
+  running:    { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
+  paused:     { bg: 'rgba(192,138,62,0.12)',  text: '#8a6024', border: 'rgba(192,138,62,0.26)', dot: '#c08a3e' },
+  stopped:    { bg: 'rgba(21,25,26,0.06)',    text: '#6f7470', border: 'rgba(21,25,26,0.12)',   dot: '#a4a8a1' },
+  finished:   { bg: 'rgba(58,90,125,0.10)',   text: '#2d4660', border: 'rgba(58,90,125,0.22)',  dot: '#3a5a7d' },
 };
 
 export default function StatusBadge({ status, pulse = false }: { status: string; pulse?: boolean }) {
-  const c = COLORS[status] || COLORS.detected;
+  const c = TONES[status] || TONES.detected;
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${c.bg} ${c.text}`}>
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[11px] font-medium"
+      style={{
+        background: c.bg,
+        color: c.text,
+        border: `1px solid ${c.border}`,
+        letterSpacing: '0.01em',
+      }}
+    >
       <motion.span
-        className={`w-1.5 h-1.5 rounded-full ${c.dot} ${pulse ? 'pulse-live' : ''}`}
-        animate={pulse ? { scale: [1, 1.3, 1] } : undefined}
-        transition={pulse ? { duration: 2, repeat: Infinity } : undefined}
+        className="w-[6px] h-[6px] rounded-full"
+        style={{ background: c.dot }}
+        animate={pulse ? { scale: [1, 1.35, 1], opacity: [1, 0.7, 1] } : undefined}
+        transition={pulse ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : undefined}
       />
       {status.replace(/_/g, ' ')}
     </span>

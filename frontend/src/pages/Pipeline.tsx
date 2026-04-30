@@ -310,7 +310,7 @@ export default function Pipeline() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Run Pipeline</h1>
+        <h1 className="font-display text-[28px] leading-tight text-[var(--color-ink)]">Run Pipeline</h1>
         <p className="text-sm text-slate-500 mt-1">
           Select a node, review its status, and trigger the full agent pipeline
         </p>

@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
+import { useMemo, useState, useEffect } from 'react';
 import {
-  Server, AlertTriangle, CheckCircle, Clock, Shield, Brain,
-  Activity, Wifi, WifiOff,
+  TrendingUp, Wrench, FileText,
+  Activity, Pause, Play, Zap, Search as SearchIcon, Wifi, WifiOff,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -10,14 +11,16 @@ import GlassCard from '../components/ui/GlassCard';
 import StatusBadge from '../components/ui/StatusBadge';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import Loader from '../components/ui/Loader';
+import MagneticButton from '../components/common/MagneticButton';
+import SegmentedControl from '../components/common/SegmentedControl';
 import { usePolling } from '../hooks/useApi';
 import { useMetricsStream } from '../hooks/useWebSocket';
 import * as api from '../services/api';
-import { useState, useEffect } from 'react';
 import type { WsMetricEvent, DashboardStats, Incident } from '../types';
+import { spring, stagger, fadeUp } from '../lib/motion';
 
 /* ── tiny chart-data ring buffer ─────────────────────────── */
-function useChartHistory(events: WsMetricEvent[], maxPoints = 30) {
+function useChartHistory(events: WsMetricEvent[], maxPoints = 32) {
   const [buf, setBuf] = useState<{ time: string; cpu: number; mem: number; err: number; lat: number }[]>([]);
 
   useEffect(() => {
@@ -40,19 +43,132 @@ function useChartHistory(events: WsMetricEvent[], maxPoints = 30) {
   return buf;
 }
 
+/* ── editorial donut gauge with springy fill ────────────── */
+function Gauge({ value, label, sub, accent = 'var(--color-accent)' }: {
+  value: number; label: string; sub?: string; accent?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, Math.round(value)));
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  const dash = (pct / 100) * c;
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative w-[68px] h-[68px] shrink-0">
+        <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(21,25,26,0.07)" strokeWidth="3" />
+          <motion.circle
+            cx="32" cy="32" r={r} fill="none"
+            stroke={accent} strokeWidth="3" strokeLinecap="round"
+            strokeDasharray={`${dash} ${c}`}
+            initial={{ strokeDasharray: `0 ${c}` }}
+            animate={{ strokeDasharray: `${dash} ${c}` }}
+            transition={spring.smooth}
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-baseline justify-center">
+          <span className="font-display text-[22px] leading-none numeric mt-[22px]">
+            <AnimatedNumber value={pct} />
+          </span>
+          <span className="text-[10px] text-[var(--color-ink-mute)] ml-0.5 mt-[22px]">%</span>
+        </div>
+      </div>
+      <div className="flex flex-col leading-tight">
+        <span className="label-eyebrow !text-[9.5px]">{label}</span>
+        {sub && <span className="text-[11px] text-[var(--color-ink-faint)] mt-1 numeric">{sub}</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ── KPI tile (cascades in via fadeUp) ───────────────────── */
+function Kpi({ label, value, suffix, delta, deltaTone = 'pos' }: {
+  label: string; value: number | string; suffix?: string; delta?: string; deltaTone?: 'pos' | 'neg';
+}) {
+  return (
+    <motion.div variants={fadeUp} className="glass-sm p-4 flex flex-col gap-1 gpu">
+      <span className="label-eyebrow !text-[9.5px]">{label}</span>
+      <div className="flex items-baseline justify-between mt-1">
+        <span className="font-display text-[24px] leading-none numeric text-[var(--color-ink)]">
+          {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
+          {suffix && <span className="text-[12px] text-[var(--color-ink-mute)] ml-0.5 font-sans">{suffix}</span>}
+        </span>
+        {delta && (
+          <span
+            className="text-[10.5px] numeric font-mono"
+            style={{ color: deltaTone === 'pos' ? '#3d7d65' : '#c5524d' }}
+          >
+            {deltaTone === 'pos' ? '↑' : '↓'} {delta}
+          </span>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ── Pipeline step pip ───────────────────────────────────── */
+const PIPELINE_STEPS = [
+  { key: 'monitor',    label: 'Monitor',   sub: 'Anomaly detect',    Icon: Activity },
+  { key: 'predict',    label: 'Predict',   sub: 'Forecast risk',     Icon: TrendingUp },
+  { key: 'diagnose',   label: 'Diagnose',  sub: 'Root cause · RAG',  Icon: SearchIcon },
+  { key: 'remediate',  label: 'Remediate', sub: 'Generate fix',      Icon: Wrench },
+  { key: 'report',     label: 'Report',    sub: 'Runbook · summary', Icon: FileText },
+];
+
+function PipelineStep({ Icon, label, sub }: {
+  Icon: React.ElementType; label: string; sub: string;
+}) {
+  return (
+    <motion.div
+      variants={fadeUp}
+      whileHover={{ y: -3, scale: 1.04 }}
+      transition={spring.smooth}
+      className="flex flex-col items-center text-center gap-2.5 relative z-[1] cursor-default gpu"
+    >
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center"
+        style={{
+          background: 'rgba(255, 253, 247, 0.92)',
+          border: '1px solid var(--color-hairline-strong)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95), 0 4px 12px -6px rgba(21,25,26,0.10)',
+        }}
+      >
+        <Icon size={15} className="text-[var(--color-accent)]" />
+      </div>
+      <div className="flex flex-col leading-tight">
+        <span className="text-[12px] font-medium text-[var(--color-ink)]">{label}</span>
+        <span className="text-[10.5px] text-[var(--color-ink-mute)] mt-0.5">{sub}</span>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ── Sparkline ───────────────────────────────────────────── */
+function Sparkline({ data, color = '#244745' }: { data: number[]; color?: string }) {
+  if (data.length < 2) return <div className="w-14 h-5" />;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const w = 56, h = 18;
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return (
+    <svg width={w} height={h} className="overflow-visible">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+type StreamMode = 'live' | 'paused';
+
 export default function Dashboard() {
   const { data: stats, loading: statsLoading, error: statsError } = usePolling<DashboardStats>(api.getDashboard, 8000);
   const { data: incidents } = usePolling<Incident[]>(() => api.getIncidents(), 8000);
   const { data: wsEvents, connected } = useMetricsStream();
   const chartData = useChartHistory(wsEvents);
-
-  if (statsLoading && !stats) return <Loader text="Connecting to backend..." />;
-  if (statsError && !stats) return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4">
-      <p className="text-red-400 text-sm">Failed to connect: {statsError}</p>
-      <p className="text-slate-400 text-xs">Make sure the backend is running on port 8000</p>
-    </div>
-  );
+  const [streamMode, setStreamMode] = useState<StreamMode>('live');
 
   const safeStats: DashboardStats = stats || {
     total_nodes: 0, healthy_nodes: 0, degraded_nodes: 0, critical_nodes: 0,
@@ -60,162 +176,369 @@ export default function Dashboard() {
     total_remediations: 0, success_rate: 0, memory_incidents_stored: 0, memory_runbooks_stored: 0,
   };
 
-  const statCards = [
-    { label: 'Total Nodes', value: safeStats.total_nodes, icon: Server, color: 'text-sky-500' },
-    { label: 'Healthy', value: safeStats.healthy_nodes, icon: CheckCircle, color: 'text-emerald-700' },
-    { label: 'Degraded', value: safeStats.degraded_nodes, icon: Clock, color: 'text-amber-500' },
-    { label: 'Critical', value: safeStats.critical_nodes, icon: AlertTriangle, color: 'text-red-500' },
-    { label: 'Open Incidents', value: safeStats.open_incidents, icon: AlertTriangle, color: 'text-amber-500' },
-    { label: 'Resolved', value: safeStats.resolved_incidents, icon: Shield, color: 'text-blue-500' },
-    { label: 'Remediations', value: safeStats.total_remediations, icon: Brain, color: 'text-purple-500' },
-    { label: 'Success Rate', value: safeStats.success_rate, icon: Activity, color: 'text-rose-500', suffix: '%' },
-  ];
+  const fleet = useMemo(() => wsEvents.slice(0, 12), [wsEvents]);
+  const recentIncidents = (incidents ?? []).slice(0, 8);
+
+  const cpuAvg = useMemo(() => {
+    if (!wsEvents.length) return 0;
+    return Math.round(wsEvents.reduce((s, e) => s + e.metrics.cpu_percent, 0) / wsEvents.length);
+  }, [wsEvents]);
+  const memAvg = useMemo(() => {
+    if (!wsEvents.length) return 0;
+    return Math.round(wsEvents.reduce((s, e) => s + e.metrics.memory_percent, 0) / wsEvents.length);
+  }, [wsEvents]);
+  const latP50 = useMemo(() => {
+    if (!wsEvents.length) return 0;
+    const sorted = [...wsEvents].map(e => e.metrics.latency_ms).sort((a, b) => a - b);
+    return Math.round(sorted[Math.floor(sorted.length / 2)] ?? 0);
+  }, [wsEvents]);
+  const errAvg = useMemo(() => {
+    if (!wsEvents.length) return 0;
+    return +(wsEvents.reduce((s, e) => s + e.metrics.error_rate, 0) / wsEvents.length).toFixed(1);
+  }, [wsEvents]);
+
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase();
+  const timeLabel = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
+  if (statsLoading && !stats) return <Loader text="Connecting" />;
+  if (statsError && !stats) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
+      <p className="text-[var(--color-critical)] text-sm">Failed to connect: {statsError}</p>
+      <p className="label-eyebrow">Backend must be running on port 8000</p>
+    </div>
+  );
+
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-8"
+      variants={stagger(0.06, 0.05)}
+      initial="hidden"
+      animate="visible"
+      className="space-y-7"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Real-time infrastructure health overview</p>
+      {/* ── Editorial header ─────────────────────────────── */}
+      <motion.div variants={fadeUp}>
+        <div className="flex items-center gap-3 label-eyebrow !text-[10px] flex-wrap">
+          <span>Mission Control</span>
+          <span className="text-[var(--color-ink-faint)]">—</span>
+          <span>US-EAST-1</span>
+          <span className="text-[var(--color-ink-faint)]">·</span>
+          <span>US-WEST-2</span>
+          <span className="text-[var(--color-ink-faint)]">·</span>
+          <span>EU-WEST-1</span>
+          <span className="text-[var(--color-ink-faint)]">·</span>
+          <span>GLOBAL</span>
+          <span className="text-[var(--color-ink-faint)]">—</span>
+          <span>{dateLabel}, {timeLabel}</span>
         </div>
-        <div className="flex items-center gap-2">
-          {connected ? <Wifi size={14} className="text-accent" /> : <WifiOff size={14} className="text-red-400" />}
-          <span className={`text-xs ${connected ? 'text-accent' : 'text-red-400'}`}>
-            {connected ? 'Live Stream' : 'Disconnected'}
-          </span>
-        </div>
-      </div>
 
-      {/* ── Stat cards ────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
-        {statCards.map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04 }}
-            className="glass-sm p-5 flex flex-col items-center text-center gap-1.5"
-          >
-            <s.icon size={18} className={s.color} />
-            <span className="text-2xl font-bold text-slate-800">
-              <AnimatedNumber value={s.value} />{s.suffix || ''}
+        <div className="mt-3 flex items-end justify-between gap-6 flex-wrap">
+          <h1 className="font-display text-[40px] leading-[1.05] text-[var(--color-ink)]">
+            All systems autonomous.{' '}
+            <span className="text-[var(--color-ink-mute)] italic">
+              {wsEvents.length} nodes streaming.
             </span>
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider">{s.label}</span>
+          </h1>
+
+          <div className="flex items-center gap-2">
+            <MagneticButton variant="ghost">
+              <SearchIcon size={13} /> Find anything
+            </MagneticButton>
+            <SegmentedControl<StreamMode>
+              value={streamMode}
+              onChange={setStreamMode}
+              ariaLabel="Stream mode"
+              options={[
+                { value: 'live',   label: 'Live',   icon: <Play size={11} /> },
+                { value: 'paused', label: 'Paused', icon: <Pause size={11} /> },
+              ]}
+            />
+            <MagneticButton variant="solid">
+              <Zap size={13} /> Run pipeline
+            </MagneticButton>
+            <span className="ml-2 flex items-center gap-1.5">
+              {connected
+                ? <Wifi size={12} className="text-[var(--color-success)]" />
+                : <WifiOff size={12} className="text-[var(--color-critical)]" />}
+              <span className="label-eyebrow !text-[9.5px]">
+                {connected ? 'Live' : 'Offline'}
+              </span>
+            </span>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* ── Gauges + KPIs ─────────────────────────────────── */}
+      <motion.div variants={fadeUp} className="glass p-5 gpu">
+        <motion.div
+          variants={stagger(0.05)}
+          className="grid grid-cols-1 md:grid-cols-8 gap-5 items-center"
+        >
+          <div className="md:col-span-3 flex items-center gap-6 flex-wrap">
+            <Gauge value={cpuAvg} label="CPU AVG" sub={`${wsEvents.length} nodes`} />
+            <Gauge value={memAvg} label="MEMORY" sub="rolling 60s" accent="#3a6f6a" />
+            <Gauge value={Math.min(99, latP50)} label="LATENCY" sub={`${latP50}ms p50`} accent="#c08a3e" />
+          </div>
+          <div className="md:col-span-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <Kpi label="Healthy"       value={safeStats.healthy_nodes}  delta="2%"  deltaTone="pos" />
+            <Kpi label="Degraded"      value={safeStats.degraded_nodes} delta="1%"  deltaTone="neg" />
+            <Kpi label="Critical"      value={safeStats.critical_nodes} delta="1%"  deltaTone="pos" />
+            <Kpi label="MTTR"          value={4.2}                      suffix="min" delta="18%" deltaTone="neg" />
+            <Kpi label="Auto-fix Rate" value={Math.round(safeStats.success_rate)} suffix="%" delta="3%" deltaTone="pos" />
+          </div>
+        </motion.div>
+      </motion.div>
+
+      {/* ── Pipeline + Telemetry ──────────────────────────── */}
+      <div className="grid lg:grid-cols-5 gap-6">
+        <GlassCard hover={false} tilt className="lg:col-span-3 !p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <h2 className="font-display text-[18px] text-[var(--color-ink)]">Autonomous pipeline</h2>
+              <span
+                className="text-[10.5px] font-mono px-2 py-0.5 rounded-full"
+                style={{
+                  background: 'rgba(36,71,69,0.10)',
+                  color: 'var(--color-accent)',
+                  border: '1px solid rgba(36,71,69,0.18)',
+                }}
+              >
+                Run #{2841 + (incidents?.length ?? 0)} · worker-01
+              </span>
+            </div>
+            <span className="label-eyebrow !text-[9.5px]">idle · listening</span>
+          </div>
+
+          <div className="relative">
+            <div
+              className="absolute left-[5%] right-[5%] top-[20px] h-px"
+              style={{ background: 'var(--color-hairline-strong)' }}
+            />
+            <motion.div variants={stagger(0.08)} className="grid grid-cols-5 gap-4 relative">
+              {PIPELINE_STEPS.map((s) => (
+                <PipelineStep key={s.key} Icon={s.Icon} label={s.label} sub={s.sub} />
+              ))}
+            </motion.div>
+          </div>
+
+          <div className="mt-6 pt-4 hairline" />
+          <div className="flex items-center justify-center gap-6 mt-3 label-eyebrow !text-[9.5px]">
+            <span>Vector · {safeStats.memory_incidents_stored.toLocaleString()} incidents</span>
+            <span className="text-[var(--color-ink-faint)]">·</span>
+            <span>{safeStats.memory_runbooks_stored.toLocaleString()} runbooks</span>
+          </div>
+        </GlassCard>
+
+        <GlassCard hover={false} className="lg:col-span-2 !p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-[18px] text-[var(--color-ink)]">Telemetry</h2>
+            <span className="label-eyebrow !text-[9.5px]">
+              60s window · {wsEvents.length} samples
+            </span>
+          </div>
+
+          <motion.div variants={stagger(0.05)} className="grid grid-cols-2 gap-3">
+            {[
+              { key: 'cpu' as const, label: 'CPU avg',     val: `${cpuAvg.toFixed(1)}%`,    color: '#244745' },
+              { key: 'mem' as const, label: 'Memory avg',  val: `${memAvg.toFixed(1)}%`,    color: '#3a6f6a' },
+              { key: 'err' as const, label: 'Error rate',  val: `${errAvg}%`,                color: '#c08a3e' },
+              { key: 'lat' as const, label: 'Latency p50', val: `${latP50}ms`,              color: '#15191a' },
+            ].map(ch => (
+              <motion.div key={ch.key} variants={fadeUp} className="glass-sm !rounded-xl p-3 gpu">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="label-eyebrow !text-[9px]">{ch.label}</span>
+                  <span className="text-[12px] font-mono numeric text-[var(--color-ink)]">{ch.val}</span>
+                </div>
+                <ResponsiveContainer width="100%" height={42}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id={`grad-${ch.key}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={ch.color} stopOpacity={0.22} />
+                        <stop offset="100%" stopColor={ch.color} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="time" hide />
+                    <YAxis hide domain={['auto', 'auto']} />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'rgba(255,253,247,0.95)',
+                        border: '1px solid rgba(21,25,26,0.10)',
+                        borderRadius: 8,
+                        fontSize: 10.5,
+                        fontFamily: 'JetBrains Mono, monospace',
+                        boxShadow: '0 8px 20px -8px rgba(21,25,26,0.20)',
+                      }}
+                      labelStyle={{ color: 'var(--color-ink-mute)' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={ch.key}
+                      stroke={ch.color}
+                      strokeWidth={1.4}
+                      fill={`url(#grad-${ch.key})`}
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </motion.div>
+            ))}
           </motion.div>
-        ))}
+        </GlassCard>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6 md:gap-8 gap-y-8">
-        {/* ── Live fleet grid ─────────────────────────────────── */}
-        <GlassCard className="lg:col-span-2" hover={false}>
+      {/* ── Fleet table + Incidents feed ──────────────────── */}
+      <div className="grid lg:grid-cols-5 gap-6">
+        <GlassCard hover={false} className="lg:col-span-3 !p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-slate-600">Fleet Status</h2>
-            <span className="text-xs text-slate-400">{wsEvents.length} nodes streaming</span>
+            <div className="flex items-center gap-3">
+              <h2 className="font-display text-[18px] text-[var(--color-ink)]">Fleet</h2>
+              <span className="label-eyebrow !text-[9.5px]">
+                {wsEvents.length} nodes · 4 regions
+              </span>
+            </div>
+            <div className="flex items-center gap-3 text-[10.5px] font-mono">
+              <span className="flex items-center gap-1">
+                <span className="status-dot" style={{ background: '#3d7d65' }} />
+                {safeStats.healthy_nodes}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="status-dot" style={{ background: '#c08a3e' }} />
+                {safeStats.degraded_nodes}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="status-dot" style={{ background: '#c5524d' }} />
+                {safeStats.critical_nodes}
+              </span>
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-            {wsEvents.map(ev => (
+
+          <div className="overflow-x-auto -mx-2">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="label-eyebrow !text-[9px]">
+                  <th className="px-2 py-2 text-left font-medium">Node</th>
+                  <th className="px-2 py-2 text-left font-medium">Type</th>
+                  <th className="px-2 py-2 text-left font-medium">Region</th>
+                  <th className="px-2 py-2 text-right font-medium">CPU</th>
+                  <th className="px-2 py-2 text-right font-medium">Mem</th>
+                  <th className="px-2 py-2 text-right font-medium">Err</th>
+                  <th className="px-2 py-2 text-right font-medium">Latency</th>
+                  <th className="px-2 py-2 text-right font-medium">Trend</th>
+                </tr>
+              </thead>
+              <motion.tbody variants={stagger(0.025)}>
+                {fleet.map(ev => {
+                  const tone = ev.is_anomaly
+                    ? (ev.anomaly_severity === 'critical' ? '#c5524d' : '#c08a3e')
+                    : '#3d7d65';
+                  const trend = chartData.slice(-12).map(p => p.cpu);
+                  return (
+                    <motion.tr
+                      key={ev.node_name}
+                      variants={fadeUp}
+                      className="border-t"
+                      style={{ borderColor: 'var(--color-hairline)' }}
+                      whileHover={{ backgroundColor: 'rgba(255,253,247,0.55)' }}
+                      transition={spring.smooth}
+                    >
+                      <td className="px-2 py-2.5">
+                        <span className="flex items-center gap-2">
+                          <span className="status-dot" style={{ background: tone }} />
+                          <span className="font-mono text-[var(--color-ink)]">{ev.node_name}</span>
+                        </span>
+                      </td>
+                      <td className="px-2 py-2.5 font-mono text-[var(--color-ink-mute)]">{ev.node_type ?? 'EC2'}</td>
+                      <td className="px-2 py-2.5 font-mono text-[var(--color-ink-mute)]">{ev.region ?? 'us-east-1'}</td>
+                      <td className="px-2 py-2.5 text-right numeric font-mono">{ev.metrics.cpu_percent}%</td>
+                      <td className="px-2 py-2.5 text-right numeric font-mono">{ev.metrics.memory_percent}%</td>
+                      <td className="px-2 py-2.5 text-right numeric font-mono">{ev.metrics.error_rate.toFixed(2)}%</td>
+                      <td className="px-2 py-2.5 text-right numeric font-mono">{ev.metrics.latency_ms}ms</td>
+                      <td className="px-2 py-2.5 text-right">
+                        <span className="inline-flex justify-end">
+                          <Sparkline data={trend} color={tone} />
+                        </span>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+                {fleet.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="text-center py-10 text-[var(--color-ink-mute)] text-[12px]">
+                      Awaiting telemetry stream…
+                    </td>
+                  </tr>
+                )}
+              </motion.tbody>
+            </table>
+          </div>
+        </GlassCard>
+
+        <GlassCard hover={false} className="lg:col-span-2 !p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <h2 className="font-display text-[18px] text-[var(--color-ink)]">Incidents</h2>
+              <span className="label-eyebrow !text-[9.5px]">last 4h</span>
+            </div>
+            <span
+              className="text-[10.5px] font-mono px-2 py-0.5 rounded-full"
+              style={{
+                background: 'rgba(197,82,77,0.10)',
+                color: '#923a36',
+                border: '1px solid rgba(197,82,77,0.20)',
+              }}
+            >
+              ● {safeStats.open_incidents} active
+            </span>
+          </div>
+
+          <motion.div variants={stagger(0.04)} className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
+            {recentIncidents.map(inc => (
               <motion.div
-                key={ev.node_name}
-                layout
-                className={`glass-sm !rounded-lg p-3 text-xs space-y-1.5 transition-all ${ev.is_anomaly ? 'border-red-500/30 glow-red' : ''
-                  }`}
+                key={inc.id}
+                variants={fadeUp}
+                whileHover={{ x: 2 }}
+                transition={spring.smooth}
+                className="glass-sm !rounded-xl p-3.5 relative gpu"
+                style={{ paddingLeft: '14px' }}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-slate-800 truncate">{ev.node_name}</span>
-                  <StatusBadge
-                    status={ev.is_anomaly ? (ev.anomaly_severity === 'critical' ? 'critical' : 'degraded') : 'healthy'}
-                    pulse={ev.is_anomaly}
-                  />
+                <div
+                  className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r"
+                  style={{
+                    background:
+                      inc.severity === 'critical' ? '#c5524d' :
+                      inc.severity === 'high'     ? '#c08a3e' :
+                      inc.severity === 'medium'   ? '#c08a3e' :
+                                                    '#3d7d65',
+                  }}
+                />
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[11px] text-[var(--color-ink-mute)]">#{inc.id}</span>
+                    <StatusBadge status={inc.severity} />
+                  </div>
+                  <span className="font-mono text-[10.5px] text-[var(--color-ink-faint)]">
+                    {inc.detected_at ? new Date(inc.detected_at).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }) : '—'}
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-slate-500">
-                  <span>CPU <b className="text-slate-700">{ev.metrics.cpu_percent}%</b></span>
-                  <span>MEM <b className="text-slate-700">{ev.metrics.memory_percent}%</b></span>
-                  <span>ERR <b className="text-slate-700">{ev.metrics.error_rate}%</b></span>
-                  <span>LAT <b className="text-slate-700">{ev.metrics.latency_ms}ms</b></span>
+                <p className="text-[12.5px] text-[var(--color-ink)] font-medium leading-snug">
+                  {inc.title}
+                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="font-mono text-[10.5px] text-[var(--color-ink-mute)]">
+                    {inc.node_name ?? 'unknown'}
+                  </span>
+                  <StatusBadge status={inc.status} />
                 </div>
               </motion.div>
             ))}
-            {wsEvents.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center gap-3 py-12">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 1.2, ease: 'linear' }}
-                  className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full"
-                />
-                <p className="text-sm font-medium text-slate-500">Fetching live data...</p>
-                <p className="text-xs text-slate-400">This may take a few seconds</p>
-              </div>
+            {recentIncidents.length === 0 && (
+              <p className="text-center py-10 text-[var(--color-ink-mute)] text-[12px]">
+                No incidents in window.
+              </p>
             )}
-          </div>
-        </GlassCard>
-
-        {/* ── Recent incidents ────────────────────────────────── */}
-        <GlassCard hover={false}>
-          <h2 className="text-sm font-semibold text-slate-600 mb-4">Recent Incidents</h2>
-          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-            {incidents?.slice(0, 12).map(inc => (
-              <div key={inc.id} className="glass-sm !rounded-lg p-3 text-xs space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-slate-800 font-medium truncate">#{inc.id}</span>
-                  <StatusBadge status={inc.severity} />
-                </div>
-                <p className="text-slate-500 truncate">{inc.title}</p>
-                <div className="flex items-center justify-between">
-                  <StatusBadge status={inc.status} />
-                  <span className="text-slate-400">{inc.node_name}</span>
-                </div>
-              </div>
-            ))}
-            {(!incidents || incidents.length === 0) && (
-              <p className="text-slate-400 text-center py-6">No incidents yet</p>
-            )}
-          </div>
+          </motion.div>
         </GlassCard>
       </div>
-
-      {/* ── Live charts ───────────────────────────────────────── */}
-      {chartData.length > 2 && (
-        <div className="grid lg:grid-cols-2 gap-6 md:gap-8">
-          {[
-            { key: 'cpu', label: 'Avg CPU %', color: '#22c55e' },
-            { key: 'mem', label: 'Avg Memory %', color: '#4ade80' },
-            { key: 'err', label: 'Avg Error Rate %', color: '#f97316' },
-            { key: 'lat', label: 'Avg Latency ms', color: '#38bdf8' },
-          ].map(ch => (
-            <GlassCard key={ch.key} hover={false} className="!p-4">
-              <span className="text-xs text-slate-500 mb-2 block">{ch.label}</span>
-              <ResponsiveContainer width="100%" height={120}>
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id={`g-${ch.key}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={ch.color} stopOpacity={0.3} />
-                      <stop offset="100%" stopColor={ch.color} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="time" hide />
-                  <YAxis hide domain={['auto', 'auto']} />
-                  <Tooltip
-                    contentStyle={{ background: '#ffffff', border: '1px solid rgba(22,163,74,0.15)', borderRadius: 8, fontSize: 11 }}
-                    labelStyle={{ color: '#64748b' }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={ch.key}
-                    stroke={ch.color}
-                    strokeWidth={2}
-                    fill={`url(#g-${ch.key})`}
-                    isAnimationActive={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </GlassCard>
-          ))}
-        </div>
-      )}
     </motion.div>
   );
 }

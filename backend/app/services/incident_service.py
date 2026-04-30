@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database.models import (
     Incident, IncidentStatus, Severity, Remediation, RemediationStatus,
-    AgentLog, RunbookEntry, InfrastructureNode, MetricSnapshot,
+    AgentLog, RunbookEntry,
 )
 from app.memory.vector_store import get_memory
 from app.remediation.artifacts import (
