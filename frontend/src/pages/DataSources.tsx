@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../components/ui/StatusBadge';
 import Loader from '../components/ui/Loader';
+import Portal from '../components/ui/Portal';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { DataSourceProvider, ConfiguredSource } from '../types';
@@ -198,11 +199,12 @@ export default function DataSources() {
       {/* ── Configuration modal ───────────────────────────────── */}
       <AnimatePresence>
         {configuring && (
+          <Portal>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center px-4"
+            className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
             onClick={() => setConfiguring(null)}
           >
             <motion.div
@@ -210,7 +212,7 @@ export default function DataSources() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={e => e.stopPropagation()}
-              className="glass w-full max-w-lg p-6 space-y-5"
+              className="glass-modal w-full max-w-lg p-6 space-y-5"
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-800">Configure {configuring.name}</h2>
@@ -232,7 +234,7 @@ export default function DataSources() {
                       <select
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
-                        className="w-full bg-black/5 border border-glass-border rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-accent/50"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                       >
                         <option value="">Select...</option>
                         {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -242,7 +244,7 @@ export default function DataSources() {
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
                         rows={4}
-                        className="w-full bg-black/5 border border-glass-border rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-accent/50 resize-none"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 resize-none"
                       />
                     ) : field.type === 'boolean' ? (
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -259,7 +261,7 @@ export default function DataSources() {
                         type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'}
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
-                        className="w-full bg-black/5 border border-glass-border rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-accent/50"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                       />
                     )}
                   </div>
@@ -301,17 +303,19 @@ export default function DataSources() {
               </div>
             </motion.div>
           </motion.div>
+          </Portal>
         )}
       </AnimatePresence>
 
       {/* ── Custom API Ingest modal ───────────────────────────── */}
       <AnimatePresence>
         {showIngest && (
+          <Portal>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center px-4"
+            className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
             onClick={() => setShowIngest(false)}
           >
             <motion.div
@@ -319,7 +323,7 @@ export default function DataSources() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={e => e.stopPropagation()}
-              className="glass w-full max-w-lg p-6 space-y-5"
+              className="glass-modal w-full max-w-lg p-6 space-y-5"
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-800">Push Metrics via API</h2>
@@ -348,7 +352,7 @@ export default function DataSources() {
                       type={f.type || 'text'}
                       value={(ingestData as any)[f.key]}
                       onChange={e => setIngestData({ ...ingestData, [f.key]: e.target.value })}
-                      className="w-full bg-black/5 border border-glass-border rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-accent/50"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                     />
                   </div>
                 ))}
@@ -368,6 +372,7 @@ export default function DataSources() {
               </button>
             </motion.div>
           </motion.div>
+          </Portal>
         )}
       </AnimatePresence>
     </motion.div>

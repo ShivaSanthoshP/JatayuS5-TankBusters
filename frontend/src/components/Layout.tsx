@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import {
-  LayoutDashboard, Bot, AlertTriangle, Server, Database, BookOpen, Cpu, Play, Settings,
+  LayoutDashboard, AlertTriangle, Server, Database, BookOpen, Cpu, Play, Settings,
 } from 'lucide-react';
 import GlassNavbar from './common/GlassNavbar';
 import GlassTab from './common/GlassTab';
@@ -11,7 +11,6 @@ import ParticleBackground from './ui/ParticleBackground';
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/agents', icon: Bot, label: 'Agents' },
   { to: '/pipeline', icon: Play, label: 'Pipeline' },
   { to: '/incidents', icon: AlertTriangle, label: 'Incidents' },
   { to: '/infrastructure', icon: Server, label: 'Infrastructure' },

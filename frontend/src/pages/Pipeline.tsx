@@ -637,50 +637,81 @@ export default function Pipeline() {
             className="space-y-5"
           >
             {/* Summary card */}
-            <GlassCard hover={false} glow={result.is_anomaly ? 'red' : 'green'}>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-slate-600">Pipeline Result</h2>
-                <div className="flex items-center gap-2">
-                  <StatusBadge status={result.status || 'unknown'} />
-                  {result.severity && <StatusBadge status={result.severity} />}
-                </div>
-              </div>
+            {(() => {
+              const isRunAll = (result as any).total_nodes !== undefined;
+              const anomaliesDetected = Number((result as any).anomalies_detected ?? 0);
+              const incidentsCreated = Number((result as any).incidents_created ?? 0);
+              const totalNodes = Number((result as any).total_nodes ?? 0);
+              const hasAnomaly = isRunAll ? anomaliesDetected > 0 : Boolean(result.is_anomaly);
+              const aggregateStatus = isRunAll
+                ? (anomaliesDetected > 0 ? 'critical' : 'healthy')
+                : (result.status || 'unknown');
 
-              {result.is_anomaly ? (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50/50 border border-red-200/50 mb-4">
-                  <AlertTriangle size={18} className="text-red-500" />
-                  <div>
-                    <span className="text-sm font-semibold text-red-700">Anomaly Detected</span>
-                    {result.incident_id && (
-                      <span className="text-xs text-red-500 ml-2">Incident #{result.incident_id} created</span>
-                    )}
+              return (
+                <GlassCard hover={false} glow={hasAnomaly ? 'red' : 'green'}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-semibold text-slate-600">Pipeline Result</h2>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={aggregateStatus} />
+                      {!isRunAll && result.severity && <StatusBadge status={result.severity} />}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50/50 border border-green-200/50 mb-4">
-                  <CheckCircle2 size={18} className="text-green-500" />
-                  <span className="text-sm font-semibold text-green-700">No Anomaly — All Clear</span>
-                </div>
-              )}
 
-              {/* Run-All summary */}
-              {(result as any).total_nodes !== undefined && (
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div className="p-3 rounded-lg bg-black/5">
-                    <div className="text-lg font-bold text-slate-800">{(result as any).total_nodes}</div>
-                    <div className="text-xs text-slate-500">Nodes Scanned</div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-red-500/5">
-                    <div className="text-lg font-bold text-red-600">{(result as any).anomalies_detected}</div>
-                    <div className="text-xs text-slate-500">Anomalies</div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-green-500/5">
-                    <div className="text-lg font-bold text-green-600">{(result as any).incidents_created}</div>
-                    <div className="text-xs text-slate-500">Incidents Created</div>
-                  </div>
-                </div>
-              )}
-            </GlassCard>
+                  {hasAnomaly ? (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50/50 border border-red-200/50 mb-4">
+                      <AlertTriangle size={18} className="text-red-500" />
+                      <div>
+                        {isRunAll ? (
+                          <>
+                            <span className="text-sm font-semibold text-red-700">
+                              {anomaliesDetected} {anomaliesDetected === 1 ? 'Anomaly' : 'Anomalies'} Detected
+                            </span>
+                            <span className="text-xs text-red-500 ml-2">
+                              across {totalNodes} {totalNodes === 1 ? 'node' : 'nodes'}
+                              {incidentsCreated > 0 && ` · ${incidentsCreated} ${incidentsCreated === 1 ? 'incident' : 'incidents'} created`}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-sm font-semibold text-red-700">Anomaly Detected</span>
+                            {result.incident_id && (
+                              <span className="text-xs text-red-500 ml-2">Incident #{result.incident_id} created</span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50/50 border border-green-200/50 mb-4">
+                      <CheckCircle2 size={18} className="text-green-500" />
+                      <span className="text-sm font-semibold text-green-700">
+                        {isRunAll
+                          ? `No Anomalies Across ${totalNodes} ${totalNodes === 1 ? 'Node' : 'Nodes'} — All Clear`
+                          : 'No Anomaly — All Clear'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Run-All summary */}
+                  {isRunAll && (
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div className="p-3 rounded-lg bg-black/5">
+                        <div className="text-lg font-bold text-slate-800">{totalNodes}</div>
+                        <div className="text-xs text-slate-500">Nodes Scanned</div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-red-500/5">
+                        <div className="text-lg font-bold text-red-600">{anomaliesDetected}</div>
+                        <div className="text-xs text-slate-500">Anomalies</div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-green-500/5">
+                        <div className="text-lg font-bold text-green-600">{incidentsCreated}</div>
+                        <div className="text-xs text-slate-500">Incidents Created</div>
+                      </div>
+                    </div>
+                  )}
+                </GlassCard>
+              );
+            })()}
 
             {/* Agent detail cards (only for single-node runs) */}
             {result.monitoring_result && Object.keys(result.monitoring_result).length > 0 && (

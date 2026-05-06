@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../components/ui/StatusBadge';
 import Loader from '../components/ui/Loader';
+import Portal from '../components/ui/Portal';
 import { usePolling } from '../hooks/useApi';
 import { useSimulatorLogs } from '../hooks/useSimulatorLogs';
 import * as api from '../services/api';
@@ -142,15 +143,16 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   };
 
   return (
+    <Portal>
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="glass w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto"
+        className="glass-modal w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto"
       >
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -166,7 +168,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             <label className="block text-xs font-medium text-slate-500 mb-1.5">Name *</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. web-server-01"
-              className="w-full bg-black/5 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
+              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
             />
           </div>
 
@@ -179,8 +181,10 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                 const Icon = meta.icon;
                 return (
                   <button key={t} onClick={() => setType(t)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
-                      type === t ? 'border-accent/50 bg-accent/8 text-accent' : 'border-slate-200 bg-black/3 text-slate-600 hover:bg-black/6'
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      type === t
+                        ? 'bg-accent/10 text-accent ring-1 ring-accent/40'
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     <Icon size={15} />{meta.label}
@@ -196,7 +200,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             <div className="relative">
               <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input type="number" min="1" max="60" value={interval} onChange={(e) => setInterval(e.target.value)}
-                className="w-full bg-black/5 border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
+                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
               />
             </div>
             <p className="text-xs text-slate-400 mt-1">One log line emitted every {interval || '5'}s</p>
@@ -220,10 +224,10 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
           </div>
 
           {/* ── Performance Metrics toggle ── */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden">
+          <div className="bg-slate-50 rounded-xl overflow-hidden">
             <button
               onClick={() => setMetricsOn((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/3 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-100 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Activity size={15} className="text-accent" />
@@ -241,7 +245,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                   initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-4 pb-4 pt-2 border-t border-slate-100 space-y-3">
+                  <div className="px-4 pb-4 pt-2 border-t border-slate-200/70 space-y-3">
                     <p className="text-xs text-slate-400">
                       Set simulated metric values. Small variance (±5%) applied automatically while running.
                     </p>
@@ -270,6 +274,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
         </div>
       </motion.div>
     </motion.div>
+    </Portal>
   );
 }
 
@@ -296,15 +301,16 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
   };
 
   return (
+    <Portal>
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="glass w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto"
+        className="glass-modal w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -316,7 +322,7 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
 
         {/* Toggle */}
         <button onClick={() => setEnabled((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 border border-slate-200 rounded-xl hover:bg-black/3 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
         >
           <span className="text-sm font-medium text-slate-700">Enable metrics simulation</span>
           {enabled ? <ToggleRight size={22} className="text-accent" /> : <ToggleLeft size={22} className="text-slate-300" />}
@@ -340,6 +346,7 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
         </div>
       </motion.div>
     </motion.div>
+    </Portal>
   );
 }
 
@@ -355,15 +362,16 @@ function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose:
   const hasMetrics = simulator.metrics_enabled && liveMetrics;
 
   return (
+    <Portal>
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
         onClick={(e) => e.stopPropagation()}
-        className="glass w-full max-w-5xl flex flex-col"
+        className="glass-modal w-full max-w-5xl flex flex-col"
         style={{ height: '76vh' }}
       >
         {/* Header */}
@@ -429,6 +437,7 @@ function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose:
         </div>
       </motion.div>
     </motion.div>
+    </Portal>
   );
 }
 

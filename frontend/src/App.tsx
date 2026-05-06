@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import Agents from './pages/Agents';
 import Pipeline from './pages/Pipeline';
 import Incidents from './pages/Incidents';
 import Infrastructure from './pages/Infrastructure';
@@ -16,7 +15,6 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/agents" element={<Agents />} />
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/infrastructure" element={<Infrastructure />} />

@@ -82,6 +82,40 @@ wait_for_backend() {
   fail "Backend did not become ready on ${url}. Check the terminal output above."
 }
 
+list_listeners() {
+  local port="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null || true
+  elif command -v fuser >/dev/null 2>&1; then
+    fuser -n tcp "$port" 2>/dev/null | tr -s ' ' '\n' | grep -E '^[0-9]+$' || true
+  elif command -v ss >/dev/null 2>&1; then
+    ss -ltnp "sport = :$port" 2>/dev/null | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u || true
+  fi
+}
+
+free_port() {
+  local port="$1"
+  local label="$2"
+  local pids
+  pids="$(list_listeners "$port" | tr '\n' ' ' | xargs || true)"
+  if [[ -z "$pids" ]]; then
+    return 0
+  fi
+  log INFO "Port ${port} (${label}) is busy — freeing PID(s): ${pids}"
+  kill ${pids} 2>/dev/null || true
+  sleep 1
+  pids="$(list_listeners "$port" | tr '\n' ' ' | xargs || true)"
+  if [[ -n "$pids" ]]; then
+    kill -9 ${pids} 2>/dev/null || true
+    sleep 1
+  fi
+  pids="$(list_listeners "$port" | tr '\n' ' ' | xargs || true)"
+  if [[ -n "$pids" ]]; then
+    fail "Could not free port ${port}. Still held by PID(s): ${pids}"
+  fi
+  log INFO "Port ${port} freed."
+}
+
 PYTHON_BIN="$(find_python)"
 ensure_command npm "Install Node.js from https://nodejs.org or with Homebrew: brew install node"
 ensure_command curl "curl is required and is typically preinstalled on macOS."
@@ -107,6 +141,8 @@ log INFO "Installing backend dependencies..."
 log INFO "Installing frontend dependencies..."
 npm --prefix "$FRONTEND_DIR" install
 
+free_port "$BACKEND_PORT" "backend"
+
 log INFO "Starting backend on http://localhost:${BACKEND_PORT} ..."
 cd "$BACKEND_DIR"
 "$VENV_DIR/bin/python" -m uvicorn app.main:app --reload --host 0.0.0.0 --port "$BACKEND_PORT" &
@@ -116,6 +152,9 @@ cd "$ROOT_DIR"
 wait_for_backend
 
 log INFO "Backend docs: http://localhost:${BACKEND_PORT}/docs"
+
+free_port "$FRONTEND_PORT" "frontend"
+
 log INFO "Starting frontend on http://localhost:${FRONTEND_PORT} ..."
 log INFO "Press Ctrl+C in this window to stop both services."
 

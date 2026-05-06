@@ -86,6 +86,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo [INFO] Ensuring port 8000 is free...
+powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { try { $p = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; if ($p) { Write-Host ('[INFO] Port 8000 in use by ' + $p.ProcessName + ' (PID ' + $_.OwningProcess + ') - terminating...'); Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } } catch {} }; Start-Sleep -Milliseconds 500"
+
 echo [4/5] Starting backend on http://localhost:8000 ...
 start "ITOps Backend" cmd /k "cd /d \"%BACKEND_DIR%\" && \"%VENV_PYTHON%\" -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000"
 
@@ -102,6 +105,9 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+
+echo [INFO] Ensuring port 3000 is free...
+powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { try { $p = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; if ($p) { Write-Host ('[INFO] Port 3000 in use by ' + $p.ProcessName + ' (PID ' + $_.OwningProcess + ') - terminating...'); Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue } } catch {} }; Start-Sleep -Milliseconds 500"
 
 echo [5/5] Starting frontend on http://localhost:3000 ...
 start "ITOps Frontend" cmd /k "cd /d \"%FRONTEND_DIR%\" && npm run dev"

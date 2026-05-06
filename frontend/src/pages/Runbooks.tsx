@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Search, Hash, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  AlertTriangle, X, Wrench, Shield, FileText,
+  X, Wrench, Shield, FileText,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import Loader from '../components/ui/Loader';
@@ -10,7 +10,6 @@ import { usePolling } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { RunbookEntry } from '../types';
 
-type SearchMode = 'incidents' | 'runbooks';
 type SeedFilter = 'all' | 'seeded' | 'auto';
 type SortKey = 'effectiveness' | 'usage' | 'newest';
 
@@ -45,11 +44,10 @@ function summarizeDoc(doc: string | undefined): { head: string; rest: string } {
 }
 
 /* ── search result card ──────────────────────────────────────── */
-function SearchResultCard({ result, mode, index }: { result: SearchResult; mode: SearchMode; index: number }) {
+function SearchResultCard({ result, index }: { result: SearchResult; index: number }) {
   const pct = relevancePct(result.distance);
   const { label, color } = relevanceLabel(pct);
   const { head, rest } = summarizeDoc(result.document);
-  const Icon = mode === 'incidents' ? AlertTriangle : BookOpen;
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
@@ -62,9 +60,9 @@ function SearchResultCard({ result, mode, index }: { result: SearchResult; mode:
           <div
             className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
             style={{ background: `${color}1a`, color }}
-            title={mode === 'incidents' ? 'Past incident from memory' : 'Saved runbook'}
+            title="Saved runbook"
           >
-            <Icon size={12} />
+            <BookOpen size={12} />
           </div>
           <span className="text-xs font-medium text-slate-700 truncate">{head}</span>
         </div>
@@ -345,7 +343,6 @@ export default function Runbooks() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [searching, setSearching] = useState(false);
-  const [searchMode, setSearchMode] = useState<SearchMode>('runbooks');
 
   // List controls
   const [seedFilter, setSeedFilter] = useState<SeedFilter>('all');
@@ -406,7 +403,7 @@ export default function Runbooks() {
     if (!searchQuery.trim()) return;
     setSearching(true);
     try {
-      const res = await api.searchMemory(searchQuery, searchMode);
+      const res = await api.searchMemory(searchQuery, 'runbooks');
       // Sort by relevance (lower distance = better) before display
       const list = (res.results || []) as SearchResult[];
       list.sort((a, b) => (a.distance ?? 1) - (b.distance ?? 1));
@@ -446,34 +443,6 @@ export default function Runbooks() {
           </div>
         </div>
 
-        {/* Mode toggle */}
-        <div className="flex items-center gap-1.5 mb-3">
-          <button
-            onClick={() => setSearchMode('runbooks')}
-            title="Search the runbook library — find an existing playbook that fixes this kind of problem"
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-              searchMode === 'runbooks'
-                ? 'bg-accent/10 text-accent border-accent/30'
-                : 'bg-black/5 text-slate-500 border-transparent hover:border-slate-200'
-            }`}
-          >
-            <BookOpen size={11} className="inline mr-1.5 -mt-px" />
-            Runbooks
-          </button>
-          <button
-            onClick={() => setSearchMode('incidents')}
-            title="Search past incidents — find a similar problem we've solved before"
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-              searchMode === 'incidents'
-                ? 'bg-accent/10 text-accent border-accent/30'
-                : 'bg-black/5 text-slate-500 border-transparent hover:border-slate-200'
-            }`}
-          >
-            <AlertTriangle size={11} className="inline mr-1.5 -mt-px" />
-            Past incidents
-          </button>
-        </div>
-
         {/* Search input */}
         <div className="flex gap-3">
           <div className="flex-1 relative">
@@ -482,11 +451,7 @@ export default function Runbooks() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder={
-                searchMode === 'runbooks'
-                  ? 'e.g. "memory leak on java service" or "disk full"'
-                  : 'e.g. "high CPU spike" or "database connection timeouts"'
-              }
+              placeholder='e.g. "memory leak on java service" or "disk full"'
               className="w-full bg-black/5 border border-glass-border rounded-lg pl-9 pr-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-accent/50"
             />
           </div>
@@ -523,7 +488,7 @@ export default function Runbooks() {
               {searchResults.length === 0 ? (
                 <div className="text-center py-6 text-xs text-slate-400">
                   <Search size={20} className="mx-auto mb-2 opacity-30" />
-                  No matches for "<b className="text-slate-600">{searchQuery}</b>" in {searchMode === 'incidents' ? 'past incidents' : 'runbooks'}.
+                  No matches for "<b className="text-slate-600">{searchQuery}</b>" in runbooks.
                 </div>
               ) : (
                 <>
@@ -531,7 +496,7 @@ export default function Runbooks() {
                     {searchResults.length} match{searchResults.length === 1 ? '' : 'es'} — sorted by relevance
                   </p>
                   {searchResults.map((r, i) => (
-                    <SearchResultCard key={i} result={r} mode={searchMode} index={i} />
+                    <SearchResultCard key={i} result={r} index={i} />
                   ))}
                 </>
               )}

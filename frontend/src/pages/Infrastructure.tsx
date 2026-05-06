@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import StatusBadge from '../components/ui/StatusBadge';
 import Loader from '../components/ui/Loader';
+import Portal from '../components/ui/Portal';
 import { usePolling, useApi } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { InfraNode, MetricSnapshot } from '../types';
@@ -143,11 +144,12 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
   ];
 
   return (
+    <Portal>
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-start justify-center pt-20 px-4"
+      className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-start justify-center pt-20 px-4"
       onClick={onClose}
     >
       <motion.div
@@ -155,7 +157,7 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
         animate={{ scale: 1, y: 0 }}
         exit={{ scale: 0.95, y: 20 }}
         onClick={e => e.stopPropagation()}
-        className="glass w-full max-w-3xl max-h-[75vh] overflow-y-auto p-6 space-y-5"
+        className="glass-modal w-full max-w-3xl max-h-[75vh] overflow-y-auto p-6 space-y-5"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -194,5 +196,6 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
         )}
       </motion.div>
     </motion.div>
+    </Portal>
   );
 }

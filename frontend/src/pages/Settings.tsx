@@ -44,6 +44,16 @@ interface OllamaModel {
   modified_at: string;
 }
 
+interface GeminiModelInfo {
+  name: string;
+  display_name: string;
+  description: string;
+  input_token_limit: number;
+  output_token_limit: number;
+  version: string;
+  deprecated: boolean;
+}
+
 const DEFAULT_OLLAMA_LLM_OPTIONS = [
   'llama3.2:3b', 'qwen2.5-coder:7b', 'mistral-nemo',
   'deepseek-coder-v2', 'codellama:7b', 'gemma2:9b', 'gemma3:4b',
@@ -58,7 +68,8 @@ const DEFAULT_OPENAI_MODELS = [
 ];
 
 const DEFAULT_GEMINI_MODELS = [
-  'gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-pro', 'gemini-1.5-flash',
+  'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+  'gemini-1.5-pro', 'gemini-1.5-flash',
 ];
 
 const PROVIDER_META: Record<LlmProvider, { label: string; subtitle: string; description: string; Icon: React.ElementType; accent: string }> = {
@@ -96,6 +107,9 @@ function formatBytes(bytes: number): string {
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
+  const [geminiModels, setGeminiModels] = useState<GeminiModelInfo[]>([]);
+  const [geminiModelsError, setGeminiModelsError] = useState<string | null>(null);
+  const [geminiModelsLoading, setGeminiModelsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -144,6 +158,27 @@ export default function Settings() {
     fetchSettings();
   }, [fetchSettings]);
 
+  const fetchGeminiModels = useCallback(async (draftKey?: string) => {
+    setGeminiModelsLoading(true);
+    setGeminiModelsError(null);
+    try {
+      const result = await api.getGeminiModels(draftKey?.trim() || undefined);
+      setGeminiModels(result.models || []);
+      if (result.error) setGeminiModelsError(result.error);
+    } catch (e: any) {
+      setGeminiModelsError(e.message || 'Failed to fetch models');
+      setGeminiModels([]);
+    } finally {
+      setGeminiModelsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (settings?.gemini_api_key_set && geminiModels.length === 0 && !geminiModelsLoading && !geminiModelsError) {
+      fetchGeminiModels();
+    }
+  }, [settings?.gemini_api_key_set, geminiModels.length, geminiModelsLoading, geminiModelsError, fetchGeminiModels]);
+
   const save = async (partial: Partial<SettingsData>) => {
     if (!settings) return;
     setSaving(true);
@@ -175,10 +210,15 @@ export default function Settings() {
     await save({ gemini_api_key: geminiKeyDraft.trim() });
     setGeminiKeyDraft('');
     setShowGeminiKey(false);
+    fetchGeminiModels();
   };
 
   const clearOpenaiKey = () => save({ openai_api_key: '' });
-  const clearGeminiKey = () => save({ gemini_api_key: '' });
+  const clearGeminiKey = () => {
+    save({ gemini_api_key: '' });
+    setGeminiModels([]);
+    setGeminiModelsError(null);
+  };
 
   const runTest = async (provider: LlmProvider) => {
     setTesting(provider);
@@ -255,9 +295,18 @@ export default function Settings() {
     ...DEFAULT_OPENAI_MODELS, ...settings.custom_openai_models, settings.openai_model,
   ])].sort();
 
-  const geminiOptions = [...new Set([
-    ...DEFAULT_GEMINI_MODELS, ...settings.custom_gemini_models, settings.gemini_model,
-  ])].sort();
+  // Prefer the live catalog when available (preserves backend's smart sort);
+  // otherwise fall back to the static defaults. Custom + currently-selected
+  // models are always merged in so the user can still pick what they typed.
+  const geminiCatalogNames = geminiModels.map((m) => m.name);
+  const geminiExtraNames = [...settings.custom_gemini_models, settings.gemini_model]
+    .filter((n) => n && !geminiCatalogNames.includes(n));
+  const geminiOptions: string[] = geminiModels.length > 0
+    ? [...geminiCatalogNames, ...geminiExtraNames]
+    : [...new Set([
+        ...DEFAULT_GEMINI_MODELS, ...settings.custom_gemini_models, settings.gemini_model,
+      ])].sort();
+  const geminiInfoByName = new Map(geminiModels.map((m) => [m.name, m]));
 
   const activeProvider = settings.llm_provider;
 
@@ -696,32 +745,79 @@ export default function Settings() {
           )}
 
           {/* Model */}
-          <label className="text-xs text-slate-500 mb-1.5 block">Model</label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-xs text-slate-500">Model</label>
+            {settings.gemini_api_key_set && (
+              <button
+                onClick={() => fetchGeminiModels()}
+                disabled={geminiModelsLoading}
+                title="Refresh model list from Google"
+                className="text-[11px] text-sky-600 hover:text-sky-700 flex items-center gap-1 disabled:opacity-50"
+              >
+                {geminiModelsLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                {geminiModels.length > 0
+                  ? `${geminiModels.length} models${geminiModels.some((m) => m.deprecated) ? ` · ${geminiModels.filter((m) => m.deprecated).length} deprecated` : ''}`
+                  : 'Fetch models'}
+              </button>
+            )}
+          </div>
+          {geminiModelsError && (
+            <p className="text-[11px] text-amber-600 mb-1.5 flex items-center gap-1">
+              <AlertCircle size={11} />
+              Couldn't fetch live model list — using defaults. ({geminiModelsError})
+            </p>
+          )}
           <div className="relative mb-4">
             <button
               onClick={() => setOpenDropdown(openDropdown === 'gemini-model' ? null : 'gemini-model')}
               className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-sky-300"
             >
-              <span className="font-medium">{settings.gemini_model}</span>
+              <span className="font-medium flex items-center gap-2">
+                {settings.gemini_model}
+                {geminiInfoByName.get(settings.gemini_model)?.deprecated && (
+                  <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Deprecated</span>
+                )}
+              </span>
               <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'gemini-model' ? 'rotate-180' : ''}`} />
             </button>
             {openDropdown === 'gemini-model' && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="absolute z-30 mt-1 w-full glass-dropdown max-h-52 overflow-y-auto"
+                className="absolute z-30 mt-1 w-full glass-dropdown max-h-72 overflow-y-auto"
               >
-                {geminiOptions.map((model) => (
+                {geminiOptions.map((model) => {
+                  const info = geminiInfoByName.get(model);
+                  const isSelected = model === settings.gemini_model;
+                  return (
                   <button
                     key={model}
                     onClick={() => { save({ gemini_model: model }); setOpenDropdown(null); }}
+                    title={info?.description || ''}
                     className={`w-full text-left px-3 py-2 text-sm hover:bg-sky-50 ${
-                      model === settings.gemini_model ? 'bg-sky-50 text-sky-700 font-medium' : 'text-slate-700'
-                    }`}
+                      isSelected ? 'bg-sky-50 text-sky-700' : 'text-slate-700'
+                    } ${info?.deprecated ? 'opacity-60' : ''}`}
                   >
-                    {model}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`truncate ${isSelected ? 'font-medium' : ''}`}>
+                        {info?.display_name && info.display_name !== model
+                          ? <><span className="font-mono text-[12px]">{model}</span> <span className="text-slate-400">— {info.display_name}</span></>
+                          : <span className="font-mono text-[12px]">{model}</span>}
+                      </span>
+                      {info?.deprecated ? (
+                        <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded shrink-0">Deprecated</span>
+                      ) : info ? (
+                        <span className="text-[10px] uppercase tracking-wide bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded shrink-0">Active</span>
+                      ) : null}
+                    </div>
+                    {info && (info.input_token_limit > 0 || info.output_token_limit > 0) && (
+                      <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
+                        in {info.input_token_limit.toLocaleString()} · out {info.output_token_limit.toLocaleString()} tok
+                      </div>
+                    )}
                   </button>
-                ))}
+                  );
+                })}
               </motion.div>
             )}
           </div>

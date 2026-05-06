@@ -47,7 +47,6 @@ export const getIncidentRemediationArtifactDownloadUrl = (id: number, artifactId
   `${BASE}/incidents/${id}/remediation/artifacts/${encodeURIComponent(artifactId)}`;
 
 /* ── Agents ─────────────────────────────────────────────── */
-export const getAgents = () => request<any[]>('/agents/');
 export const startPipelineRun = (body: any) =>
   request<any>('/agents/pipeline/start', { method: 'POST', body: JSON.stringify(body) });
 export const getPipelineRun = (runId: string) =>
@@ -93,6 +92,21 @@ export const getSettings = () => request<any>('/settings/');
 export const updateSettings = (body: any) =>
   request<any>('/settings/', { method: 'PUT', body: JSON.stringify(body) });
 export const getOllamaModels = () => request<any>('/settings/ollama-models');
+export const getGeminiModels = (apiKey?: string) => {
+  const qs = apiKey ? `?api_key=${encodeURIComponent(apiKey)}` : '';
+  return requestWithTimeout<{
+    models: Array<{
+      name: string;
+      display_name: string;
+      description: string;
+      input_token_limit: number;
+      output_token_limit: number;
+      version: string;
+      deprecated: boolean;
+    }>;
+    error?: string;
+  }>(`/settings/gemini-models${qs}`, 15000);
+};
 export const testLlmProvider = (body: {
   provider: 'ollama' | 'openai' | 'gemini';
   model?: string;

@@ -132,7 +132,7 @@ def _active_provider_config() -> dict[str, Any]:
     if provider == "gemini":
         return {
             "provider": "gemini",
-            "model": _settings.gemini_model or "gemini-2.0-flash",
+            "model": _settings.gemini_model or "gemini-2.5-flash",
             "api_key": _settings.gemini_api_key or "",
         }
     return {"provider": "ollama", "model": "llama3.2:3b", "base_url": _settings.ollama_base_url}
@@ -194,7 +194,7 @@ def test_provider(provider: str, *, model: str | None = None, api_key: str | Non
         if provider == "gemini":
             if not api_key:
                 return {"ok": False, "message": "API key required"}
-            mdl = model or "gemini-2.0-flash"
+            mdl = model or "gemini-2.5-flash"
             result = _call_gemini(prompt, mdl, 0.0, api_key=api_key)
             return {"ok": bool(result), "message": "Reachable" if result else "No JSON response", "model": mdl}
     except Exception as exc:

@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import re
+import urllib.error
+import urllib.parse
+import urllib.request
 from typing import Any
 
 import ollama
@@ -111,6 +116,109 @@ def list_ollama_models() -> dict[str, Any]:
         return {"models": models}
     except Exception as e:
         logger.warning(f"Failed to list Ollama models: {e}")
+        return {"models": [], "error": str(e)}
+
+
+_DEPRECATION_KEYWORDS = (
+    "deprecated", "discontinued", "will be removed", "no longer",
+    "legacy", "retire",
+)
+
+
+def _gemini_version_key(name: str) -> float:
+    """Extract a numeric version from a model id (e.g. 'gemini-2.5-flash' → 2.5)."""
+    m = re.search(r"(\d+)\.(\d+)", name)
+    if m:
+        try:
+            return float(f"{m.group(1)}.{m.group(2)}")
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
+def _gemini_family_rank(name: str) -> int:
+    """Lower is better. Prefer flagship 'pro' / 'flash' over experimental / preview / tts variants."""
+    n = name.lower()
+    if "tts" in n or "audio" in n:
+        return 5
+    if "preview" in n or "experimental" in n or "exp" in n.split("-"):
+        return 4
+    if "lite" in n:
+        return 3
+    if "flash" in n:
+        return 1
+    if "pro" in n:
+        return 0
+    return 2
+
+
+@router.get("/gemini-models")
+def list_gemini_models(api_key: str | None = None) -> dict[str, Any]:
+    """Fetch the live Gemini model catalog from Google's ListModels API.
+
+    Returns each chat-capable model with display name, token limits, and a
+    `deprecated` flag derived from the model's description. Sort order:
+    usable models first (deprecated last), then by version desc, then by
+    family rank (pro/flash before lite/preview/tts), then alphabetical.
+    """
+    snapshot = settings.snapshot(include_secrets=True)
+    key = (api_key or snapshot.get("gemini_api_key") or "").strip()
+    if not key:
+        return {"models": [], "error": "No Gemini API key configured"}
+
+    try:
+        all_models: list[dict[str, Any]] = []
+        page_token: str | None = None
+        # Cap iterations defensively in case the API misbehaves.
+        for _ in range(10):
+            params = {"pageSize": "200", "key": key}
+            if page_token:
+                params["pageToken"] = page_token
+            url = "https://generativelanguage.googleapis.com/v1beta/models?" + urllib.parse.urlencode(params)
+            req = urllib.request.Request(url, headers={"Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            all_models.extend(data.get("models", []) or [])
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+
+        parsed: list[dict[str, Any]] = []
+        for m in all_models:
+            raw_name = m.get("name", "") or ""
+            name = raw_name.removeprefix("models/")
+            methods = m.get("supportedGenerationMethods", []) or []
+            if "generateContent" not in methods:
+                continue
+            description = (m.get("description") or "").strip()
+            desc_l = description.lower()
+            deprecated = any(kw in desc_l for kw in _DEPRECATION_KEYWORDS)
+            parsed.append({
+                "name": name,
+                "display_name": m.get("displayName") or name,
+                "description": description,
+                "input_token_limit": m.get("inputTokenLimit") or 0,
+                "output_token_limit": m.get("outputTokenLimit") or 0,
+                "version": m.get("version") or "",
+                "deprecated": deprecated,
+            })
+
+        parsed.sort(key=lambda x: (
+            x["deprecated"],
+            -_gemini_version_key(x["name"]),
+            _gemini_family_rank(x["name"]),
+            x["name"],
+        ))
+        return {"models": parsed}
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode("utf-8", errors="ignore")
+        except Exception:
+            body = ""
+        logger.warning(f"Gemini ListModels HTTP {e.code}: {body[:300]}")
+        return {"models": [], "error": f"HTTP {e.code}: {body[:200] or e.reason}"}
+    except Exception as e:
+        logger.warning(f"Gemini ListModels failed: {e}")
         return {"models": [], "error": str(e)}
 
 
