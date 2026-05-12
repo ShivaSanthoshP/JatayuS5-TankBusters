@@ -82,14 +82,13 @@ jobs:
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
 
       # Sync backend code — never overwrites the DB, chroma store, .env,
       # or runtime_settings.json so user data and secrets survive deploys.
       - name: Sync backend code
         run: |
           rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             --exclude '__pycache__/' \
             --exclude '*.pyc' \
             --exclude '*.pyo' \
@@ -103,14 +102,14 @@ jobs:
       - name: Sync frontend build
         run: |
           rsync -az --delete \
-            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             frontend/dist/ \
             "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/opt/itops/frontend/dist/"
 
       - name: Install Python deps & restart services
         run: |
           ssh -i ~/.ssh/deploy_key \
-            -o StrictHostKeyChecking=yes \
+            -o StrictHostKeyChecking=no \
             "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" << 'ENDSSH'
           set -euo pipefail
 
