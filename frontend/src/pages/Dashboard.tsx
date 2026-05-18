@@ -19,42 +19,66 @@ import * as api from '../services/api';
 import type { WsMetricEvent, DashboardStats, Incident } from '../types';
 import { spring, stagger, fadeUp } from '../lib/motion';
 
-/* ── tiny chart-data ring buffer ─────────────────────────── */
-function useChartHistory(events: WsMetricEvent[], maxPoints = 32) {
-  const [buf, setBuf] = useState<{ time: string; cpu: number; mem: number; err: number; lat: number }[]>([]);
+/* ── persistent chart-data ring buffer ───────────────────── */
+type ChartPoint = { time: string; cpu: number; mem: number; err: number; lat: number };
+const CHART_STORAGE_KEY = 'itops_telemetry_buf';
+const CHART_MAX_STORED  = 120; // keep 2 min in storage; chart shows last maxPoints
 
-  // Seed with persisted history from the DB on first mount
+function loadFromStorage(): ChartPoint[] {
+  try {
+    const raw = localStorage.getItem(CHART_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ChartPoint[];
+      if (Array.isArray(parsed) && parsed.length) return parsed.slice(-CHART_MAX_STORED);
+    }
+  } catch {}
+  return [];
+}
+
+function useChartHistory(events: WsMetricEvent[], maxPoints = 60) {
+  // Lazy initializer runs synchronously — chart is populated before first paint
+  const [buf, setBuf] = useState<ChartPoint[]>(loadFromStorage);
+
+  // Persist every change so the next reload picks it up instantly
+  useEffect(() => {
+    if (buf.length) {
+      try { localStorage.setItem(CHART_STORAGE_KEY, JSON.stringify(buf)); } catch {}
+    }
+  }, [buf]);
+
+  // On mount, also pull from DB — covers the case where localStorage is empty
+  // (first ever visit) or the user opened the app on a different browser
   useEffect(() => {
     api.getMetricsHistory(maxPoints).then(history => {
-      if (history.length) {
-        setBuf(history.map(p => ({
-          ...p,
-          time: new Date(p.time + 'Z').toLocaleTimeString(),
-        })));
-      }
-    }).catch(() => {/* ignore — live data will fill in */});
+      if (!history.length) return;
+      const dbPoints: ChartPoint[] = history.map(p => ({
+        ...p,
+        time: new Date(p.time + 'Z').toLocaleTimeString(),
+      }));
+      // Only replace if DB has more historical coverage than what we already have
+      setBuf(prev => dbPoints.length > prev.length ? dbPoints : prev);
+    }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Append each live WebSocket tick as a new point
   useEffect(() => {
-    if (events.length) {
-      const avg = (k: keyof WsMetricEvent['metrics']) =>
-        +(events.reduce((s, e) => s + e.metrics[k], 0) / events.length).toFixed(1);
-      setBuf(prev => {
-        const next = [...prev, {
-          time: new Date().toLocaleTimeString(),
-          cpu: avg('cpu_percent'),
-          mem: avg('memory_percent'),
-          err: avg('error_rate'),
-          lat: avg('latency_ms'),
-        }];
-        return next.length > maxPoints ? next.slice(-maxPoints) : next;
-      });
-    }
+    if (!events.length) return;
+    const avg = (k: keyof WsMetricEvent['metrics']) =>
+      +(events.reduce((s, e) => s + e.metrics[k], 0) / events.length).toFixed(1);
+    setBuf(prev => {
+      const next = [...prev, {
+        time: new Date().toLocaleTimeString(),
+        cpu: avg('cpu_percent'),
+        mem: avg('memory_percent'),
+        err: avg('error_rate'),
+        lat: avg('latency_ms'),
+      }];
+      return next.length > CHART_MAX_STORED ? next.slice(-CHART_MAX_STORED) : next;
+    });
   }, [events, maxPoints]);
 
-  return buf;
+  return buf.slice(-maxPoints);
 }
 
 /* ── editorial donut gauge with springy fill ────────────── */

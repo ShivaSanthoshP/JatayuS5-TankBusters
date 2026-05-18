@@ -154,31 +154,39 @@ class InfraService:
             lines.append(f"[{ts}] {log.level} ({log.source}): {log.message}")
         return "\n".join(lines)
 
-    def get_aggregated_history(self, points: int = 32) -> list[dict]:
-        """Return up to `points` time-bucketed (per-second) fleet-wide averages."""
-        bucket = func.strftime('%Y-%m-%dT%H:%M:%S', MetricSnapshot.timestamp).label('bucket')
+    def get_aggregated_history(self, points: int = 60) -> list[dict]:
+        """Return time-bucketed (per-second) fleet-wide averages for the last `points` seconds."""
+        from collections import defaultdict
+
         rows = (
-            self.db.query(
-                bucket,
-                func.avg(MetricSnapshot.cpu_percent).label('cpu'),
-                func.avg(MetricSnapshot.memory_percent).label('mem'),
-                func.avg(MetricSnapshot.error_rate).label('err'),
-                func.avg(MetricSnapshot.latency_ms).label('lat'),
-            )
-            .group_by(bucket)
-            .order_by(bucket.desc())
-            .limit(points)
+            self.db.query(MetricSnapshot)
+            .order_by(MetricSnapshot.timestamp.desc())
+            .limit(points * 60)
             .all()
         )
+        if not rows:
+            return []
+
+        buckets: dict[str, list] = defaultdict(list)
+        for row in rows:
+            if row.timestamp:
+                key = row.timestamp.strftime('%Y-%m-%dT%H:%M:%S')
+                buckets[key].append(row)
+
+        def safe_avg(group, attr):
+            vals = [getattr(r, attr) for r in group if getattr(r, attr) is not None]
+            return round(sum(vals) / len(vals), 1) if vals else 0.0
+
+        sorted_keys = sorted(buckets.keys())[-points:]
         return [
             {
-                'time': row.bucket,
-                'cpu': round(row.cpu or 0, 1),
-                'mem': round(row.mem or 0, 1),
-                'err': round(row.err or 0, 1),
-                'lat': round(row.lat or 0, 1),
+                'time': key,
+                'cpu': safe_avg(buckets[key], 'cpu_percent'),
+                'mem': safe_avg(buckets[key], 'memory_percent'),
+                'err': safe_avg(buckets[key], 'error_rate'),
+                'lat': safe_avg(buckets[key], 'latency_ms'),
             }
-            for row in reversed(rows)
+            for key in sorted_keys
         ]
 
     def get_latest_metric_snapshot(self, node_id: int) -> MetricSnapshot | None:
