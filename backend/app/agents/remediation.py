@@ -194,11 +194,33 @@ async def _similar_remediation_context(issue_type: str, root_cause: str) -> tupl
         return "No similar past incidents found.", False
 
 
+# ── Provider-aware command helpers ──────────────────────────────────
+
+def _provider_restart_cmd(service_name: str, provider: str) -> str:
+    if provider == "aws":
+        return f"aws ec2 reboot-instances --instance-ids $INSTANCE_ID  # or: systemctl restart {service_name}"
+    if provider == "azure":
+        return f"az vm restart --name $VM_NAME --resource-group $RESOURCE_GROUP  # or: systemctl restart {service_name}"
+    if provider == "gcp":
+        return f"gcloud compute instances reset $INSTANCE_NAME --zone=$ZONE  # or: systemctl restart {service_name}"
+    return f"systemctl restart {service_name}"
+
+
+def _provider_logs_cmd(service_name: str, provider: str) -> str:
+    if provider == "aws":
+        return f"aws logs filter-log-events --log-group-name /aws/ec2/{service_name}"
+    if provider == "azure":
+        return "az monitor activity-log list --resource-group $RESOURCE_GROUP"
+    if provider == "gcp":
+        return "gcloud logging read 'resource.type=gce_instance' --limit=50"
+    return f"journalctl -u {service_name} -n 100"
+
+
 # ── Plan builder ────────────────────────────────────────────────────
 
 async def _build_plan(
     issue_type: str, service_name: str, metrics: dict,
-    log_history: str, root_cause: str = "",
+    log_history: str, root_cause: str = "", provider: str = "simulated",
 ) -> tuple[list[dict], list[dict], str, bool, str]:
     """Return (steps, artifacts, summary, generated_locally, past_context).
 
@@ -213,6 +235,9 @@ async def _build_plan(
         "node_name": metrics.get("node_name", "unknown-node"),
         "issue_type": issue_type,
         "prefix": issue_type.replace("_", " "),
+        "provider": provider,
+        "restart_cmd": _provider_restart_cmd(service_name, provider),
+        "logs_cmd": _provider_logs_cmd(service_name, provider),
     }
 
     template = await asyncio.to_thread(_load_template, issue_type)
@@ -232,6 +257,7 @@ async def _build_plan(
             root_cause=root_cause,
             metrics=metrics,
             past_context=past_context,
+            provider=provider,
         )
         if llm_result:
             steps, artifacts, summary = llm_result
@@ -256,8 +282,9 @@ async def generate_remediation(diagnostic_data: dict, metrics: dict, log_history
     issue_type = _derive_issue_type(diagnostic_data)
     service_name = _infer_service_name(metrics, log_history)
     root_cause = diagnostic_data.get("root_cause", "")
+    provider = metrics.get("provider", "simulated")
     steps, artifacts, plan_summary, generated_locally, past_context = await _build_plan(
-        issue_type, service_name, metrics, log_history, root_cause,
+        issue_type, service_name, metrics, log_history, root_cause, provider=provider,
     )
     used_rag = past_context != "No similar past incidents found."
 
@@ -275,8 +302,8 @@ async def generate_remediation(diagnostic_data: dict, metrics: dict, log_history
         "plan_summary": plan_summary,
         "strategy": "shell",
         "artifacts": artifacts,
-        "steps": steps[:3],
-        "total_estimated_duration_seconds": sum(step.get("estimated_duration_seconds", 0) for step in steps[:3]),
+        "steps": steps,
+        "total_estimated_duration_seconds": sum(step.get("estimated_duration_seconds", 0) for step in steps),
         "requires_downtime": False,
         "canary_compatible": False,
         "reasoning": reasoning,

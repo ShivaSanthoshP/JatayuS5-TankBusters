@@ -137,10 +137,17 @@ You are an expert SRE remediation engine. Generate a remediation plan for this i
 Issue type: {issue_type}
 Service: {service_name}
 Node: {node_name}
+Cloud provider: {provider}
 Root cause: {root_cause}
 Key metrics: {metrics_summary}
 
 {past_context_section}
+
+Use provider-appropriate CLI commands:
+- AWS: use aws CLI (aws ec2, aws rds, aws logs, etc.)
+- Azure: use az CLI (az vm, az monitor, etc.)
+- GCP: use gcloud CLI (gcloud compute, gcloud logging, etc.)
+- simulated/other: use systemctl, journalctl, standard Linux tools
 
 Return ONLY a JSON object with these exact keys:
 {{
@@ -149,16 +156,14 @@ Return ONLY a JSON object with these exact keys:
     {{
       "order": 1,
       "action": "short action title",
-      "description": "what this step does",
+      "description": "what this step does and why",
       "bash_commands": ["cmd1", "cmd2"]
     }}
   ],
   "rollback_commands": ["cmd1", "cmd2"]
 }}
 
-If past incidents or runbooks are provided above, prefer remediation steps that have worked before.
-Limit to 3 steps. Use standard Linux commands (systemctl, journalctl, etc.).
-The service name is "{service_name}".
+Limit to 5 steps. The service is "{service_name}" on {provider} infrastructure.
 """
 
 
@@ -173,6 +178,7 @@ async def llm_remediate(
     root_cause: str,
     metrics: dict,
     past_context: str = "",
+    provider: str = "simulated",
 ) -> tuple[list[dict], list[dict], str] | None:
     """Ask the LLM for remediation steps when no template matches."""
     key_metrics = {
@@ -190,6 +196,7 @@ async def llm_remediate(
         issue_type=issue_type,
         service_name=service_name,
         node_name=node_name,
+        provider=provider,
         root_cause=root_cause[:200] if root_cause else "unknown",
         metrics_summary=json.dumps(key_metrics),
         past_context_section=past_section or "No past incidents available for reference.",
@@ -201,7 +208,7 @@ async def llm_remediate(
     # Build steps in the same shape as the deterministic path
     steps = []
     all_bash = []
-    for raw_step in result.get("steps", [])[:3]:
+    for raw_step in result.get("steps", [])[:5]:
         if not isinstance(raw_step, dict):
             continue
         bash_cmds = raw_step.get("bash_commands", [])
