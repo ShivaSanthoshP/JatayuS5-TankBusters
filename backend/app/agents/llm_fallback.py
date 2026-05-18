@@ -32,29 +32,37 @@ async def _call_llm(prompt: str, *, temperature: float = 0.1) -> dict | None:
 # ── Diagnostic fallback ─────────────────────────────────────────────
 
 _DIAGNOSE_PROMPT = """\
-You are an expert SRE diagnostic engine. Analyze the following infrastructure incident and return a JSON object.
+You are an expert SRE diagnostic engine. Think step by step before answering.
 
 Anomaly type: {anomaly_type}
 Node type: {node_type}
+Cloud provider: {provider}
+Region: {region}
 Metrics: {metrics_summary}
 Log evidence: {log_evidence}
+Trend signals (rising/falling metrics): {trend_signals}
+Native provider metrics: {native_metrics}
 Observed reasons: {reasons}
 
 {past_context_section}
 
+Step 1: Identify the most likely root cause given the provider, node type, and trend signals.
+Step 2: Trace the causal chain (what led to what).
+Step 3: Assess blast radius (what else is affected).
+Step 4: Recommend concrete actions specific to {provider} infrastructure.
+
 Return ONLY a JSON object with these exact keys:
 {{
   "root_cause": "one sentence describing the most likely root cause",
-  "causal_chain": ["step1", "step2", "step3"],
-  "blast_radius": ["affected component 1", "affected component 2"],
+  "causal_chain": ["step1", "step2", "step3", "step4", "step5"],
+  "blast_radius": ["affected component 1", "affected component 2", "affected component 3"],
   "blast_radius_severity": "low|medium|high",
   "recommended_actions": [
-    {{"action": "short action title", "type": "restart_service|config_change|scale_up|rate_limit|rollback|failover|clear_disk", "priority": 1, "description": "why this helps"}}
+    {{"action": "short action title", "type": "restart_service|config_change|scale_up|rate_limit|rollback|failover|clear_disk|aws_cli|az_cli|gcloud_cli", "priority": 1, "description": "why this helps"}}
   ]
 }}
 
-If past incidents or runbooks are provided above, use them to inform your analysis — prefer solutions that worked before.
-Be concise. Limit causal_chain to 3 items, blast_radius to 3 items, recommended_actions to 3 items.
+Limit causal_chain to 5 items, blast_radius to 5 items, recommended_actions to 4 items.
 """
 
 
@@ -64,16 +72,19 @@ async def llm_diagnose(
     log_evidence: str,
     reasons: list[str],
     past_context: str = "",
+    provider: str = "simulated",
+    region: str = "",
+    node_type: str = "server",
+    trend_signals: list[dict] | None = None,
+    native_metrics: dict | None = None,
 ) -> dict | None:
     """Ask the LLM for root cause analysis when no issue profile matches."""
-    node_type = metrics.get("node_type", "server")
     key_metrics = {
         k: metrics.get(k)
         for k in ("cpu_percent", "memory_percent", "disk_percent",
                    "error_rate", "latency_ms", "network_in_mbps")
         if metrics.get(k) is not None
     }
-    # Build RAG context section
     past_section = ""
     if past_context and past_context != "No similar past incidents found.":
         past_section = f"Past incidents and runbooks for reference:\n{past_context}"
@@ -81,8 +92,12 @@ async def llm_diagnose(
     prompt = _DIAGNOSE_PROMPT.format(
         anomaly_type=anomaly_type,
         node_type=node_type,
+        provider=provider,
+        region=region or "unknown",
         metrics_summary=json.dumps(key_metrics),
         log_evidence=log_evidence[:500] if log_evidence else "none",
+        trend_signals=json.dumps(trend_signals or []),
+        native_metrics=json.dumps(native_metrics or {}),
         reasons="; ".join(reasons[:5]) if reasons else "none",
         past_context_section=past_section or "No past incidents available for reference.",
     )
@@ -90,10 +105,9 @@ async def llm_diagnose(
     if not result or "root_cause" not in result:
         return None
 
-    # Normalize the response to match the deterministic profile shape
     actions_raw = result.get("recommended_actions", [])
     actions = []
-    for i, act in enumerate(actions_raw[:3]):
+    for i, act in enumerate(actions_raw[:4]):
         if isinstance(act, dict):
             actions.append({
                 "action": act.get("action", f"Action {i+1}"),
@@ -104,8 +118,8 @@ async def llm_diagnose(
 
     return {
         "root_cause": str(result.get("root_cause", "unknown")),
-        "causal_chain": [str(s) for s in result.get("causal_chain", [])[:3]],
-        "blast_radius": [str(s) for s in result.get("blast_radius", [])[:3]],
+        "causal_chain": [str(s) for s in result.get("causal_chain", [])[:5]],
+        "blast_radius": [str(s) for s in result.get("blast_radius", [])[:5]],
         "blast_radius_severity": result.get("blast_radius_severity", "medium"),
         "recommended_actions": actions or [
             {"action": "Investigate and restart the affected service",

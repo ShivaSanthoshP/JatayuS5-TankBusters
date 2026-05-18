@@ -122,8 +122,17 @@ async def diagnose(
     """
     anomaly_type = anomaly_data.get("anomaly_type") or "error_spike"
 
+    provider = metrics.get("provider", "simulated")
+    region = metrics.get("region", "")
+    node_type = metrics.get("node_type", "server")
+    trend_signals = anomaly_data.get("trend_signals", [])
+    native_metrics_excerpt = {
+        k: v for k, v in (metrics.get("metadata") or {}).items()
+        if k in ("cloudwatch", "azure_monitor", "gcp")
+    }
+
     query = (
-        f"{anomaly_type} on {metrics.get('node_type', 'server')} "
+        f"{anomaly_type} on {node_type} ({provider}/{region}) "
         f"- {anomaly_data.get('description', '')}"
     )
 
@@ -154,6 +163,11 @@ async def diagnose(
                 log_evidence=anomaly_data.get("log_evidence", ""),
                 reasons=reasons,
                 past_context=past_context,
+                provider=provider,
+                region=region,
+                node_type=node_type,
+                trend_signals=trend_signals,
+                native_metrics=native_metrics_excerpt,
             )
             if llm_profile:
                 profile = llm_profile
