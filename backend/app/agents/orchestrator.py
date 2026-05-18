@@ -9,9 +9,12 @@ Fully automated pipeline — no human-in-the-loop gates.
 Remediation scripts are generated for review/download only (never executed).
 """
 
+import asyncio
 import logging
 from inspect import isawaitable
 from typing import TypedDict, Any, Optional, Callable
+
+NODE_TIMEOUT_SECONDS = 30
 
 from langgraph.graph import StateGraph, END
 
@@ -83,6 +86,14 @@ async def _emit_progress(
         logger.warning("Progress callback failed", exc_info=True)
 
 
+async def _run_with_timeout(coro, node_name: str, timeout: float = NODE_TIMEOUT_SECONDS):
+    """Run a coroutine with a timeout. Returns result or raises TimeoutError."""
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout)
+    except asyncio.TimeoutError:
+        raise asyncio.TimeoutError(f"Agent '{node_name}' timed out after {timeout}s")
+
+
 # ── Node functions ──────────────────────────────────────────────────
 
 async def monitoring_node(state: OrchestratorState) -> dict:
@@ -90,29 +101,36 @@ async def monitoring_node(state: OrchestratorState) -> dict:
     logger.info("Orchestrator: Running Monitoring Agent")
     started = utc_now()
     await _emit_progress(state, "monitoring", "started", "Monitoring agent started")
-
-    result = await analyze_metrics(
-        state["metrics"],
-        log_history=state.get("log_history", "No logs available"),
-    )
+    try:
+        result = await _run_with_timeout(
+            analyze_metrics(
+                state["metrics"],
+                log_history=state.get("log_history", "No logs available"),
+            ),
+            "monitoring",
+        )
+    except Exception as exc:
+        logger.warning("Monitoring agent failed (partial): %s", exc)
+        result = {"is_anomaly": False, "anomaly_type": None, "severity": None,
+                  "description": f"Monitoring agent failed: {exc}", "affected_metrics": [],
+                  "log_evidence": "", "agent": "monitoring", "partial_failure": True}
 
     trace_entry = {
         "agent": "monitoring",
         "started_at": started.isoformat(),
         "completed_at": utc_now().isoformat(),
         "is_anomaly": result.get("is_anomaly", False),
+        "partial_failure": result.get("partial_failure", False),
     }
-
     trace = state.get("agent_trace", [])
     trace.append(trace_entry)
     await _emit_progress(
         state,
         "monitoring",
-        "completed",
+        "completed" if not result.get("partial_failure") else "partial_failure",
         "Monitoring agent completed",
         is_anomaly=result.get("is_anomaly", False),
     )
-
     return {
         "monitoring_result": result,
         "is_anomaly": result.get("is_anomaly", False),
@@ -127,32 +145,40 @@ async def predictive_node(state: OrchestratorState) -> dict:
     logger.info("Orchestrator: Running Predictive Agent")
     started = utc_now()
     await _emit_progress(state, "predictive", "started", "Predictive agent started")
-
-    result = await predict_failure(
-        anomaly_data=state["monitoring_result"],
-        metrics=state["metrics"],
-        metric_history=state.get("metric_history", "No history available"),
-        log_history=state.get("log_history", "No logs available"),
-    )
+    try:
+        result = await _run_with_timeout(
+            predict_failure(
+                anomaly_data=state["monitoring_result"],
+                metrics=state["metrics"],
+                metric_history=state.get("metric_history", "No history available"),
+                log_history=state.get("log_history", "No logs available"),
+            ),
+            "predictive",
+        )
+    except Exception as exc:
+        logger.warning("Predictive agent failed (partial): %s", exc)
+        result = {"failure_probability": 0.5, "predicted_impact": f"Prediction unavailable: {exc}",
+                  "escalation_risk": "medium", "estimated_time_to_failure": None,
+                  "recommended_urgency": "monitor", "reasoning": str(exc),
+                  "ewma_scores": {}, "agent": "predictive", "partial_failure": True}
 
     trace_entry = {
         "agent": "predictive",
         "started_at": started.isoformat(),
         "completed_at": utc_now().isoformat(),
         "failure_probability": result.get("failure_probability", 0),
+        "partial_failure": result.get("partial_failure", False),
     }
-
     trace = state.get("agent_trace", [])
     trace.append(trace_entry)
     await _emit_progress(
         state,
         "predictive",
-        "completed",
+        "completed" if not result.get("partial_failure") else "partial_failure",
         "Predictive agent completed",
         failure_probability=result.get("failure_probability", 0),
     )
 
-    # Upgrade severity if prediction warrants it
     severity = state.get("severity", "medium")
     if result.get("recommended_urgency") == "immediate" and severity not in ("high", "critical"):
         severity = "high"
@@ -170,13 +196,25 @@ async def diagnostic_node(state: OrchestratorState) -> dict:
     logger.info("Orchestrator: Running Diagnostic Agent")
     started = utc_now()
     await _emit_progress(state, "diagnostic", "started", "Diagnostic agent started")
-
-    result = await diagnose(
-        anomaly_data=state["monitoring_result"],
-        prediction_data=state["prediction_result"],
-        metrics=state["metrics"],
-        log_history=state.get("log_history", "No logs available"),
-    )
+    try:
+        result = await _run_with_timeout(
+            diagnose(
+                anomaly_data=state["monitoring_result"],
+                prediction_data=state["prediction_result"],
+                metrics=state["metrics"],
+                log_history=state.get("log_history", "No logs available"),
+            ),
+            "diagnostic",
+        )
+    except Exception as exc:
+        logger.warning("Diagnostic agent failed (partial): %s", exc)
+        result = {"root_cause": f"Diagnosis unavailable: {exc}", "issue_type": "unknown",
+                  "reasons": [], "causal_chain": [], "blast_radius": [],
+                  "blast_radius_severity": "medium", "confidence": 0.3,
+                  "recommended_actions": [], "similar_past_incidents": "",
+                  "reasoning": str(exc), "fix_summary": "", "agent": "diagnostic",
+                  "rag_context_used": False, "generated_locally": False,
+                  "partial_failure": True}
 
     trace_entry = {
         "agent": "diagnostic",
@@ -184,18 +222,17 @@ async def diagnostic_node(state: OrchestratorState) -> dict:
         "completed_at": utc_now().isoformat(),
         "root_cause": result.get("root_cause", "unknown"),
         "confidence": result.get("confidence", 0),
+        "partial_failure": result.get("partial_failure", False),
     }
-
     trace = state.get("agent_trace", [])
     trace.append(trace_entry)
     await _emit_progress(
         state,
         "diagnostic",
-        "completed",
+        "completed" if not result.get("partial_failure") else "partial_failure",
         "Diagnostic agent completed",
         root_cause=result.get("root_cause"),
     )
-
     return {
         "diagnostic_result": result,
         "status": "diagnosed",
@@ -208,12 +245,23 @@ async def remediation_node(state: OrchestratorState) -> dict:
     logger.info("Orchestrator: Running Remediation Agent")
     started = utc_now()
     await _emit_progress(state, "remediation", "started", "Remediation agent started")
-
-    result = await generate_remediation(
-        diagnostic_data=state["diagnostic_result"],
-        metrics=state["metrics"],
-        log_history=state.get("log_history", "No logs available"),
-    )
+    try:
+        result = await _run_with_timeout(
+            generate_remediation(
+                diagnostic_data=state["diagnostic_result"],
+                metrics=state["metrics"],
+                log_history=state.get("log_history", "No logs available"),
+            ),
+            "remediation",
+        )
+    except Exception as exc:
+        logger.warning("Remediation agent failed (partial): %s", exc)
+        result = {"plan_summary": f"Remediation unavailable: {exc}", "strategy": "manual",
+                  "artifacts": [], "steps": [], "total_estimated_duration_seconds": 0,
+                  "requires_downtime": False, "canary_compatible": False,
+                  "reasoning": str(exc), "issue_type": "unknown", "service_name": "unknown",
+                  "agent": "remediation", "generated_locally": False, "rag_context_used": False,
+                  "partial_failure": True}
 
     trace_entry = {
         "agent": "remediation",
@@ -221,18 +269,17 @@ async def remediation_node(state: OrchestratorState) -> dict:
         "completed_at": utc_now().isoformat(),
         "steps_count": len(result.get("steps", [])),
         "canary_compatible": result.get("canary_compatible", False),
+        "partial_failure": result.get("partial_failure", False),
     }
-
     trace = state.get("agent_trace", [])
     trace.append(trace_entry)
     await _emit_progress(
         state,
         "remediation",
-        "completed",
+        "completed" if not result.get("partial_failure") else "partial_failure",
         "Remediation agent completed",
         steps_count=len(result.get("steps", [])),
     )
-
     return {
         "remediation_result": result,
         "status": "remediating",
@@ -384,7 +431,13 @@ async def run_pipeline(
             "started",
             f"Pipeline started for node: {metrics.get('node_name', 'custom')}",
         )
-        final_state = await orchestrator.ainvoke(initial_state)
+        try:
+            final_state = await orchestrator.ainvoke(initial_state)
+        except Exception as first_exc:
+            logger.warning("Pipeline first attempt failed (%s), retrying in 2s...", first_exc)
+            await asyncio.sleep(2)
+            final_state = await orchestrator.ainvoke(initial_state)
+
         await _emit_progress(
             final_state,
             "pipeline",
