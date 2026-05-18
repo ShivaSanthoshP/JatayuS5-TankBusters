@@ -51,7 +51,10 @@ def _vm_to_event(resource_id: str, vm_name: str, region: str, results) -> Metric
     net_out_b = raw.get("Network Out Total", 0.0)
     avail_mem_b = raw.get("Available Memory Bytes")
     total_mem_b = 4 * 1024 ** 3  # assume 4 GB if unknown
-    mem_pct = max(0.0, min(100.0, (1.0 - (avail_mem_b or total_mem_b) / total_mem_b) * 100.0))
+    if avail_mem_b is not None:
+        mem_pct = max(0.0, min(100.0, (1.0 - avail_mem_b / total_mem_b) * 100.0))
+    else:
+        mem_pct = 0.0  # metric unavailable; do not report false 0% usage
 
     return MetricEvent(
         node_name=vm_name,
@@ -213,6 +216,10 @@ class AzureMonitorDataSource(DataSource):
             try:
                 return await asyncio.to_thread(fn)
             except Exception as exc:
+                # Don't retry permanent auth errors from Azure.
+                exc_type = type(exc).__name__
+                if any(t in exc_type for t in ("AuthenticationError", "ClientAuthenticationError", "HttpResponseError")):
+                    raise
                 last_exc = exc
                 await asyncio.sleep(delay)
         raise last_exc

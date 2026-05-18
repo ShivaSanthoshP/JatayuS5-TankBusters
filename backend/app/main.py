@@ -227,7 +227,6 @@ def _cooldown_allows_dispatch(node_id: int, anomaly_type: str | None) -> bool:
 async def _process_event(
     event: MetricEvent,
     infra_svc,
-    incident_svc,
     db,
     sim_source=None,
     generate_correlated_logs: bool = True,
@@ -258,7 +257,7 @@ async def _process_event(
         infra_svc.store_logs_batch(node, log_events)
 
     log_history = infra_svc.get_recent_logs_as_history(node.id)
-    stat_result = preliminary_monitoring_check(metrics_dict, log_history)
+    stat_result = await asyncio.to_thread(preliminary_monitoring_check, metrics_dict, log_history)
     infra_svc.store_metric(
         node, event,
         is_anomaly=stat_result.get("is_anomaly", False),
@@ -347,7 +346,8 @@ async def _start_cloud_adapters() -> None:
             adapter = cls()
             await adapter.connect()
             registry.register(adapter)
-            asyncio.create_task(_cloud_polling_loop(adapter))
+            from app.api.routes.settings import _cloud_polling_tasks, _spawn_cloud_task
+            _spawn_cloud_task(_cloud_polling_loop(adapter))
             logger.info("Cloud adapter registered on startup: %s", name)
         except Exception as exc:
             logger.warning("Cloud adapter %s failed to connect on startup: %s", name, exc)
@@ -367,7 +367,6 @@ async def _cloud_polling_loop(adapter) -> None:
                     stat_result = await _process_event(
                         event,
                         infra_svc,
-                        None,
                         db,
                         sim_source=None,
                         generate_correlated_logs=False,
@@ -443,7 +442,6 @@ async def background_monitoring_loop():
                     stat_result = await _process_event(
                         event,
                         infra_svc,
-                        incident_svc,
                         db,
                         sim_source=sim,
                         generate_correlated_logs=True,
@@ -467,7 +465,6 @@ async def background_monitoring_loop():
                     stat_result = await _process_event(
                         event,
                         infra_svc,
-                        incident_svc,
                         db,
                         sim_source=sim,
                         generate_correlated_logs=not bool(sim_row.log_file_content),
@@ -608,7 +605,8 @@ async def auto_run_pipeline_loop():
                         "provider": node.provider,
                         "region": node.region,
                     }
-                    latest_anomaly = preliminary_monitoring_check(
+                    latest_anomaly = await asyncio.to_thread(
+                        preliminary_monitoring_check,
                         {
                             "cpu_percent": snap.cpu_percent,
                             "memory_percent": snap.memory_percent,
@@ -680,6 +678,16 @@ async def lifespan(app: FastAPI):
                 await task
             except asyncio.CancelledError:
                 pass
+
+    # Cancel any cloud adapter polling tasks registered via the settings API.
+    from app.api.routes.settings import _cloud_polling_tasks
+    for task in list(_cloud_polling_tasks):
+        task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, Exception):
+            pass
+
     logger.info("Application shutdown complete")
 
 

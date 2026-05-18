@@ -11,8 +11,11 @@ restart. Env vars act as defaults only on first boot.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import logging
+import os
 import threading
 from pathlib import Path
 from typing import Any
@@ -55,10 +58,43 @@ SUPPORTED_LLM_PROVIDERS = ("ollama", "openai", "gemini")
 _SECRET_FIELDS = (
     "openai_api_key",
     "gemini_api_key",
+    "cloudwatch_access_key_id",
     "cloudwatch_secret_access_key",
     "azure_client_secret",
     "gcp_service_account_json",
 )
+
+# ── At-rest encryption for persisted secrets ───────────────────────
+# Key is derived from SETTINGS_SECRET_KEY env var (or a machine-specific
+# fallback). Values are base64-encoded Fernet ciphertext on disk.
+
+def _derive_fernet_key() -> bytes:
+    """Derive a 32-byte Fernet key from the env var or machine hostname."""
+    raw = os.getenv("SETTINGS_SECRET_KEY") or os.uname().nodename or "itops-default"
+    return base64.urlsafe_b64encode(hashlib.sha256(raw.encode()).digest())
+
+
+def _encrypt_secret(value: str) -> str:
+    """Return Fernet-encrypted, base64-encoded ciphertext for a secret string."""
+    if not value:
+        return value
+    try:
+        from cryptography.fernet import Fernet
+        return Fernet(_derive_fernet_key()).encrypt(value.encode()).decode()
+    except Exception:
+        return value
+
+
+def _decrypt_secret(value: str) -> str:
+    """Decrypt a Fernet ciphertext produced by _encrypt_secret."""
+    if not value:
+        return value
+    try:
+        from cryptography.fernet import Fernet, InvalidToken
+        return Fernet(_derive_fernet_key()).decrypt(value.encode()).decode()
+    except Exception:
+        # Not encrypted (legacy plaintext value) — return as-is.
+        return value
 
 
 class _Settings:
@@ -187,10 +223,18 @@ class _Settings:
 
         for key in self._PERSISTED_FIELDS:
             if key in saved and hasattr(self, key):
-                setattr(self, key, saved[key])
+                value = saved[key]
+                if key in _SECRET_FIELDS and isinstance(value, str):
+                    value = _decrypt_secret(value)
+                setattr(self, key, value)
 
     def _save_to_disk(self) -> None:
-        data = {key: getattr(self, key) for key in self._PERSISTED_FIELDS}
+        data = {}
+        for key in self._PERSISTED_FIELDS:
+            value = getattr(self, key)
+            if key in _SECRET_FIELDS and isinstance(value, str):
+                value = _encrypt_secret(value)
+            data[key] = value
         try:
             tmp = SETTINGS_FILE.with_suffix(".json.tmp")
             with open(tmp, "w") as f:
@@ -259,6 +303,15 @@ class _Settings:
                 raw[field + "_set"] = bool(val)
                 raw[field] = "***" if val else ""
             return raw
+
+    def get_secret(self, field: str) -> str:
+        """Return the plaintext value of a single secret field.
+
+        Prefer this over snapshot(include_secrets=True) — it only exposes
+        one field rather than the entire settings dict.
+        """
+        with self._lock:
+            return getattr(self, field, "")
 
     # ── Setters ─────────────────────────────────────────────
 

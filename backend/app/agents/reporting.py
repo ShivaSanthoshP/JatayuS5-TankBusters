@@ -7,6 +7,7 @@ This stage intentionally avoids an extra LLM round-trip so the
 pipeline can finish quickly once remediation planning is complete.
 """
 
+import datetime
 import re
 
 
@@ -62,7 +63,6 @@ def _build_timeline(agent_trace: list[dict]) -> list[dict]:
         duration_ms = None
         if started and completed:
             try:
-                import datetime
                 s = datetime.datetime.fromisoformat(started)
                 c = datetime.datetime.fromisoformat(completed)
                 duration_ms = int((c - s).total_seconds() * 1000)
@@ -84,12 +84,13 @@ def _build_mttr_estimate(agent_trace: list[dict], remediation_data: dict) -> int
         completed = entry.get("completed_at")
         if started and completed:
             try:
-                import datetime
                 s = datetime.datetime.fromisoformat(started)
                 c = datetime.datetime.fromisoformat(completed)
                 pipeline_ms += int((c - s).total_seconds() * 1000)
             except Exception:
                 pass
+    # Add estimated human execution time for the remediation steps on top of
+    # pipeline analysis time to produce total estimated resolution minutes.
     remediation_seconds = remediation_data.get("total_estimated_duration_seconds", 0) or 0
     total_ms = pipeline_ms + remediation_seconds * 1000
     if total_ms <= 0:

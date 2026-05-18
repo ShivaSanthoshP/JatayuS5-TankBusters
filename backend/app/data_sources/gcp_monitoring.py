@@ -25,11 +25,10 @@ def _extract_value(time_series) -> tuple[str, float] | None:
         if not pts:
             return None
         val = pts[-1].value
-        numeric = (
-            getattr(val, "double_value", None)
-            or getattr(val, "int64_value", None)
-            or 0.0
-        )
+        # Use explicit None checks so legitimate 0.0 values are preserved.
+        dv = getattr(val, "double_value", None)
+        iv = getattr(val, "int64_value", None)
+        numeric = dv if dv is not None else (iv if iv is not None else 0.0)
         labels = time_series.resource.labels
         label = labels.get("instance_id") or labels.get("instance_name", "unknown")
         return label, float(numeric)
@@ -95,7 +94,7 @@ class GCPMonitoringDataSource(DataSource):
         self._connected = False
         self._client = None
 
-    def _query_metric(self, metric_type: str, minutes: int = 5) -> dict[str, float]:
+    def _query_metric(self, metric_type: str, minutes: int = 5, align_rate: bool = False) -> dict[str, float]:
         from google.cloud import monitoring_v3
         now = datetime.now(timezone.utc)
         interval = monitoring_v3.TimeInterval(
@@ -103,14 +102,22 @@ class GCPMonitoringDataSource(DataSource):
             start_time={"seconds": int((now - timedelta(minutes=minutes)).timestamp())},
         )
         zone_filter = f' AND resource.labels.zone="{self._zone}"' if self._zone else ""
+        request: dict = {
+            "name": f"projects/{self._project_id}",
+            "filter": f'metric.type="{metric_type}"{zone_filter}',
+            "interval": interval,
+            "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
+        }
+        if align_rate:
+            # Cumulative counters (bytes since instance start) must be aligned
+            # to produce per-second rates rather than ever-growing totals.
+            request["aggregation"] = {
+                "alignment_period": {"seconds": 60},
+                "per_series_aligner": monitoring_v3.Aggregation.Aligner.ALIGN_RATE,
+            }
         results: dict[str, float] = {}
         try:
-            series = self._client.list_time_series(request={
-                "name": f"projects/{self._project_id}",
-                "filter": f'metric.type="{metric_type}"{zone_filter}',
-                "interval": interval,
-                "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.FULL,
-            })
+            series = self._client.list_time_series(request=request)
             for ts in series:
                 extracted = _extract_value(ts)
                 if extracted:
@@ -124,9 +131,10 @@ class GCPMonitoringDataSource(DataSource):
         cpu_map = self._query_metric("compute.googleapis.com/instance/cpu/utilization")
         ram_used_map = self._query_metric("compute.googleapis.com/instance/memory/balloon/ram_used")
         ram_size_map = self._query_metric("compute.googleapis.com/instance/memory/balloon/ram_size")
-        net_in_map = self._query_metric("compute.googleapis.com/instance/network/received_bytes_count")
-        net_out_map = self._query_metric("compute.googleapis.com/instance/network/sent_bytes_count")
-        disk_map = self._query_metric("compute.googleapis.com/instance/disk/read_bytes_count")
+        # Network and disk are cumulative counters — use ALIGN_RATE to get bytes/second.
+        net_in_map = self._query_metric("compute.googleapis.com/instance/network/received_bytes_count", align_rate=True)
+        net_out_map = self._query_metric("compute.googleapis.com/instance/network/sent_bytes_count", align_rate=True)
+        disk_map = self._query_metric("compute.googleapis.com/instance/disk/read_bytes_count", align_rate=True)
 
         instance_ids = set(cpu_map) | set(ram_used_map) | set(net_in_map)
         events = []
@@ -135,8 +143,9 @@ class GCPMonitoringDataSource(DataSource):
             ram_used = ram_used_map.get(inst_id, 0.0)
             ram_size = ram_size_map.get(inst_id, 4 * 1024 ** 3)
             mem_pct = (ram_used / max(ram_size, 1)) * 100.0 if ram_used else 0.0
-            net_in_b = net_in_map.get(inst_id, 0.0)
-            net_out_b = net_out_map.get(inst_id, 0.0)
+            # ALIGN_RATE returns bytes/sec; convert to Megabits/sec.
+            net_in_bps = net_in_map.get(inst_id, 0.0)
+            net_out_bps = net_out_map.get(inst_id, 0.0)
 
             events.append(MetricEvent(
                 node_name=inst_id,
@@ -147,8 +156,8 @@ class GCPMonitoringDataSource(DataSource):
                 cpu_percent=round(min(cpu_pct, 100.0), 2),
                 memory_percent=round(min(mem_pct, 100.0), 2),
                 disk_percent=0.0,
-                network_in_mbps=round(net_in_b * 8 / 1e6 / 60, 2),
-                network_out_mbps=round(net_out_b * 8 / 1e6 / 60, 2),
+                network_in_mbps=round(net_in_bps * 8 / 1e6, 2),
+                network_out_mbps=round(net_out_bps * 8 / 1e6, 2),
                 request_rate=0.0,
                 error_rate=0.0,
                 latency_ms=0.0,
@@ -167,6 +176,10 @@ class GCPMonitoringDataSource(DataSource):
             try:
                 return await asyncio.to_thread(fn)
             except Exception as exc:
+                # Don't retry permanent auth/permission errors from GCP.
+                exc_str = str(exc).lower()
+                if any(k in exc_str for k in ("permission denied", "unauthenticated", "invalid_argument", "credentials")):
+                    raise
                 last_exc = exc
                 await asyncio.sleep(delay)
         raise last_exc
@@ -214,10 +227,17 @@ class GCPMonitoringDataSource(DataSource):
                 "interval": interval,
                 "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.HEADERS,
             }))
+            # Count discovered instances from the validation query.
+            nodes_found = sum(1 for _ in list(client.list_time_series(request={
+                "name": f"projects/{_s.gcp_project_id}",
+                "filter": 'metric.type="compute.googleapis.com/instance/cpu/utilization"',
+                "interval": interval,
+                "view": monitoring_v3.ListTimeSeriesRequest.TimeSeriesView.HEADERS,
+            })))
             return {
                 "ok": True,
                 "message": f"Connected to GCP project {_s.gcp_project_id}",
-                "nodes_found": 0,
+                "nodes_found": nodes_found,
             }
         except Exception as exc:
             return {"ok": False, "message": str(exc)[:300], "nodes_found": 0}

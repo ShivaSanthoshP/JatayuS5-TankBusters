@@ -51,7 +51,11 @@ def _service_from_logs(log_history: str) -> str | None:
         for pattern in patterns:
             match = pattern.search(line)
             if match:
-                return match.group(1)
+                # Strip any chars that could escape Python format() templates,
+                # and cap length to avoid oversized command strings.
+                raw = match.group(1)
+                sanitized = re.sub(r"[{}\[\]%]", "", raw)[:64]
+                return sanitized or None
     return None
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import urllib.error
 import urllib.parse
@@ -12,8 +13,8 @@ import urllib.request
 from typing import Any
 
 import ollama
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field, field_validator
 
 from app.services.settings_service import settings, SUPPORTED_LLM_PROVIDERS
 from app.llm.provider import test_provider as _test_provider
@@ -21,6 +22,31 @@ from app.llm.provider import test_provider as _test_provider
 logger = logging.getLogger("itops.settings")
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
+
+# ── Optional API-key guard for settings endpoints ────────────────────
+# Set SETTINGS_API_KEY env var to enable. If unset, the guard is a no-op
+# (suitable for local/dev use). Any non-empty value enforces the check.
+
+_SETTINGS_API_KEY = os.getenv("SETTINGS_API_KEY", "")
+
+
+def _require_settings_auth(x_api_key: str | None = None) -> None:
+    if not _SETTINGS_API_KEY:
+        return
+    from fastapi import Header
+    if x_api_key != _SETTINGS_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing X-Api-Key header")
+
+
+# Track cloud adapter polling tasks so they can be cancelled on shutdown.
+_cloud_polling_tasks: set[asyncio.Task] = set()
+
+
+def _spawn_cloud_task(coro) -> asyncio.Task:
+    task = asyncio.create_task(coro)
+    _cloud_polling_tasks.add(task)
+    task.add_done_callback(_cloud_polling_tasks.discard)
+    return task
 
 
 # ── Pydantic models ─────────────────────────────────────────
@@ -153,17 +179,8 @@ def _gemini_family_rank(name: str) -> int:
     return 2
 
 
-@router.get("/gemini-models")
-def list_gemini_models(api_key: str | None = None) -> dict[str, Any]:
-    """Fetch the live Gemini model catalog from Google's ListModels API.
-
-    Returns each chat-capable model with display name, token limits, and a
-    `deprecated` flag derived from the model's description. Sort order:
-    usable models first (deprecated last), then by version desc, then by
-    family rank (pro/flash before lite/preview/tts), then alphabetical.
-    """
-    snapshot = settings.snapshot(include_secrets=True)
-    key = (api_key or snapshot.get("gemini_api_key") or "").strip()
+def _fetch_gemini_models_sync(key: str) -> dict[str, Any]:
+    """Blocking Gemini model fetch — call via asyncio.to_thread."""
     if not key:
         return {"models": [], "error": "No Gemini API key configured"}
 
@@ -223,6 +240,13 @@ def list_gemini_models(api_key: str | None = None) -> dict[str, Any]:
         return {"models": [], "error": str(e)}
 
 
+@router.get("/gemini-models")
+async def list_gemini_models(api_key: str | None = None) -> dict[str, Any]:
+    """Fetch the live Gemini model catalog from Google's ListModels API."""
+    key = (api_key or settings.get_secret("gemini_api_key") or "").strip()
+    return await asyncio.to_thread(_fetch_gemini_models_sync, key)
+
+
 @router.post("/test-provider")
 def test_llm_provider(body: TestProviderRequest) -> dict[str, Any]:
     """Ping the given provider to validate credentials / reachability.
@@ -238,19 +262,18 @@ def test_llm_provider(body: TestProviderRequest) -> dict[str, Any]:
             detail=f"provider must be one of {SUPPORTED_LLM_PROVIDERS}",
         )
 
-    snapshot = settings.snapshot(include_secrets=True)
     if provider == "openai":
-        api_key = body.api_key or snapshot["openai_api_key"]
-        model = body.model or snapshot["openai_model"]
+        api_key = body.api_key or settings.get_secret("openai_api_key")
+        model = body.model or settings.openai_model
         return _test_provider("openai", model=model, api_key=api_key)
     if provider == "gemini":
-        api_key = body.api_key or snapshot["gemini_api_key"]
-        model = body.model or snapshot["gemini_model"]
+        api_key = body.api_key or settings.get_secret("gemini_api_key")
+        model = body.model or settings.gemini_model
         return _test_provider("gemini", model=model, api_key=api_key)
 
     # ollama
-    base_url = body.base_url or snapshot["ollama_base_url"]
-    model = body.model or snapshot["ollama_model"]
+    base_url = body.base_url or settings.ollama_base_url
+    model = body.model or settings.ollama_model
     return _test_provider("ollama", model=model, base_url=base_url)
 
 
@@ -262,7 +285,7 @@ class CloudWatchConfig(BaseModel):
     secret_access_key: str
     region: str = "us-east-1"
     instance_ids: list[str] = []
-    poll_interval_seconds: int = 30
+    poll_interval_seconds: int = Field(default=30, ge=10, le=3600)
 
 
 class AzureMonitorConfig(BaseModel):
@@ -271,19 +294,34 @@ class AzureMonitorConfig(BaseModel):
     client_secret: str
     subscription_id: str
     resource_group: str = ""
-    poll_interval_seconds: int = 30
+    poll_interval_seconds: int = Field(default=30, ge=10, le=3600)
 
 
 class GCPMonitoringConfig(BaseModel):
     project_id: str
     service_account_json: str
     zone: str = ""
-    poll_interval_seconds: int = 30
+    poll_interval_seconds: int = Field(default=30, ge=10, le=3600)
+
+
+async def _connect_and_register(adapter, provider_name: str) -> dict:
+    """Connect an adapter and register it for polling. Returns {ok, message, nodes_found}."""
+    from app.data_sources.base import registry
+    try:
+        await adapter.connect()
+        registry.register(adapter)
+        _spawn_cloud_task(_poll_cloud_adapter(adapter))
+        return {"ok": True, "message": f"Connected to {provider_name}", "nodes_found": 0}
+    except Exception as exc:
+        msg = str(exc)[:300]
+        settings.update(**{f"{provider_name.lower().replace(' ', '_')}_status": "error",
+                           f"{provider_name.lower().replace(' ', '_')}_error": msg})
+        return {"ok": False, "message": msg, "nodes_found": 0}
 
 
 @router.post("/cloudwatch")
 async def configure_cloudwatch(body: CloudWatchConfig) -> dict:
-    """Save AWS CloudWatch credentials, test connection, and register the adapter."""
+    """Save AWS CloudWatch credentials, connect, and register the adapter."""
     settings.update(
         cloudwatch_access_key_id=body.access_key_id,
         cloudwatch_secret_access_key=body.secret_access_key,
@@ -293,24 +331,21 @@ async def configure_cloudwatch(body: CloudWatchConfig) -> dict:
     )
     from app.data_sources.cloudwatch import CloudWatchDataSource
     adapter = CloudWatchDataSource()
-    result = await asyncio.to_thread(adapter.test_connection)
-    if result["ok"]:
-        settings.update(cloudwatch_status="connected", cloudwatch_error=None)
+    try:
+        await adapter.connect()
         from app.data_sources.base import registry
-        try:
-            await adapter.connect()
-            registry.register(adapter)
-            asyncio.create_task(_poll_cloud_adapter(adapter))
-        except Exception as exc:
-            logger.warning("CloudWatch re-registration failed: %s", exc)
-    else:
-        settings.update(cloudwatch_status="error", cloudwatch_error=result["message"])
-    return result
+        registry.register(adapter)
+        _spawn_cloud_task(_poll_cloud_adapter(adapter))
+        return {"ok": True, "message": f"Connected to AWS CloudWatch (region={body.region})", "nodes_found": len(body.instance_ids)}
+    except Exception as exc:
+        msg = str(exc)[:300]
+        settings.update(cloudwatch_status="error", cloudwatch_error=msg)
+        return {"ok": False, "message": msg, "nodes_found": 0}
 
 
 @router.post("/azure")
 async def configure_azure(body: AzureMonitorConfig) -> dict:
-    """Save Azure Monitor credentials, test connection, and register the adapter."""
+    """Save Azure Monitor credentials, connect, and register the adapter."""
     settings.update(
         azure_tenant_id=body.tenant_id,
         azure_client_id=body.client_id,
@@ -321,24 +356,21 @@ async def configure_azure(body: AzureMonitorConfig) -> dict:
     )
     from app.data_sources.azure_monitor import AzureMonitorDataSource
     adapter = AzureMonitorDataSource()
-    result = await asyncio.to_thread(adapter.test_connection)
-    if result["ok"]:
-        settings.update(azure_status="connected", azure_error=None)
+    try:
+        await adapter.connect()
         from app.data_sources.base import registry
-        try:
-            await adapter.connect()
-            registry.register(adapter)
-            asyncio.create_task(_poll_cloud_adapter(adapter))
-        except Exception as exc:
-            logger.warning("Azure Monitor re-registration failed: %s", exc)
-    else:
-        settings.update(azure_status="error", azure_error=result["message"])
-    return result
+        registry.register(adapter)
+        _spawn_cloud_task(_poll_cloud_adapter(adapter))
+        return {"ok": True, "message": f"Connected to Azure Monitor (subscription={body.subscription_id})", "nodes_found": 0}
+    except Exception as exc:
+        msg = str(exc)[:300]
+        settings.update(azure_status="error", azure_error=msg)
+        return {"ok": False, "message": msg, "nodes_found": 0}
 
 
 @router.post("/gcp")
 async def configure_gcp(body: GCPMonitoringConfig) -> dict:
-    """Save GCP credentials, test connection, and register the adapter."""
+    """Save GCP credentials, connect, and register the adapter."""
     settings.update(
         gcp_project_id=body.project_id,
         gcp_service_account_json=body.service_account_json,
@@ -347,19 +379,16 @@ async def configure_gcp(body: GCPMonitoringConfig) -> dict:
     )
     from app.data_sources.gcp_monitoring import GCPMonitoringDataSource
     adapter = GCPMonitoringDataSource()
-    result = await asyncio.to_thread(adapter.test_connection)
-    if result["ok"]:
-        settings.update(gcp_status="connected", gcp_error=None)
+    try:
+        await adapter.connect()
         from app.data_sources.base import registry
-        try:
-            await adapter.connect()
-            registry.register(adapter)
-            asyncio.create_task(_poll_cloud_adapter(adapter))
-        except Exception as exc:
-            logger.warning("GCP re-registration failed: %s", exc)
-    else:
-        settings.update(gcp_status="error", gcp_error=result["message"])
-    return result
+        registry.register(adapter)
+        _spawn_cloud_task(_poll_cloud_adapter(adapter))
+        return {"ok": True, "message": f"Connected to GCP project {body.project_id}", "nodes_found": 0}
+    except Exception as exc:
+        msg = str(exc)[:300]
+        settings.update(gcp_status="error", gcp_error=msg)
+        return {"ok": False, "message": msg, "nodes_found": 0}
 
 
 async def _poll_cloud_adapter(adapter) -> None:

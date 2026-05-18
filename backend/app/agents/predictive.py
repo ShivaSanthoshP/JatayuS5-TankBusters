@@ -9,6 +9,8 @@ without waiting on another model round-trip.
 
 import re
 
+from app.agents.utils import HISTORY_LINE_PATTERN as _HISTORY_LINE_PATTERN
+
 SEVERITY_BASE_SCORE = {
     "low": 0.2,
     "medium": 0.45,
@@ -41,15 +43,11 @@ ANOMALY_ESCALATION = {
 
 def _parse_history_tail(metric_history: str) -> list[dict[str, float]]:
     readings: list[dict[str, float]] = []
-    if not metric_history or "No history available" in metric_history:
+    if not metric_history or "No history" in metric_history:
         return readings
 
-    pattern = re.compile(
-        r"CPU=(?P<cpu>[\d.]+)% MEM=(?P<mem>[\d.]+)% DISK=(?P<disk>[\d.]+)% "
-        r"ERR=(?P<err>[\d.]+)% LAT=(?P<lat>[\d.]+)ms NET_IN=(?P<net>[\d.]+)Mbps"
-    )
     for line in metric_history.splitlines():
-        match = pattern.search(line)
+        match = _HISTORY_LINE_PATTERN.search(line)
         if not match:
             continue
         readings.append({k: float(v) for k, v in match.groupdict().items()})
@@ -172,6 +170,8 @@ async def predict_failure(
     severity = anomaly_data.get("severity") or "medium"
 
     history = _parse_history_tail(metric_history)
+    # Score accumulates additive bonuses; theoretical max ~2.1 before clamping.
+    # The final min(score, 0.98) clamp is intentional — never output certainty.
     score = SEVERITY_BASE_SCORE.get(severity, 0.45)
     score += _metric_pressure(metrics)
     score += _trend_boost(metrics, history)

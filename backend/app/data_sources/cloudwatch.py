@@ -17,6 +17,11 @@ logger = logging.getLogger("itops.cloudwatch")
 
 _RETRY_DELAYS = (1.0, 2.0, 4.0)
 
+_PERMANENT_ERROR_CODES = frozenset({
+    "AuthFailure", "InvalidClientTokenId", "AccessDenied",
+    "InvalidUserID.Malformed", "SignatureDoesNotMatch",
+})
+
 
 def _safe_last(datapoints: list[dict], stat: str = "Average") -> float | None:
     if not datapoints:
@@ -53,7 +58,7 @@ class CloudWatchDataSource(DataSource):
                 region_name=self._region,
             )
             # Validate credentials with a lightweight call
-            self._client.list_metrics(Namespace="AWS/EC2", RecentlyActive="PT3H", MaxRecords=1)
+            self._client.list_metrics(Namespace="AWS/EC2", RecentlyActive="PT3H")
             self._connected = True
             _s.update(cloudwatch_status="connected", cloudwatch_error=None)
             logger.info("CloudWatch connected (region=%s, instances=%d)", self._region, len(self._instance_ids))
@@ -153,8 +158,8 @@ class CloudWatchDataSource(DataSource):
         req_count = self._get_stat("AWS/ApplicationELB", "RequestCount", dims) or 0.0
         resp_time = self._get_stat("AWS/ApplicationELB", "TargetResponseTime", dims)
         err_5xx = self._get_stat("AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", dims) or 0.0
-        if resp_time is None and req_count == 0.0:
-            return None
+        # Only return None if the LB truly doesn't exist (no data at all for any metric).
+        # Zero traffic is valid — a standby LB should still be visible in monitoring.
         error_rate = (err_5xx / max(req_count, 1)) * 100.0 if req_count > 0 else 0.0
         return MetricEvent(
             node_name=lb_name,
@@ -204,6 +209,15 @@ class CloudWatchDataSource(DataSource):
             try:
                 return await asyncio.to_thread(fn)
             except Exception as exc:
+                # Don't retry permanent auth/credential errors.
+                try:
+                    import botocore.exceptions
+                    if isinstance(exc, botocore.exceptions.ClientError):
+                        code = exc.response.get("Error", {}).get("Code", "")
+                        if code in _PERMANENT_ERROR_CODES:
+                            raise
+                except ImportError:
+                    pass
                 last_exc = exc
                 await asyncio.sleep(delay)
         raise last_exc
@@ -239,7 +253,7 @@ class CloudWatchDataSource(DataSource):
                 aws_secret_access_key=_s.cloudwatch_secret_access_key,
                 region_name=_s.cloudwatch_region or "us-east-1",
             )
-            client.list_metrics(Namespace="AWS/EC2", RecentlyActive="PT3H", MaxRecords=1)
+            client.list_metrics(Namespace="AWS/EC2", RecentlyActive="PT3H")
             ids = [i.strip() for i in (_s.cloudwatch_instance_ids or []) if i.strip()]
             return {
                 "ok": True,

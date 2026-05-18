@@ -138,11 +138,19 @@ async def diagnose(
 
     # Run profile lookup and RAG context fetch concurrently. If either
     # raises, cancel the sibling so we don't leak a pending task.
-    profile_task = asyncio.ensure_future(asyncio.to_thread(_load_profile, anomaly_type))
-    context_task = asyncio.ensure_future(_similar_context(query))
+    # Bound DB and RAG lookups so a slow query can't block the pipeline indefinitely.
+    profile_task = asyncio.ensure_future(
+        asyncio.wait_for(asyncio.to_thread(_load_profile, anomaly_type), timeout=10.0)
+    )
+    context_task = asyncio.ensure_future(
+        asyncio.wait_for(_similar_context(query), timeout=10.0)
+    )
     try:
         profile = await profile_task
         past_context, used_rag = await context_task
+    except asyncio.TimeoutError:
+        profile = None
+        past_context, used_rag = "No similar past incidents found.", False
     except BaseException:
         for t in (profile_task, context_task):
             if not t.done():
@@ -172,11 +180,14 @@ async def diagnose(
             if llm_profile:
                 profile = llm_profile
             else:
-                profile = await asyncio.to_thread(_load_profile, "error_spike")
+                profile = await asyncio.wait_for(asyncio.to_thread(_load_profile, "error_spike"), timeout=10.0)
                 generated_locally = profile is not None
         except Exception as e:
             logger.warning(f"LLM diagnostic fallback failed: {e}")
-            profile = await asyncio.to_thread(_load_profile, "error_spike")
+            try:
+                profile = await asyncio.wait_for(asyncio.to_thread(_load_profile, "error_spike"), timeout=10.0)
+            except Exception:
+                profile = None
             generated_locally = profile is not None
 
     if profile is None:

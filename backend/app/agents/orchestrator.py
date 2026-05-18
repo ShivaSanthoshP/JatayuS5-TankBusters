@@ -10,11 +10,15 @@ Remediation scripts are generated for review/download only (never executed).
 """
 
 import asyncio
+import copy
 import logging
+import threading
 from inspect import isawaitable
 from typing import TypedDict, Any, Optional, Callable
 
 NODE_TIMEOUT_SECONDS = 30
+
+_TRANSIENT_EXCEPTIONS = (asyncio.TimeoutError, ConnectionError, TimeoutError, OSError)
 
 from langgraph.graph import StateGraph, END
 
@@ -372,23 +376,27 @@ def build_orchestrator_graph() -> StateGraph:
     return graph
 
 
-# Compiled graph (singleton)
+# Compiled graph (singleton) — protected by a lock for thread-safe lazy init.
 _compiled_graph = None
+_compiled_graph_lock = threading.Lock()
 
 
 def get_orchestrator():
     """Return the compiled LangGraph orchestrator (rebuilt on first call)."""
     global _compiled_graph
     if _compiled_graph is None:
-        graph = build_orchestrator_graph()
-        _compiled_graph = graph.compile()
+        with _compiled_graph_lock:
+            if _compiled_graph is None:
+                graph = build_orchestrator_graph()
+                _compiled_graph = graph.compile()
     return _compiled_graph
 
 
 def reset_orchestrator():
     """Force rebuild of the graph (e.g. after config change)."""
     global _compiled_graph
-    _compiled_graph = None
+    with _compiled_graph_lock:
+        _compiled_graph = None
 
 
 async def run_pipeline(
@@ -432,11 +440,11 @@ async def run_pipeline(
             f"Pipeline started for node: {metrics.get('node_name', 'custom')}",
         )
         try:
-            final_state = await orchestrator.ainvoke(initial_state)
-        except Exception as first_exc:
+            final_state = await orchestrator.ainvoke(copy.deepcopy(initial_state))
+        except _TRANSIENT_EXCEPTIONS as first_exc:
             logger.warning("Pipeline first attempt failed (%s), retrying in 2s...", first_exc)
             await asyncio.sleep(2)
-            final_state = await orchestrator.ainvoke(initial_state)
+            final_state = await orchestrator.ainvoke(copy.deepcopy(initial_state))
 
         await _emit_progress(
             final_state,

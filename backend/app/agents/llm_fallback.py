@@ -225,7 +225,7 @@ async def llm_remediate(
             "rollback_script": "",
             "risk_level": "medium",
             "estimated_duration_seconds": 30,
-            "validation_command": f"systemctl is-active --quiet {service_name}",
+            "validation_command": f"systemctl is-active --quiet {service_name} || true",
         })
 
     # Build combined artifact

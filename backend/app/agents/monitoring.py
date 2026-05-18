@@ -9,6 +9,8 @@ the pipeline can respond quickly without waiting on an LLM.
 
 import re
 
+from app.agents.utils import HISTORY_LINE_PATTERN as _HISTORY_LINE_PATTERN
+
 NODE_TYPE_THRESHOLDS: dict[str, dict] = {
     "server": {
         "cpu_percent":     {"warning": 75, "high": 85, "critical": 95},
@@ -192,10 +194,6 @@ def _clean_log_lines(log_history: str) -> list[str]:
     return [line.strip() for line in log_history.splitlines() if line.strip()]
 
 
-_HISTORY_LINE_PATTERN = re.compile(
-    r"CPU=(?P<cpu>[\d.]+)% MEM=(?P<mem>[\d.]+)% DISK=(?P<disk>[\d.]+)% "
-    r"ERR=(?P<err>[\d.]+)% LAT=(?P<lat>[\d.]+)ms NET_IN=(?P<net>[\d.]+)Mbps"
-)
 
 _VELOCITY_THRESHOLDS = {
     "cpu": 5.0, "mem": 4.0, "disk": 2.0,
@@ -301,17 +299,25 @@ def _refine_anomaly_type(metric_result: dict, log_result: dict, metrics: dict) -
     if log_type and log_type != "log_anomaly":
         return log_type
 
-    if metrics.get("memory_percent", 0) >= 85:
+    # Use per-node-type thresholds so a cache node isn't mis-labelled at server thresholds.
+    t = _get_thresholds(metrics.get("node_type"))
+    mem_high = t["memory_percent"]["high"]
+    disk_high = t["disk_percent"]["high"]
+    net_warn = t["network_in_mbps"]["warning"]
+    lat_high = t["latency_ms"]["high"]
+    err_high = t["error_rate"]["high"]
+
+    if metrics.get("memory_percent", 0) >= mem_high:
         return "memory_leak"
-    if metrics.get("disk_percent", 0) >= 90:
+    if metrics.get("disk_percent", 0) >= disk_high:
         return "disk_full"
-    if metrics.get("network_in_mbps", 0) >= 900:
+    if metrics.get("network_in_mbps", 0) >= net_warn:
         return "network_saturation"
-    if metrics.get("latency_ms", 0) >= 500 and metrics.get("error_rate", 0) >= 5:
+    if metrics.get("latency_ms", 0) >= lat_high and metrics.get("error_rate", 0) >= err_high:
         return "cascading_failure"
-    if metrics.get("latency_ms", 0) >= 500:
+    if metrics.get("latency_ms", 0) >= lat_high:
         return "latency_degradation"
-    if metrics.get("error_rate", 0) >= 5:
+    if metrics.get("error_rate", 0) >= err_high:
         return "error_spike"
     return _primary_metric_anomaly(metric_result) or "threshold_breach"
 
@@ -333,7 +339,7 @@ def _build_description(
 
     evidence = log_result.get("evidence", [])
     if evidence:
-        parts.append(f"Logs show {evidence[0]}")
+        parts.append(f"Logs show {evidence[0][:200]}")
 
     if not parts:
         parts.append(f"{anomaly_type.replace('_', ' ')} indicators detected.")
