@@ -28,6 +28,21 @@ from app.config import (
     LLM_PROVIDER,
     AGENT_TEMPERATURE,
     BASE_DIR,
+    CLOUDWATCH_ACCESS_KEY_ID,
+    CLOUDWATCH_SECRET_ACCESS_KEY,
+    CLOUDWATCH_REGION,
+    CLOUDWATCH_INSTANCE_IDS,
+    CLOUDWATCH_POLL_INTERVAL_SECONDS,
+    AZURE_TENANT_ID,
+    AZURE_CLIENT_ID,
+    AZURE_CLIENT_SECRET,
+    AZURE_SUBSCRIPTION_ID,
+    AZURE_RESOURCE_GROUP,
+    AZURE_POLL_INTERVAL_SECONDS,
+    GCP_PROJECT_ID,
+    GCP_SERVICE_ACCOUNT_JSON,
+    GCP_ZONE,
+    GCP_POLL_INTERVAL_SECONDS,
 )
 
 logger = logging.getLogger("itops.settings_service")
@@ -37,7 +52,13 @@ SETTINGS_FILE = Path(BASE_DIR) / "runtime_settings.json"
 SUPPORTED_LLM_PROVIDERS = ("ollama", "openai", "gemini")
 
 # Keys that must never be echoed back to any caller in cleartext.
-_SECRET_FIELDS = ("openai_api_key", "gemini_api_key")
+_SECRET_FIELDS = (
+    "openai_api_key",
+    "gemini_api_key",
+    "cloudwatch_secret_access_key",
+    "azure_client_secret",
+    "gcp_service_account_json",
+)
 
 
 class _Settings:
@@ -79,6 +100,33 @@ class _Settings:
         self.auto_run_pipeline: bool = False
         self.auto_run_interval_seconds: int = 60
 
+        # ── AWS CloudWatch ──────────────────────────────────
+        self.cloudwatch_access_key_id: str = CLOUDWATCH_ACCESS_KEY_ID
+        self.cloudwatch_secret_access_key: str = CLOUDWATCH_SECRET_ACCESS_KEY
+        self.cloudwatch_region: str = CLOUDWATCH_REGION
+        self.cloudwatch_instance_ids: list[str] = list(CLOUDWATCH_INSTANCE_IDS)
+        self.cloudwatch_poll_interval_seconds: int = CLOUDWATCH_POLL_INTERVAL_SECONDS
+        self.cloudwatch_status: str = "disconnected"
+        self.cloudwatch_error: str | None = None
+
+        # ── Azure Monitor ───────────────────────────────────
+        self.azure_tenant_id: str = AZURE_TENANT_ID
+        self.azure_client_id: str = AZURE_CLIENT_ID
+        self.azure_client_secret: str = AZURE_CLIENT_SECRET
+        self.azure_subscription_id: str = AZURE_SUBSCRIPTION_ID
+        self.azure_resource_group: str = AZURE_RESOURCE_GROUP
+        self.azure_poll_interval_seconds: int = AZURE_POLL_INTERVAL_SECONDS
+        self.azure_status: str = "disconnected"
+        self.azure_error: str | None = None
+
+        # ── GCP Cloud Monitoring ────────────────────────────
+        self.gcp_project_id: str = GCP_PROJECT_ID
+        self.gcp_service_account_json: str = GCP_SERVICE_ACCOUNT_JSON
+        self.gcp_zone: str = GCP_ZONE
+        self.gcp_poll_interval_seconds: int = GCP_POLL_INTERVAL_SECONDS
+        self.gcp_status: str = "disconnected"
+        self.gcp_error: str | None = None
+
         # Monotonically increasing version counter so consumers
         # (e.g. cached LLM singletons) can detect config changes.
         self._version: int = 0
@@ -103,6 +151,28 @@ class _Settings:
         "custom_gemini_models",
         "auto_run_pipeline",
         "auto_run_interval_seconds",
+        # Cloud providers
+        "cloudwatch_access_key_id",
+        "cloudwatch_secret_access_key",
+        "cloudwatch_region",
+        "cloudwatch_instance_ids",
+        "cloudwatch_poll_interval_seconds",
+        "cloudwatch_status",
+        "cloudwatch_error",
+        "azure_tenant_id",
+        "azure_client_id",
+        "azure_client_secret",
+        "azure_subscription_id",
+        "azure_resource_group",
+        "azure_poll_interval_seconds",
+        "azure_status",
+        "azure_error",
+        "gcp_project_id",
+        "gcp_service_account_json",
+        "gcp_zone",
+        "gcp_poll_interval_seconds",
+        "gcp_status",
+        "gcp_error",
     )
 
     def _load_from_disk(self) -> None:
@@ -158,6 +228,28 @@ class _Settings:
                 "custom_gemini_models": list(self.custom_gemini_models),
                 "auto_run_pipeline": self.auto_run_pipeline,
                 "auto_run_interval_seconds": self.auto_run_interval_seconds,
+                # Cloud providers
+                "cloudwatch_access_key_id": self.cloudwatch_access_key_id,
+                "cloudwatch_secret_access_key": self.cloudwatch_secret_access_key,
+                "cloudwatch_region": self.cloudwatch_region,
+                "cloudwatch_instance_ids": list(self.cloudwatch_instance_ids),
+                "cloudwatch_poll_interval_seconds": self.cloudwatch_poll_interval_seconds,
+                "cloudwatch_status": self.cloudwatch_status,
+                "cloudwatch_error": self.cloudwatch_error,
+                "azure_tenant_id": self.azure_tenant_id,
+                "azure_client_id": self.azure_client_id,
+                "azure_client_secret": self.azure_client_secret,
+                "azure_subscription_id": self.azure_subscription_id,
+                "azure_resource_group": self.azure_resource_group,
+                "azure_poll_interval_seconds": self.azure_poll_interval_seconds,
+                "azure_status": self.azure_status,
+                "azure_error": self.azure_error,
+                "gcp_project_id": self.gcp_project_id,
+                "gcp_service_account_json": self.gcp_service_account_json,
+                "gcp_zone": self.gcp_zone,
+                "gcp_poll_interval_seconds": self.gcp_poll_interval_seconds,
+                "gcp_status": self.gcp_status,
+                "gcp_error": self.gcp_error,
             }
             if include_secrets:
                 return raw
