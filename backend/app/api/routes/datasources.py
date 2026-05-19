@@ -171,27 +171,96 @@ def list_datasources():
     }
 
 
+def _csv_list(val) -> list[str]:
+    """Normalize a comma-separated string (or list) into a clean list."""
+    if isinstance(val, list):
+        return [str(x).strip() for x in val if str(x).strip()]
+    return [s.strip() for s in str(val or "").split(",") if s.strip()]
+
+
+async def _activate_aws(config: dict) -> tuple[str, str | None]:
+    """
+    Bridge the Data Sources AWS form into settings_service and actually
+    connect the CloudWatch adapter. The /configure endpoint historically only
+    stored config in memory, so cloud providers configured here never polled.
+    Returns (status, error).
+    """
+    from app.services.settings_service import settings as _s
+
+    updates: dict = {}
+    ak = config.get("aws_access_key_id")
+    sk = config.get("aws_secret_access_key")
+    # Never overwrite a stored secret with the redaction placeholder.
+    if ak and ak != _REDACTED:
+        updates["cloudwatch_access_key_id"] = ak
+    if sk and sk != _REDACTED:
+        updates["cloudwatch_secret_access_key"] = sk
+    if config.get("region"):
+        updates["cloudwatch_region"] = str(config["region"]).strip()
+    if "instance_ids" in config:
+        updates["cloudwatch_instance_ids"] = _csv_list(config.get("instance_ids"))
+    if "log_groups" in config:
+        log_groups = _csv_list(config.get("log_groups"))
+        if log_groups:
+            updates["cloudwatch_log_groups"] = log_groups
+    if config.get("poll_interval_seconds"):
+        try:
+            updates["cloudwatch_poll_interval_seconds"] = int(config["poll_interval_seconds"])
+        except (TypeError, ValueError):
+            pass
+    if updates:
+        _s.update(**updates)
+
+    from app.data_sources.cloudwatch import CloudWatchDataSource
+    from app.data_sources.base import registry
+    from app.api.routes.settings import _spawn_cloud_task, _poll_cloud_adapter
+
+    adapter = CloudWatchDataSource()
+    try:
+        await adapter.connect()
+        registry.register(adapter)
+        _spawn_cloud_task(_poll_cloud_adapter(adapter))
+        return "connected", None
+    except Exception as exc:
+        msg = str(exc)[:300]
+        _s.update(cloudwatch_status="error", cloudwatch_error=msg)
+        return "error", msg
+
+
 @router.post("/configure")
-def configure_datasource(body: DataSourceConfig):
-    """Add or update a data source configuration."""
+async def configure_datasource(body: DataSourceConfig):
+    """Add or update a data source configuration.
+
+    For cloud providers (currently AWS) this also connects the live adapter
+    and starts polling — not just an in-memory record.
+    """
+    status = "configured"
+    error: str | None = None
+    if body.provider == "aws" and body.enabled:
+        status, error = await _activate_aws(body.config)
+
     existing = next((s for s in _configured_sources if s["provider"] == body.provider), None)
     if existing:
         existing["enabled"] = body.enabled
         existing["config"] = body.config
-        existing["status"] = "configured"
-        return {"message": f"Updated {body.provider}", "source": _public_source(existing)}
+        existing["status"] = status
+        result = {"message": f"Updated {body.provider}", "source": _public_source(existing)}
+    else:
+        new_source = {
+            "id": f"{body.provider}-{len(_configured_sources)}",
+            "provider": body.provider,
+            "name": body.provider.upper(),
+            "enabled": body.enabled,
+            "status": status,
+            "config": body.config,
+            "created_at": utc_now().isoformat(),
+        }
+        _configured_sources.append(new_source)
+        result = {"message": f"Configured {body.provider}", "source": _public_source(new_source)}
 
-    new_source = {
-        "id": f"{body.provider}-{len(_configured_sources)}",
-        "provider": body.provider,
-        "name": body.provider.upper(),
-        "enabled": body.enabled,
-        "status": "configured",
-        "config": body.config,
-        "created_at": utc_now().isoformat(),
-    }
-    _configured_sources.append(new_source)
-    return {"message": f"Configured {body.provider}", "source": _public_source(new_source)}
+    if error:
+        result["warning"] = f"Saved, but adapter connection failed: {error}"
+    return result
 
 
 @router.post("/test")
