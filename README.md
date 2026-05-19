@@ -8,7 +8,7 @@
 
 <br />
 
-[![Status](https://img.shields.io/badge/status-live%20on%20AWS-00C853?style=for-the-badge&logo=amazonaws&logoColor=white)](http://15.134.88.249/)
+[![Status](https://img.shields.io/badge/status-live%20on%20AWS-00C853?style=for-the-badge&logo=amazonaws&logoColor=white)](https://dynamic-it-ops.tankbusters.duckdns.org/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)]()
 [![License](https://img.shields.io/badge/built%20for-Hackathon-FF6D00?style=for-the-badge)]()
 
@@ -16,13 +16,13 @@
 
 ### Live Demo
 
-<a href="http://15.134.88.249/" target="_blank" rel="noopener noreferrer">
+<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">
   <img src="https://img.shields.io/badge/%F0%9F%9A%80%20Launch%20ITOps%20Orchestrator-Click%20to%20Open%20Live%20App-00C853?style=for-the-badge&labelColor=0d1117&logoColor=white" alt="Launch ITOps Orchestrator" height="48" />
 </a>
 
 <sub>Deployed on AWS EC2 · Updated automatically via GitHub Actions on every push to `main`</sub>
 
-**🔗 [`http://15.134.88.249/`](http://15.134.88.249/)** &nbsp;·&nbsp; **📘 [`/docs`](http://15.134.88.249/docs) — Interactive API** &nbsp;·&nbsp; **💚 [`/health`](http://15.134.88.249/health) — Component status**
+**🔗 [`https://dynamic-it-ops.tankbusters.duckdns.org/`](https://dynamic-it-ops.tankbusters.duckdns.org/)** &nbsp;·&nbsp; **📘 [`/docs`](https://dynamic-it-ops.tankbusters.duckdns.org/docs) — Interactive API** &nbsp;·&nbsp; **💚 [`/health`](https://dynamic-it-ops.tankbusters.duckdns.org/health) — Component status**
 
 <br />
 
@@ -117,7 +117,7 @@ Every resolved incident **enriches institutional memory**. The platform gets sma
                 │  └───────────────────────────────────────────────┘  │
                 │                                                     │
                 │  ┌──────────┐  ┌──────────────┐  ┌──────────────┐   │
-                │  │  SQLite  │  │ Vector Store │  │  LLM Bridge  │   │
+                │  │ Postgres │  │ Vector Store │  │  LLM Bridge  │   │
                 │  │ + ORM    │  │ (NumPy+JSON) │  │  Gemini /    │   │
                 │  │          │  │  + Ollama    │  │  OpenAI /    │   │
                 │  │          │  │  embeddings  │  │  Ollama      │   │
@@ -154,7 +154,7 @@ Every resolved incident **enriches institutional memory**. The platform gets sma
 - **Frequent incidents** — memory leaks, CPU spikes, disk full, network saturation — are resolved **instantly** through pre-approved response profiles. No LLM latency.
 - **Novel anomalies** invoke the LLM, which receives **RAG context** retrieved from the most similar past incidents and proven runbooks.
 - **LLM unavailable?** The pipeline gracefully degrades to safe defaults — it *never breaks*.
-- **Anomaly storm?** A configurable concurrency cap (`PIPELINE_MAX_CONCURRENT`) and a per-node cooldown protect SQLite and the event loop from runaway dispatch.
+- **Anomaly storm?** A configurable concurrency cap (`PIPELINE_MAX_CONCURRENT`) and a per-node cooldown protect PostgreSQL and the event loop from runaway dispatch.
 
 ### Human-in-the-Loop
 
@@ -208,8 +208,62 @@ Built with a custom **glassmorphism** design system: GlassNavbar, GlassTab, anim
 | **LLM Providers** | Google Gemini 2.5 Flash · OpenAI GPT-4o · Ollama (local) — **switchable at runtime** |
 | **Embeddings** | `nomic-embed-text` via Ollama |
 | **Memory** | NumPy cosine-similarity vector store · JSON persistence (no C++ build deps) |
-| **Database** | SQLite · ORM-managed migrations · transactional snapshots |
-| **Deploy** | AWS EC2 (Amazon Linux 2023) · Nginx · systemd · GitHub Actions CI/CD |
+| **Database** | **PostgreSQL 16** (production, co-located on EC2) · SQLite (dev fallback) · SQLAlchemy 2 ORM |
+| **Deploy** | AWS EC2 (Amazon Linux 2023, Graviton ARM) · Nginx · systemd · GitHub Actions CI/CD |
+| **TLS / DNS** | ZeroSSL cert via `acme.sh` (HTTP-01 webroot, auto-renew via `crond`) · DuckDNS dynamic DNS |
+
+---
+
+## Cloud Infrastructure — What Runs Where
+
+Production runs out of a single, cost-optimised AWS region (**Mumbai · `ap-south-1`**), chosen for the lowest p99 latency from India. The entire stack fits on **one Graviton instance** with a **co-located PostgreSQL** — no managed services, ≈ **$15 / month** all-in.
+
+**Live at** **[`https://dynamic-it-ops.tankbusters.duckdns.org/`](https://dynamic-it-ops.tankbusters.duckdns.org/)**
+
+### AWS resources
+
+| Resource | Type | Purpose |
+|:---|:---|:---|
+| **EC2 instance** | `t4g.small` · Graviton ARM · 2 vCPU · 2 GB RAM | Hosts everything: nginx, FastAPI, PostgreSQL, ChromaDB, ACME renewal cron |
+| **EBS root volume** | 30 GB encrypted `gp3` | App code · Postgres data dir · ChromaDB persist dir — all encrypted at rest |
+| **Elastic IP** | Static IPv4 | Stable public address; DuckDNS A record points here. Survives instance restarts. |
+| **Security Group** | Stateful firewall | Inbound `22 / 80 / 443` only — everything else is loopback-only inside the box |
+| **AWS Budgets** | Monthly $20 alert | Email at 80 % actual / 100 % forecast spend — prevents credit blowout |
+| **IMDSv2** | Instance metadata mode | Token-auth required; defends against SSRF metadata exfiltration |
+
+### What's running on that single instance
+
+| Service | Role | Why local, not a managed service |
+|:---|:---|:---|
+| **Nginx** | Reverse proxy · TLS termination · serves React `dist/` | Single front door; no ALB needed (saves ~$16/mo) |
+| **FastAPI / Uvicorn** | App server, `--workers 2`, behind nginx on `127.0.0.1:8000` | systemd-supervised; logs to journald |
+| **PostgreSQL 16** | Durable store: incidents, runbooks, agent runs, simulated nodes | Co-located on EC2 instead of RDS → saves ~$15/mo, sufficient for a single-instance app |
+| **ChromaDB** | Vector store powering institutional memory (RAG) | Persistent path at `/opt/itops/chroma_db`, env-configurable |
+| **systemd** | Process supervision · auto-restart · ordered start after Postgres | Unit loads two env files: app `.env` + root-only `/etc/itops-db.env` for DB creds |
+| **cronie + acme.sh** | TLS cert auto-renewal | Daily check, renews within ACME ARI window, reloads nginx on success |
+
+### DNS & TLS
+
+| Layer | Provider | Detail |
+|:---|:---|:---|
+| **Hostname** | **DuckDNS** (free dynamic DNS) | `dynamic-it-ops.tankbusters.duckdns.org` → A record → Elastic IP |
+| **Certificate Authority** | **ZeroSSL** | Switched from Let's Encrypt — DuckDNS's authoritative DNS is chronically too slow for LE's CAA queries from its secondary validators |
+| **ACME client** | **`acme.sh`** | HTTP-01 challenge via webroot at `/opt/itops/frontend/dist/.well-known/acme-challenge` |
+| **Auto-renewal** | `crond` (system cron) | `acme.sh` registers a per-user cron entry on install; daily check, renews within ARI suggested window, reloads nginx via `--reloadcmd` |
+| **Cipher policy** | TLS 1.2 + 1.3 only | `ssl_ciphers HIGH:!aNULL:!MD5` |
+| **HTTP → HTTPS** | Nginx 301 redirect | `:80` redirects everything except `/.well-known/acme-challenge/` (kept open for cert renewals) |
+
+### What we deliberately don't use (and why)
+
+- **RDS** — overkill at this scale; co-located Postgres handles our few concurrent connections fine
+- **ALB / NLB** — single instance, no rolling-deploy story to justify ~$16/mo
+- **NAT Gateway** — single public subnet, ~$30/mo saved
+- **S3 + CloudFront** — React `dist/` is ~1 MB after gzip, nginx serves it directly
+- **Route 53** — DuckDNS is free and the auto-renewing dynamic DNS is enough
+- **Secrets Manager / Parameter Store** — credentials live in app `.env` and root-only `/etc/itops-db.env` (mode 600), loaded as systemd `EnvironmentFile`s
+- **CloudWatch agent / X-Ray** — `journalctl -u itops-backend` plus FastAPI's structured logging are sufficient
+
+The whole production footprint is **one EC2 instance, one EIP, one EBS volume** — verified via a cross-region account scan. Free-tier credits cover months of runway.
 
 ---
 
@@ -302,6 +356,9 @@ itops/
 │   │   ├── memory/            ← Vector store (RAG)
 │   │   ├── services/          ← Core business logic
 │   │   └── main.py            ← FastAPI app + lifespan + monitoring loops
+│   ├── scripts/               ← Ops scripts
+│   │   ├── migrate_sqlite_to_postgres.py   ← One-shot data migration (FK-ordered, sequence-safe)
+│   │   └── seed_runbooks.py                ← Re-seed canonical runbooks
 │   └── requirements.txt
 ├── frontend/
 │   └── src/
@@ -309,9 +366,10 @@ itops/
 │       ├── components/        ← Glassmorphism UI system
 │       └── services/          ← Typed API client
 ├── deployment/
-│   ├── setup-ec2.sh           ← One-shot Amazon Linux 2023 bootstrap
-│   ├── nginx.conf             ← Reverse proxy config
-│   ├── itops-backend.service  ← systemd unit
+│   ├── cloud-shell-bootstrap.sh  ← One-shot AWS infra provisioner (run in CloudShell)
+│   ├── setup-ec2.sh              ← Per-instance bootstrap (Python + nginx + Postgres + systemd)
+│   ├── nginx.conf                ← Reverse proxy config
+│   ├── itops-backend.service     ← systemd unit
 │   └── sample.env
 ├── quickruns/                 ← 1-click local launchers (Win / mac / Linux)
 └── README.md
@@ -345,20 +403,58 @@ Prefer one click? Run `quickruns/run.bat` (Windows), `quickruns/run-macos.sh`, o
 
 ## Deploying to AWS EC2
 
+Two scripts get you from zero to a running deployment in under 15 minutes:
+
 ```bash
-# On a fresh Amazon Linux 2023 EC2 instance
+# ① From AWS CloudShell (in your target region) — provisions all the infra
+bash deployment/cloud-shell-bootstrap.sh
+#  Creates: SSH key pair · security group · t4g.small w/ encrypted gp3 ·
+#  Elastic IP · $20/mo Budget alert.  Prints the public IP at the end.
+
+# ② SSH into the new box, then run the per-instance bootstrap
 bash deployment/setup-ec2.sh
+#  Installs: Python 3.11 · Nginx · PostgreSQL 16 · systemd service ·
+#  passwordless sudo for service restarts.  Creates the `itops` Postgres
+#  role + database and writes DATABASE_URL into root-only
+#  /etc/itops-db.env (loaded by systemd as a second EnvironmentFile).
 ```
 
-The script installs Python 3.11, Nginx, configures the systemd service, sets up passwordless sudo for service restarts, and prints the three GitHub Secrets you need:
+Add these three GitHub Secrets and push to `main`:
 
 ```
-EC2_HOST              your public IP
+EC2_HOST              your Elastic IP
 EC2_USER              ec2-user
 EC2_SSH_PRIVATE_KEY   contents of your .pem
 ```
 
-Add those to the repo, push to `main`, and CI/CD takes over.
+### Adding HTTPS (free, via DuckDNS + ZeroSSL)
+
+Point a free DuckDNS subdomain at your Elastic IP, then on the box:
+
+```bash
+sudo dnf install -y cronie && sudo systemctl enable --now crond
+curl https://get.acme.sh | sh -s email=you@example.com
+~/.acme.sh/acme.sh --set-default-ca --server zerossl
+~/.acme.sh/acme.sh --issue --webroot /opt/itops/frontend/dist \
+    -d your.subdomain.duckdns.org --keylength 2048
+```
+
+Then add a `:443` server block to `/etc/nginx/conf.d/itops.conf` pointing at the issued cert (see the `Cloud Infrastructure` section above for the cipher policy and renewal hook). Set `CORS_ALLOW_ORIGINS=https://your.subdomain.duckdns.org` in `.env` and restart the backend.
+
+> **Note:** Let's Encrypt may fail on DuckDNS subdomains with `DNS problem: query timed out looking up CAA` because DuckDNS's authoritative DNS is too slow for LE's secondary validators. **ZeroSSL** has more lenient timeouts and works reliably.
+
+### Migrating data from SQLite (optional)
+
+If you're cutting over from a SQLite-backed deployment, run the one-shot migration script:
+
+```bash
+# Copy your old SQLite file to the new box, then on the box:
+sudo -E env DATABASE_URL=$(sudo grep DATABASE_URL /etc/itops-db.env | cut -d= -f2-) \
+    /opt/itops/venv/bin/python -m scripts.migrate_sqlite_to_postgres \
+    --source sqlite:////tmp/old-itops.db
+```
+
+The script copies tables in FK-dependency order and realigns Postgres sequences so future inserts don't collide.
 
 ---
 
@@ -367,10 +463,11 @@ Add those to the repo, push to `main`, and CI/CD takes over.
 These are the parts the judges should look at when they want to understand depth.
 
 - **Bounded async pipeline dispatch** — `_spawn_pipeline()` uses a semaphore + live-task set so an anomaly storm can never spawn unbounded coroutines or GC tasks mid-flight. (`backend/app/main.py:70`)
-- **Cooldown-based deduplication** — repeated anomalies on the same node/type are suppressed for 5 minutes to keep the incident table clean and SQLite write-light. (`backend/app/main.py:184`)
+- **Cooldown-based deduplication** — repeated anomalies on the same node/type are suppressed for 5 minutes to keep the incident table clean and the DB write-light. (`backend/app/main.py:184`)
 - **Tolerant JSON parsing for small-model output** — raw → fenced → first-balanced-brace recovery so a slightly malformed Ollama response doesn't fail the pipeline. (`backend/app/llm/provider.py:27`)
 - **Component-level health probe** — `/health` reports DB, vector store, and each background task individually with a 503 the moment any subsystem dies. (`backend/app/main.py:663`)
-- **State-preserving deploys** — `rsync --delete` with `--exclude` rules keeps the DB, vector store, env, and runtime settings across every release. (`.github/workflows/`)
+- **State-preserving deploys** — `rsync --delete` with `--exclude` rules keeps the local SQLite DB (dev), vector store, `.env`, and runtime settings across every release. In production, DB credentials live in root-only `/etc/itops-db.env` (mode 600) and are loaded as a second systemd `EnvironmentFile`, so deploys never touch secrets. (`.github/workflows/`)
+- **Cross-DB engine config** — `database/session.py` branches on the URL scheme: SQLite gets `check_same_thread=False`; Postgres gets a pre-tuned connection pool (`pool_pre_ping`, `pool_recycle=1800`) so stale connections never reach the app. (`backend/app/database/session.py`)
 - **Pluggable everything** — Data sources, LLM providers, and remediation profiles are all interface-driven. New cloud? Implement `DataSource`. New model? Implement one method in `llm/provider.py`.
 
 ---
