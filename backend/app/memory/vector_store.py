@@ -10,61 +10,97 @@ changes in the Settings UI take effect immediately without a restart.
 
 import logging
 import threading
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from pathlib import Path
 
 import chromadb
 from chromadb import Settings as ChromaSettings
 
-from app.config import CHROMA_PERSIST_DIR
+from app.config import CHROMA_PERSIST_DIR, EMBED_TIMEOUT_SECONDS
 from app.services.settings_service import settings as _settings
 
 logger = logging.getLogger("itops.memory")
 
 _EMBED_DIM = 768  # updated on first successful embed
 
+# A single embedding call must never block a request or background task
+# indefinitely. If the configured provider is unreachable (missing API key,
+# no local Ollama, blocked egress) the network call can hang forever; without
+# a ceiling that exhausts the worker pool and freezes the whole API behind
+# nginx (504). We run each provider call in a dedicated pool and abandon the
+# caller after EMBED_TIMEOUT_SECONDS, degrading to a zero vector — the same
+# graceful fallback already used for provider errors.
+_embed_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="embed")
+
+
+def _zero(input: chromadb.Documents) -> chromadb.Embeddings:
+    return [[0.0] * _EMBED_DIM for _ in input]
+
 
 class _DynamicEmbedFn(chromadb.EmbeddingFunction):
-    """Routes to Google or Ollama based on the live embedding_provider setting."""
+    """Routes to Google or Ollama based on the live embedding_provider setting.
+
+    Every provider call is bounded by EMBED_TIMEOUT_SECONDS and fails fast to
+    a zero vector so an unusable provider can never stall the application.
+    """
 
     def __call__(self, input: chromadb.Documents) -> chromadb.Embeddings:
         provider = _settings.embedding_provider
-        if provider == "google":
-            return self._google(input)
-        return self._ollama(input)
+
+        # Fail instantly (no network) when the provider is obviously unusable.
+        if provider == "google" and not _settings.get_secret("gemini_api_key"):
+            logger.warning(
+                "Embedding provider is 'google' but no Gemini API key is set "
+                "— storing zero vectors. Set a key or switch the embedding "
+                "provider in Settings."
+            )
+            return _zero(input)
+        if provider != "google" and not _settings.ollama_base_url:
+            logger.warning("Ollama base URL is not set — storing zero vectors.")
+            return _zero(input)
+
+        compute = self._google if provider == "google" else self._ollama
+        try:
+            return _embed_pool.submit(compute, input).result(
+                timeout=EMBED_TIMEOUT_SECONDS
+            )
+        except FuturesTimeout:
+            logger.warning(
+                "Embedding via '%s' exceeded %ss — storing zero vector. "
+                "Provider is likely unreachable from this host.",
+                provider, EMBED_TIMEOUT_SECONDS,
+            )
+            return _zero(input)
+        except Exception as exc:
+            logger.warning("Embedding via '%s' failed (%s) — storing zero vector",
+                           provider, exc)
+            return _zero(input)
 
     def _google(self, input: chromadb.Documents) -> chromadb.Embeddings:
         global _EMBED_DIM
-        try:
-            from google import genai
-            client = genai.Client(api_key=_settings.get_secret("gemini_api_key"))
-            model = _settings.gemini_embedding_model or "models/text-embedding-004"
-            results: chromadb.Embeddings = []
-            for text in input:
-                resp = client.models.embed_content(model=model, contents=text[:8000])
-                emb = resp.embeddings[0].values
-                _EMBED_DIM = len(emb)
-                results.append(list(emb))
-            return results
-        except Exception as exc:
-            logger.warning("Google embed failed (%s) — storing zero vector", exc)
-            return [[0.0] * _EMBED_DIM for _ in input]
+        from google import genai
+        client = genai.Client(api_key=_settings.get_secret("gemini_api_key"))
+        model = _settings.gemini_embedding_model or "models/text-embedding-004"
+        results: chromadb.Embeddings = []
+        for text in input:
+            resp = client.models.embed_content(model=model, contents=text[:8000])
+            emb = resp.embeddings[0].values
+            _EMBED_DIM = len(emb)
+            results.append(list(emb))
+        return results
 
     def _ollama(self, input: chromadb.Documents) -> chromadb.Embeddings:
         global _EMBED_DIM
-        try:
-            import ollama as _ol
-            client = _ol.Client(host=_settings.ollama_base_url)
-            model = _settings.ollama_embedding_model
-            results: chromadb.Embeddings = []
-            for text in input:
-                resp = client.embed(model=model, input=text[:8000])
-                emb = resp["embeddings"][0]
-                _EMBED_DIM = len(emb)
-                results.append(emb)
-            return results
-        except Exception as exc:
-            logger.warning("Ollama embed failed (%s) — storing zero vector", exc)
-            return [[0.0] * _EMBED_DIM for _ in input]
+        import ollama as _ol
+        client = _ol.Client(host=_settings.ollama_base_url)
+        model = _settings.ollama_embedding_model
+        results: chromadb.Embeddings = []
+        for text in input:
+            resp = client.embed(model=model, input=text[:8000])
+            emb = resp["embeddings"][0]
+            _EMBED_DIM = len(emb)
+            results.append(emb)
+        return results
 
 
 class InstitutionalMemory:

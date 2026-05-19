@@ -36,6 +36,10 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 # Embedding provider — "google" uses Gemini embedding API, "ollama" uses local Ollama
 EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "google")
 GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
+# Hard ceiling for a single embedding network call. An unreachable provider
+# (missing API key, no local Ollama, blocked egress) must never block a
+# request or background task beyond this — it degrades to a zero vector.
+EMBED_TIMEOUT_SECONDS = float(os.getenv("EMBED_TIMEOUT_SECONDS", "8"))
 
 # ChromaDB
 CHROMA_PERSIST_DIR = str(BASE_DIR / "chroma_db")
