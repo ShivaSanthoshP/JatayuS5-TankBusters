@@ -169,6 +169,9 @@ class DashboardStats(BaseModel):
     success_rate: float
     memory_incidents_stored: int
     memory_runbooks_stored: int
+    embedding_provider: str
+    gemini_embedding_model: str
+    ollama_embedding_model: str
 
 
 class MetricHistoryPoint(BaseModel):

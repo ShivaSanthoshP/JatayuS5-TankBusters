@@ -33,6 +33,10 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+# Embedding provider — "google" uses Gemini embedding API, "ollama" uses local Ollama
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "google")
+GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
+
 # ChromaDB
 CHROMA_PERSIST_DIR = str(BASE_DIR / "chroma_db")
 

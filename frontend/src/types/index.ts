@@ -116,6 +116,9 @@ export interface DashboardStats {
   success_rate: number;
   memory_incidents_stored: number;
   memory_runbooks_stored: number;
+  embedding_provider: string;
+  gemini_embedding_model: string;
+  ollama_embedding_model: string;
 }
 
 export interface Remediation {

@@ -2,9 +2,10 @@ from __future__ import annotations
 """
 Institutional Memory System — ChromaDB vector store.
 
-Uses ChromaDB (HNSW, cosine) with Ollama embeddings for semantic search.
-Falls back to zero-vector storage when Ollama is unavailable so HNSW
-index stays consistent; those entries rank last until re-indexed.
+Uses ChromaDB (HNSW, cosine) for storage and indexing.
+Embedding provider is configurable at runtime: "google" (Gemini API)
+or "ollama" (local). Reads the active setting on every embed call so
+changes in the Settings UI take effect immediately without a restart.
 """
 
 import logging
@@ -19,28 +20,51 @@ from app.services.settings_service import settings as _settings
 
 logger = logging.getLogger("itops.memory")
 
-_EMBED_DIM = 768  # nomic-embed-text default; updated on first successful embed
+_EMBED_DIM = 768  # updated on first successful embed
 
 
-class _OllamaEmbedFn(chromadb.EmbeddingFunction):
-    """ChromaDB embedding function backed by Ollama."""
+class _DynamicEmbedFn(chromadb.EmbeddingFunction):
+    """Routes to Google or Ollama based on the live embedding_provider setting."""
 
     def __call__(self, input: chromadb.Documents) -> chromadb.Embeddings:
+        provider = _settings.embedding_provider
+        if provider == "google":
+            return self._google(input)
+        return self._ollama(input)
+
+    def _google(self, input: chromadb.Documents) -> chromadb.Embeddings:
         global _EMBED_DIM
-        import ollama as _ol
-        client = _ol.Client(host=_settings.ollama_base_url)
-        model = _settings.ollama_embedding_model
-        results: chromadb.Embeddings = []
-        for text in input:
-            try:
+        try:
+            from google import genai
+            client = genai.Client(api_key=_settings.get_secret("gemini_api_key"))
+            model = _settings.gemini_embedding_model or "models/text-embedding-004"
+            results: chromadb.Embeddings = []
+            for text in input:
+                resp = client.models.embed_content(model=model, contents=text[:8000])
+                emb = resp.embeddings[0].values
+                _EMBED_DIM = len(emb)
+                results.append(list(emb))
+            return results
+        except Exception as exc:
+            logger.warning("Google embed failed (%s) — storing zero vector", exc)
+            return [[0.0] * _EMBED_DIM for _ in input]
+
+    def _ollama(self, input: chromadb.Documents) -> chromadb.Embeddings:
+        global _EMBED_DIM
+        try:
+            import ollama as _ol
+            client = _ol.Client(host=_settings.ollama_base_url)
+            model = _settings.ollama_embedding_model
+            results: chromadb.Embeddings = []
+            for text in input:
                 resp = client.embed(model=model, input=text[:8000])
                 emb = resp["embeddings"][0]
                 _EMBED_DIM = len(emb)
                 results.append(emb)
-            except Exception as exc:
-                logger.warning("Ollama embed unavailable (%s) — storing zero vector", exc)
-                results.append([0.0] * _EMBED_DIM)
-        return results
+            return results
+        except Exception as exc:
+            logger.warning("Ollama embed failed (%s) — storing zero vector", exc)
+            return [[0.0] * _EMBED_DIM for _ in input]
 
 
 class InstitutionalMemory:
@@ -50,7 +74,7 @@ class InstitutionalMemory:
         persist_dir = Path(CHROMA_PERSIST_DIR)
         persist_dir.mkdir(parents=True, exist_ok=True)
 
-        self._embed_fn = _OllamaEmbedFn()
+        self._embed_fn = _DynamicEmbedFn()
         self._db = chromadb.PersistentClient(
             path=str(persist_dir),
             settings=ChromaSettings(anonymized_telemetry=False),

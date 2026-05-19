@@ -231,6 +231,7 @@ class InfraService:
             mem_incidents = 0
             mem_runbooks = 0
 
+        from app.services.settings_service import settings as _s
         return {
             "total_nodes": len(nodes),
             "healthy_nodes": healthy,
@@ -243,4 +244,7 @@ class InfraService:
             "success_rate": round(success_rate, 1),
             "memory_incidents_stored": mem_incidents,
             "memory_runbooks_stored": mem_runbooks,
+            "embedding_provider": _s.embedding_provider,
+            "gemini_embedding_model": _s.gemini_embedding_model,
+            "ollama_embedding_model": _s.ollama_embedding_model,
         }

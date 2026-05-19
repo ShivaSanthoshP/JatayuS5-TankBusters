@@ -28,6 +28,8 @@ from app.config import (
     OPENAI_MODEL,
     GEMINI_API_KEY,
     GEMINI_MODEL,
+    EMBEDDING_PROVIDER,
+    GEMINI_EMBEDDING_MODEL,
     LLM_PROVIDER,
     AGENT_TEMPERATURE,
     BASE_DIR,
@@ -122,6 +124,10 @@ class _Settings:
         self.gemini_api_key: str = GEMINI_API_KEY
         self.gemini_model: str = GEMINI_MODEL
 
+        # ── Embedding settings ───────────────────────────────
+        self.embedding_provider: str = EMBEDDING_PROVIDER  # "google" | "ollama"
+        self.gemini_embedding_model: str = GEMINI_EMBEDDING_MODEL
+
         # ── Shared agent settings ───────────────────────────
         self.agent_temperature: float = AGENT_TEMPERATURE
 
@@ -180,6 +186,8 @@ class _Settings:
         "openai_model",
         "gemini_api_key",
         "gemini_model",
+        "embedding_provider",
+        "gemini_embedding_model",
         "agent_temperature",
         "custom_llm_models",
         "custom_embedding_models",
@@ -265,6 +273,8 @@ class _Settings:
                 "openai_model": self.openai_model,
                 "gemini_api_key": self.gemini_api_key,
                 "gemini_model": self.gemini_model,
+                "embedding_provider": self.embedding_provider,
+                "gemini_embedding_model": self.gemini_embedding_model,
                 "agent_temperature": self.agent_temperature,
                 "custom_llm_models": list(self.custom_llm_models),
                 "custom_embedding_models": list(self.custom_embedding_models),

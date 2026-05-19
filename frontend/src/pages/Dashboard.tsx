@@ -201,6 +201,7 @@ export default function Dashboard() {
     total_nodes: 0, healthy_nodes: 0, degraded_nodes: 0, critical_nodes: 0,
     total_incidents: 0, open_incidents: 0, resolved_incidents: 0,
     total_remediations: 0, success_rate: 0, memory_incidents_stored: 0, memory_runbooks_stored: 0,
+    embedding_provider: 'google', gemini_embedding_model: 'models/text-embedding-004', ollama_embedding_model: 'nomic-embed-text',
   };
 
   const fleet = useMemo(() => wsEvents.slice(0, 12), [wsEvents]);
@@ -457,8 +458,10 @@ export default function Dashboard() {
               {safeStats.memory_runbooks_stored.toLocaleString()} runbook{safeStats.memory_runbooks_stored === 1 ? '' : 's'}
             </span>
             <span className="text-[var(--color-ink-faint)]">·</span>
-            <span title="Embeddings generated via Ollama (nomic-embed-text). Falls back to keyword search automatically when Ollama is unavailable.">
-              Embeddings: nomic-embed-text (Ollama)
+            <span title="Embedding provider used to convert text into vectors for semantic search. Configurable in Settings.">
+              Embeddings: {safeStats.embedding_provider === 'google'
+                ? `Google · ${safeStats.gemini_embedding_model || 'text-embedding-004'}`
+                : `Ollama · ${safeStats.ollama_embedding_model || 'nomic-embed-text'}`}
             </span>
           </div>
         </GlassCard>

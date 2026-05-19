@@ -28,6 +28,10 @@ interface SettingsData {
   gemini_api_key_set: boolean;
   gemini_model: string;
 
+  // Embedding
+  embedding_provider: 'google' | 'ollama';
+  gemini_embedding_model: string;
+
   // Shared
   agent_temperature: number;
   custom_llm_models: string[];
@@ -410,7 +414,7 @@ export default function Settings() {
           <div className="mt-5 p-3 rounded-lg bg-amber-50/80 border border-amber-200/50 flex items-start gap-2">
             <AlertCircle size={14} className="text-amber-500 mt-0.5 shrink-0" />
             <p className="text-[11px] text-amber-700">
-              <strong>Note:</strong> Embeddings for RAG always use Ollama, regardless of which chat provider is selected. If Ollama is unavailable, the system falls back to keyword search automatically.
+              <strong>Note:</strong> The embedding provider is independent of the chat LLM. You can use Google embeddings with any chat provider. After switching providers, re-seed runbooks so all vectors use the same model.
             </p>
           </div>
         </div>
@@ -871,94 +875,126 @@ export default function Settings() {
         </GlassCard>
       )}
 
-      {/* ── Embeddings (always Ollama) ───────────────────── */}
+      {/* ── Vector Store & Embeddings ────────────────────── */}
       <GlassCard hover={false}>
         <div className="flex items-center gap-2 mb-4">
           <Cpu size={18} className="text-emerald-600" />
           <h2 className="text-sm font-semibold text-slate-700">Vector Store &amp; Embeddings</h2>
         </div>
 
+        {/* Info box */}
         <div className="mb-5 p-3 rounded-lg bg-slate-50 border border-slate-200/60 text-[11px] text-slate-600 space-y-1.5">
-          <p><span className="font-semibold text-slate-700">Vector Store:</span> ChromaDB with HNSW indexing and cosine similarity. Collections are persisted to disk — no external server required.</p>
-          <p><span className="font-semibold text-slate-700">Embeddings:</span> Generated via Ollama using the model below. Falls back to keyword search automatically when Ollama is unavailable — no data is lost.</p>
+          <p><span className="font-semibold text-slate-700">Vector Store:</span> ChromaDB with HNSW indexing and cosine similarity — persisted to disk, no external server required.</p>
+          <p><span className="font-semibold text-slate-700">Embeddings:</span> Text is converted to vectors using the provider and model selected below. Changing the provider takes effect immediately — re-seed runbooks after switching so all vectors use the same model.</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        {/* Provider toggle */}
+        <label className="text-xs text-slate-500 mb-2 block">Embedding Provider</label>
+        <div className="flex gap-2 mb-5">
+          {(['google', 'ollama'] as const).map((p) => (
+            <button
+              key={p}
+              onClick={() => save({ embedding_provider: p })}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                settings.embedding_provider === p
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'glass-sm text-slate-600 hover:bg-emerald-50'
+              }`}
+            >
+              {p === 'google' ? '✦ Google Gemini' : '⬡ Ollama (local)'}
+            </button>
+          ))}
+        </div>
+
+        {/* Google model selector */}
+        {settings.embedding_provider === 'google' && (
           <div>
-            <label className="text-xs text-slate-500 mb-1.5 block">Active Embedding Model</label>
+            <label className="text-xs text-slate-500 mb-1.5 block">Google Embedding Model</label>
             <div className="relative">
               <button
-                onClick={() => setOpenDropdown(openDropdown === 'ollama-embedding' ? null : 'ollama-embedding')}
+                onClick={() => setOpenDropdown(openDropdown === 'google-embedding' ? null : 'google-embedding')}
                 className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-emerald-300"
               >
-                <span className="font-medium">{settings.ollama_embedding_model}</span>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'ollama-embedding' ? 'rotate-180' : ''}`} />
+                <span className="font-medium">{settings.gemini_embedding_model || 'models/text-embedding-004'}</span>
+                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'google-embedding' ? 'rotate-180' : ''}`} />
               </button>
-              {openDropdown === 'ollama-embedding' && (
+              {openDropdown === 'google-embedding' && (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="absolute z-30 mt-1 w-full glass-dropdown max-h-52 overflow-y-auto"
+                  className="absolute z-30 mt-1 w-full glass-dropdown"
                 >
-                  {ollamaEmbeddingOptions.map((model) => (
+                  {['models/text-embedding-004', 'models/embedding-001'].map((model) => (
                     <button
                       key={model}
-                      onClick={() => { save({ ollama_embedding_model: model }); setOpenDropdown(null); }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 ${
-                        model === settings.ollama_embedding_model ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-700'
+                      onClick={() => { save({ gemini_embedding_model: model }); setOpenDropdown(null); }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 flex items-center justify-between ${
+                        settings.gemini_embedding_model === model ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-700'
                       }`}
                     >
-                      {model}
+                      <span>{model}</span>
+                      {model === 'models/text-embedding-004' && <span className="text-[10px] text-emerald-500">recommended</span>}
                     </button>
                   ))}
                 </motion.div>
               )}
             </div>
+            <p className="text-[11px] text-slate-400 mt-2">Uses your Gemini API key. Free within Google AI quota — no model download required.</p>
           </div>
+        )}
 
-          <div>
-            <label className="text-xs text-slate-500 mb-1.5 block">Add Custom Embedding Model</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newEmbeddingModel}
-                onChange={(e) => setNewEmbeddingModel(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_embedding_models', newEmbeddingModel, () => setNewEmbeddingModel(''))}
-                placeholder="e.g. bge-large"
-                className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
-              />
-              <button
-                onClick={() => addCustomModel('custom_embedding_models', newEmbeddingModel, () => setNewEmbeddingModel(''))}
-                className="glass-sm rounded-lg px-3 py-2 hover:bg-emerald-50"
-              >
-                <Plus size={16} className="text-emerald-600" />
-              </button>
-            </div>
-            {settings.custom_embedding_models.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {settings.custom_embedding_models.map((m) => (
-                  <span key={m} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
-                    {m}
-                    <button onClick={() => removeCustomModel('custom_embedding_models', m)} className="hover:text-red-500">
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
+        {/* Ollama model selector */}
+        {settings.embedding_provider === 'ollama' && (
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-slate-500 mb-1.5 block">Ollama Embedding Model</label>
+              <div className="relative">
+                <button
+                  onClick={() => setOpenDropdown(openDropdown === 'ollama-embedding' ? null : 'ollama-embedding')}
+                  className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-emerald-300"
+                >
+                  <span className="font-medium">{settings.ollama_embedding_model}</span>
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'ollama-embedding' ? 'rotate-180' : ''}`} />
+                </button>
+                {openDropdown === 'ollama-embedding' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute z-30 mt-1 w-full glass-dropdown max-h-52 overflow-y-auto"
+                  >
+                    {ollamaEmbeddingOptions.map((model) => (
+                      <button
+                        key={model}
+                        onClick={() => { save({ ollama_embedding_model: model }); setOpenDropdown(null); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 ${
+                          model === settings.ollama_embedding_model ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-700'
+                        }`}
+                      >
+                        {model}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
-
-        {ollamaModels.length > 0 && (
-          <div className="mt-5">
-            <label className="text-xs text-slate-500 mb-2 block">Installed on Ollama Server</label>
-            <div className="space-y-1 max-h-40 overflow-y-auto">
-              {ollamaModels.map((m) => (
-                <div key={m.name} className="flex items-center justify-between text-xs text-slate-600 glass-sm rounded-lg px-3 py-1.5">
-                  <span className="font-medium">{m.name}</span>
-                  <span className="text-slate-400">{formatBytes(m.size)}</span>
-                </div>
-              ))}
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 mb-1.5 block">Add Custom Model</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newEmbeddingModel}
+                  onChange={(e) => setNewEmbeddingModel(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_embedding_models', newEmbeddingModel, () => setNewEmbeddingModel(''))}
+                  placeholder="e.g. bge-large"
+                  className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                />
+                <button
+                  onClick={() => addCustomModel('custom_embedding_models', newEmbeddingModel, () => setNewEmbeddingModel(''))}
+                  className="glass-sm rounded-lg px-3 py-2 hover:bg-emerald-50"
+                >
+                  <Plus size={16} className="text-emerald-600" />
+                </button>
+              </div>
             </div>
           </div>
         )}
