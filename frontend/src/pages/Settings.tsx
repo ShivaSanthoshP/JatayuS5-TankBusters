@@ -65,6 +65,7 @@ const DEFAULT_OLLAMA_LLM_OPTIONS = [
 
 const DEFAULT_EMBEDDING_OPTIONS = [
   'nomic-embed-text', 'mxbai-embed-large', 'all-minilm', 'snowflake-arctic-embed',
+  'bge-large', 'bge-m3', 'e5-mistral-7b-instruct', 'nomic-embed-text:v1.5',
 ];
 
 const DEFAULT_OPENAI_MODELS = [
@@ -875,12 +876,6 @@ export default function Settings() {
           <h2 className="text-sm font-semibold text-slate-700">Vector Store &amp; Embeddings</h2>
         </div>
 
-        {/* Info box */}
-        <div className="mb-5 p-3 rounded-lg bg-slate-50 border border-slate-200/60 text-[11px] text-slate-600 space-y-1.5">
-          <p><span className="font-semibold text-slate-700">Vector Store:</span> ChromaDB with HNSW indexing and cosine similarity — persisted to disk, no external server required.</p>
-          <p><span className="font-semibold text-slate-700">Embeddings:</span> Text is converted to vectors using the provider and model selected below. Changing the provider takes effect immediately — re-seed runbooks after switching so all vectors use the same model.</p>
-        </div>
-
         {/* Provider toggle */}
         <label className="text-xs text-slate-500 mb-2 block">Embedding Provider</label>
         <div className="flex gap-2 mb-5">
@@ -938,7 +933,7 @@ export default function Settings() {
 
         {/* Ollama model selector */}
         {settings.embedding_provider === 'ollama' && (
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">Ollama Embedding Model</label>
               <div className="relative">
@@ -946,7 +941,7 @@ export default function Settings() {
                   onClick={() => setOpenDropdown(openDropdown === 'ollama-embedding' ? null : 'ollama-embedding')}
                   className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-emerald-300"
                 >
-                  <span className="font-medium">{settings.ollama_embedding_model}</span>
+                  <span className="font-medium">{settings.ollama_embedding_model || 'nomic-embed-text'}</span>
                   <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'ollama-embedding' ? 'rotate-180' : ''}`} />
                 </button>
                 {openDropdown === 'ollama-embedding' && (
@@ -969,6 +964,7 @@ export default function Settings() {
                   </motion.div>
                 )}
               </div>
+              <p className="text-[11px] text-slate-400 mt-2">Requires Ollama running at the configured base URL. Model must be pulled locally.</p>
             </div>
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">Add Custom Model</label>
@@ -988,6 +984,18 @@ export default function Settings() {
                   <Plus size={16} className="text-emerald-600" />
                 </button>
               </div>
+              {settings.custom_embedding_models.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {settings.custom_embedding_models.map((m) => (
+                    <span key={m} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                      {m}
+                      <button onClick={() => removeCustomModel('custom_embedding_models', m)} className="hover:text-red-500">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
