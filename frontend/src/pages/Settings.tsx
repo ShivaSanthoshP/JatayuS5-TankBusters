@@ -34,6 +34,14 @@ interface SettingsData {
 
   // Shared
   agent_temperature: number;
+
+  // Per-agent temperatures
+  monitoring_temperature: number;
+  predictive_temperature: number;
+  diagnostic_temperature: number;
+  remediation_temperature: number;
+  reporting_temperature: number;
+
   custom_llm_models: string[];
   custom_embedding_models: string[];
   custom_openai_models: string[];
@@ -101,6 +109,76 @@ const PROVIDER_META: Record<LlmProvider, { label: string; subtitle: string; desc
   },
 };
 
+
+type AgentTempKey =
+  | 'monitoring_temperature'
+  | 'predictive_temperature'
+  | 'diagnostic_temperature'
+  | 'remediation_temperature'
+  | 'reporting_temperature';
+
+const AGENT_TEMP_ROWS: { key: AgentTempKey; label: string; hint: string }[] = [
+  { key: 'monitoring_temperature',  label: 'Monitoring',  hint: 'low = stable signal classification' },
+  { key: 'predictive_temperature',  label: 'Predictive',  hint: 'low = consistent forecasts' },
+  { key: 'diagnostic_temperature',  label: 'Diagnostic',  hint: 'moderate = better root-cause reasoning' },
+  { key: 'remediation_temperature', label: 'Remediation', hint: '0.0 recommended for safe actions' },
+  { key: 'reporting_temperature',   label: 'Reporting',   hint: 'higher = more natural summaries' },
+];
+
+const clampTemp = (v: number) => Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0));
+
+function TempControl({
+  label,
+  hint,
+  value,
+  onLocalChange,
+  onCommit,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  onLocalChange: (v: number) => void;
+  onCommit: (v: number) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-medium text-ink-soft">{label}</div>
+          <div className="text-[10px] text-ink-faint">{hint}</div>
+        </div>
+        <input
+          type="number"
+          min={0}
+          max={1}
+          step={0.05}
+          value={value}
+          onChange={(e) => onLocalChange(clampTemp(parseFloat(e.target.value)))}
+          onBlur={(e) => onCommit(clampTemp(parseFloat(e.target.value)))}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onCommit(clampTemp(parseFloat((e.target as HTMLInputElement).value)));
+          }}
+          className="w-20 glass-sm rounded-lg px-2 py-1 text-xs font-medium text-center text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
+        />
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={value}
+        onChange={(e) => onLocalChange(parseFloat(e.target.value))}
+        onMouseUp={(e) => onCommit(parseFloat((e.target as HTMLInputElement).value))}
+        onTouchEnd={(e) => onCommit(parseFloat((e.target as HTMLInputElement).value))}
+        className="w-full h-2 bg-ink/10 rounded-lg appearance-none cursor-pointer accent-accent"
+      />
+      <div className="flex justify-between text-[10px] text-ink-faint">
+        <span>0 (Precise)</span>
+        <span>1 (Creative)</span>
+      </div>
+    </div>
+  );
+}
 
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsData | null>(null);
@@ -1018,29 +1096,25 @@ export default function Settings() {
           <h2 className="text-sm font-semibold text-ink-soft">Agent Behaviour</h2>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Temperature */}
-          <div>
-            <label className="text-xs text-ink-mute mb-1.5 block">
-              Agent Temperature: <span className="font-medium text-ink-soft">{settings.agent_temperature}</span>
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={settings.agent_temperature}
-              onChange={(e) => setSettings({ ...settings, agent_temperature: parseFloat(e.target.value) })}
-              onMouseUp={(e) => save({ agent_temperature: parseFloat((e.target as HTMLInputElement).value) })}
-              onTouchEnd={(e) => save({ agent_temperature: parseFloat((e.target as HTMLInputElement).value) })}
-              className="w-full h-2 bg-ink/10 rounded-lg appearance-none cursor-pointer accent-accent"
-            />
-            <div className="flex justify-between text-[10px] text-ink-faint mt-1">
-              <span>0 (Precise)</span>
-              <span>1 (Creative)</span>
-            </div>
+        {/* Per-agent temperatures */}
+        <div className="mb-6">
+          <div className="text-[11px] uppercase tracking-wide text-ink-faint mb-3">Per-agent Temperatures</div>
+          <div className="grid md:grid-cols-2 gap-x-8 gap-y-5">
+            {AGENT_TEMP_ROWS.map(({ key, label, hint }) => (
+              <TempControl
+                key={key}
+                label={label}
+                hint={hint}
+                value={settings[key]}
+                onLocalChange={(v) => setSettings({ ...settings, [key]: v })}
+                onCommit={(v) => save({ [key]: v } as Partial<SettingsData>)}
+              />
+            ))}
           </div>
+        </div>
 
+        <div className="border-t border-ink/8 pt-5">
+          <div className="text-[11px] uppercase tracking-wide text-ink-faint mb-3">Pipeline Execution</div>
           {/* Auto-run toggle */}
           <div>
             <label className="text-xs text-ink-mute mb-3 block">Automatic Pipeline Execution</label>

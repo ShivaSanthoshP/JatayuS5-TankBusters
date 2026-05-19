@@ -423,7 +423,6 @@ async def background_monitoring_loop():
                     SimulatorType as _SimType,
                     SimulatorStatus as _SimStatus,
                 )
-                incident_svc = IncidentService(db)
 
                 ws_payload: list[dict] = []
 

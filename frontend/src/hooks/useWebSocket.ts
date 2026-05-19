@@ -23,6 +23,7 @@ export function useMetricsStream() {
 
     ws.onclose = () => {
       setConnected(false);
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       reconnectTimer.current = setTimeout(connect, 3000);
     };
 

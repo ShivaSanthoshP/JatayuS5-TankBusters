@@ -53,6 +53,7 @@ export default function ArtifactViewer({
 
   useEffect(() => {
     if (!normalizedArtifacts.length) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedId(null);
       return;
     }

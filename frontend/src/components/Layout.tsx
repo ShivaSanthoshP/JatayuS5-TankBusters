@@ -49,6 +49,7 @@ export default function Layout() {
   // Reset scroll on route change + close mobile drawer
   useEffect(() => {
     if (mainRef.current) mainRef.current.scrollTop = 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileOpen(false);
   }, [location.pathname]);
 
