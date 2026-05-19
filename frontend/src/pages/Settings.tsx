@@ -100,13 +100,6 @@ const PROVIDER_META: Record<LlmProvider, { label: string; subtitle: string; desc
   },
 };
 
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-}
 
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsData | null>(null);
@@ -127,7 +120,7 @@ export default function Settings() {
 
   // Dropdown-open state
   const [openDropdown, setOpenDropdown] = useState<
-    'ollama-llm' | 'ollama-embedding' | 'openai-model' | 'gemini-model' | null
+    'ollama-llm' | 'ollama-embedding' | 'openai-model' | 'gemini-model' | 'google-embedding' | null
   >(null);
 
   // Key-reveal state (only for unsaved edits — stored keys are never returned)
