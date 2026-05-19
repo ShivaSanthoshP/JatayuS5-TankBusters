@@ -12,12 +12,15 @@ EnvironmentFile=/opt/itops/backend/.env
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONDONTWRITEBYTECODE=1
 
-# 2 workers — safe now that the durable store is PostgreSQL (concurrent
-# writers OK). Matches the 2 vCPUs on the t4g.small instance.
+# Single worker. Pipeline run state (api/routes/agents.py:_pipeline_runs)
+# is an in-process dict, so multiple workers cause /pipeline/runs/{id}
+# polls to round-robin into a worker that doesn't know the run -> 404.
+# App is LLM-bound and runs everything on the async event loop, so a
+# single worker is plenty. Revisit only if state moves to Postgres/Redis.
 ExecStart=/opt/itops/venv/bin/uvicorn app.main:app \
     --host 127.0.0.1 \
     --port 8000 \
-    --workers 2 \
+    --workers 1 \
     --log-level info
 
 Restart=on-failure

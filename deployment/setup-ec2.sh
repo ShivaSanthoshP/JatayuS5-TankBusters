@@ -160,7 +160,7 @@ Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=$VENV_DIR/bin/uvicorn app.main:app \\
     --host 127.0.0.1 \\
     --port 8000 \\
-    --workers 2 \\
+    --workers 1 \\
     --log-level info
 Restart=on-failure
 RestartSec=5

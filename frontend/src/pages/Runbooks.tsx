@@ -115,16 +115,16 @@ function RunbookCard({ rb, isOpen, onToggle }: { rb: RunbookEntry; isOpen: boole
             {rb.is_seeded ? (
               <span
                 className="text-[9.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-info/12 text-info border border-info/25"
-                title="Built-in canonical runbook shipped with the system"
+                title="Seeded canonical runbook shipped with the system"
               >
-                Built-in
+                Seeded
               </span>
             ) : (
               <span
                 className="text-[9.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-success/12 text-success border border-success/25"
-                title="Auto-generated from a real resolved incident"
+                title="Learned from a real resolved incident"
               >
-                Auto-gen
+                Learned
               </span>
             )}
             {rb.issue_type && (
@@ -428,7 +428,7 @@ export default function Runbooks() {
       <div>
         <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Runbooks</h1>
         <p className="text-xs sm:text-sm text-ink-mute mt-1">
-          Playbooks for known issues — built-in canonical runbooks plus auto-generated ones from past resolved incidents.
+          Playbooks for known issues — seeded canonical runbooks plus learned ones from past resolved incidents.
         </p>
       </div>
 
@@ -512,7 +512,7 @@ export default function Runbooks() {
             <h2 className="text-sm font-semibold text-ink-soft">All runbooks</h2>
             <p className="text-[11px] text-ink-faint mt-0.5">
               {filteredSorted.length === counts.all
-                ? `${counts.all} total · ${counts.seeded} built-in · ${counts.auto} auto-generated`
+                ? `${counts.all} total · ${counts.seeded} seeded · ${counts.auto} learned`
                 : `${filteredSorted.length} of ${counts.all} matching`}
             </p>
           </div>
@@ -522,8 +522,8 @@ export default function Runbooks() {
             <div className="flex items-center gap-1 bg-black/5 rounded-lg p-1">
               {([
                 { key: 'all',    label: 'All',           hint: 'Show all runbooks' },
-                { key: 'seeded', label: 'Built-in',      hint: 'Only canonical runbooks shipped with the system' },
-                { key: 'auto',   label: 'Auto-generated', hint: 'Only runbooks created from real resolved incidents' },
+                { key: 'seeded', label: 'Seeded',  hint: 'Only canonical runbooks shipped with the system' },
+                { key: 'auto',   label: 'Learned', hint: 'Only runbooks created from real resolved incidents' },
               ] as const).map(({ key, label, hint }) => (
                 <button
                   key={key}
