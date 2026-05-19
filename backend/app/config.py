@@ -42,7 +42,7 @@ GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedd
 EMBED_TIMEOUT_SECONDS = float(os.getenv("EMBED_TIMEOUT_SECONDS", "8"))
 
 # ChromaDB
-CHROMA_PERSIST_DIR = str(BASE_DIR / "chroma_db")
+CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", str(BASE_DIR / "chroma_db"))
 
 # AWS CloudWatch
 CLOUDWATCH_ACCESS_KEY_ID = os.getenv("CLOUDWATCH_ACCESS_KEY_ID", "")
