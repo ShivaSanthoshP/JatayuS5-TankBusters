@@ -32,6 +32,11 @@ from app.config import (
     GEMINI_EMBEDDING_MODEL,
     LLM_PROVIDER,
     AGENT_TEMPERATURE,
+    MONITORING_TEMPERATURE,
+    PREDICTIVE_TEMPERATURE,
+    DIAGNOSTIC_TEMPERATURE,
+    REMEDIATION_TEMPERATURE,
+    REPORTING_TEMPERATURE,
     BASE_DIR,
     CLOUDWATCH_ACCESS_KEY_ID,
     CLOUDWATCH_SECRET_ACCESS_KEY,
@@ -131,6 +136,13 @@ class _Settings:
         # ── Shared agent settings ───────────────────────────
         self.agent_temperature: float = AGENT_TEMPERATURE
 
+        # Per-agent temperatures
+        self.monitoring_temperature:  float = MONITORING_TEMPERATURE
+        self.predictive_temperature:  float = PREDICTIVE_TEMPERATURE
+        self.diagnostic_temperature:  float = DIAGNOSTIC_TEMPERATURE
+        self.remediation_temperature: float = REMEDIATION_TEMPERATURE
+        self.reporting_temperature:   float = REPORTING_TEMPERATURE
+
         # User-defined custom models that should appear in dropdowns,
         # keyed by provider (e.g. "ollama", "openai", "gemini").
         self.custom_llm_models: list[str] = []
@@ -189,6 +201,11 @@ class _Settings:
         "embedding_provider",
         "gemini_embedding_model",
         "agent_temperature",
+        "monitoring_temperature",
+        "predictive_temperature",
+        "diagnostic_temperature",
+        "remediation_temperature",
+        "reporting_temperature",
         "custom_llm_models",
         "custom_embedding_models",
         "custom_openai_models",
@@ -276,6 +293,11 @@ class _Settings:
                 "embedding_provider": self.embedding_provider,
                 "gemini_embedding_model": self.gemini_embedding_model,
                 "agent_temperature": self.agent_temperature,
+                "monitoring_temperature": self.monitoring_temperature,
+                "predictive_temperature": self.predictive_temperature,
+                "diagnostic_temperature": self.diagnostic_temperature,
+                "remediation_temperature": self.remediation_temperature,
+                "reporting_temperature": self.reporting_temperature,
                 "custom_llm_models": list(self.custom_llm_models),
                 "custom_embedding_models": list(self.custom_embedding_models),
                 "custom_openai_models": list(self.custom_openai_models),

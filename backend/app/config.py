@@ -72,5 +72,12 @@ SIMULATOR_INTERVAL_SECONDS = int(os.getenv("SIMULATOR_INTERVAL_SECONDS", "5"))
 NUM_SIMULATED_SERVERS = int(os.getenv("NUM_SIMULATED_SERVERS", "6"))
 ANOMALY_PROBABILITY = float(os.getenv("ANOMALY_PROBABILITY", "0.15"))
 
-# Agent config
+# Agent config — global fallback
 AGENT_TEMPERATURE = float(os.getenv("AGENT_TEMPERATURE", "0.1"))
+
+# Per-agent temperatures (research-backed: lower = safer for critical ops)
+MONITORING_TEMPERATURE  = float(os.getenv("MONITORING_TEMPERATURE",  "0.1"))
+PREDICTIVE_TEMPERATURE  = float(os.getenv("PREDICTIVE_TEMPERATURE",  "0.1"))
+DIAGNOSTIC_TEMPERATURE  = float(os.getenv("DIAGNOSTIC_TEMPERATURE",  "0.2"))
+REMEDIATION_TEMPERATURE = float(os.getenv("REMEDIATION_TEMPERATURE", "0.0"))
+REPORTING_TEMPERATURE   = float(os.getenv("REPORTING_TEMPERATURE",   "0.4"))

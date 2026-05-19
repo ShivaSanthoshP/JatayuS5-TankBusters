@@ -75,6 +75,13 @@ class SettingsUpdate(BaseModel):
 
     # Shared
     agent_temperature: float | None = None
+
+    # Per-agent temperatures
+    monitoring_temperature:  float | None = None
+    predictive_temperature:  float | None = None
+    diagnostic_temperature:  float | None = None
+    remediation_temperature: float | None = None
+    reporting_temperature:   float | None = None
     custom_llm_models: list[str] | None = None
     custom_embedding_models: list[str] | None = None
     custom_openai_models: list[str] | None = None

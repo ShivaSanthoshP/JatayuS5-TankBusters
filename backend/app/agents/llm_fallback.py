@@ -16,6 +16,11 @@ import json
 import logging
 
 from app.llm.provider import chat_json as _provider_chat_json
+from app.config import (
+    DIAGNOSTIC_TEMPERATURE,
+    REMEDIATION_TEMPERATURE,
+    PREDICTIVE_TEMPERATURE,
+)
 
 logger = logging.getLogger("itops.llm_fallback")
 
@@ -101,7 +106,7 @@ async def llm_diagnose(
         reasons="; ".join(reasons[:5]) if reasons else "none",
         past_context_section=past_section or "No past incidents available for reference.",
     )
-    result = await _call_llm(prompt)
+    result = await _call_llm(prompt, temperature=DIAGNOSTIC_TEMPERATURE)
     if not result or "root_cause" not in result:
         return None
 
@@ -201,7 +206,7 @@ async def llm_remediate(
         metrics_summary=json.dumps(key_metrics),
         past_context_section=past_section or "No past incidents available for reference.",
     )
-    result = await _call_llm(prompt)
+    result = await _call_llm(prompt, temperature=REMEDIATION_TEMPERATURE)
     if not result or "steps" not in result:
         return None
 
@@ -290,7 +295,7 @@ async def llm_predict_impact(
         anomaly_type=anomaly_type,
         metrics_summary=json.dumps(key_metrics),
     )
-    result = await _call_llm(prompt)
+    result = await _call_llm(prompt, temperature=PREDICTIVE_TEMPERATURE)
     if not result or "predicted_impact" not in result:
         return None
     return {
