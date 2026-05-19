@@ -230,6 +230,7 @@ async def _process_event(
     db,
     sim_source=None,
     generate_correlated_logs: bool = True,
+    extra_logs: list[LogEvent] | None = None,
 ):
     """Store a metric event + logs, run anomaly detection, and trigger the pipeline if enabled."""
     from app.services.settings_service import settings as _rt_settings
@@ -251,10 +252,14 @@ async def _process_event(
     }
 
     # Generate and store correlated logs only when there is no dedicated
-    # log stream already associated with this node.
+    # log stream already associated with this node. For cloud adapters that
+    # supply real logs (e.g. CloudWatch), persist those instead so the node
+    # gets the same streaming-log card the simulator nodes have.
     if sim_source is not None and generate_correlated_logs:
         log_events = sim_source.generate_logs_for_event(event)
         infra_svc.store_logs_batch(node, log_events)
+    elif extra_logs:
+        infra_svc.store_logs_batch(node, extra_logs)
 
     log_history = infra_svc.get_recent_logs_as_history(node.id)
     stat_result = await asyncio.to_thread(preliminary_monitoring_check, metrics_dict, log_history)
@@ -363,13 +368,24 @@ async def _cloud_polling_loop(adapter) -> None:
             try:
                 infra_svc = InfraService(db)
                 ws_payloads = []
+                fetch_logs = getattr(adapter, "fetch_logs_for_instance", None)
                 for event in batch:
+                    extra_logs = None
+                    if fetch_logs is not None:
+                        try:
+                            extra_logs = await asyncio.to_thread(fetch_logs, event.node_name)
+                        except Exception as exc:
+                            logger.debug(
+                                "Log fetch failed for %s (%s): %s",
+                                event.node_name, adapter.provider_name, exc,
+                            )
                     stat_result = await _process_event(
                         event,
                         infra_svc,
                         db,
                         sim_source=None,
                         generate_correlated_logs=False,
+                        extra_logs=extra_logs,
                     )
                     ws_payloads.append(_event_to_ws_payload(event, stat_result))
                 db.commit()

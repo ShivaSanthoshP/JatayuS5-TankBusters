@@ -296,6 +296,7 @@ class CloudWatchConfig(BaseModel):
     secret_access_key: str
     region: str = "us-east-1"
     instance_ids: list[str] = []
+    log_groups: list[str] = ["/itops/ec2/syslog", "/itops/ec2/auth"]
     poll_interval_seconds: int = Field(default=30, ge=10, le=3600)
 
 
@@ -338,6 +339,7 @@ async def configure_cloudwatch(body: CloudWatchConfig) -> dict:
         cloudwatch_secret_access_key=body.secret_access_key,
         cloudwatch_region=body.region,
         cloudwatch_instance_ids=body.instance_ids,
+        cloudwatch_log_groups=body.log_groups,
         cloudwatch_poll_interval_seconds=body.poll_interval_seconds,
     )
     from app.data_sources.cloudwatch import CloudWatchDataSource

@@ -106,6 +106,7 @@ def list_datasources():
                     {"key": "aws_secret_access_key", "label": "Secret Access Key", "type": "password", "required": True},
                     {"key": "region", "label": "AWS Region", "type": "select", "options": ["us-east-1", "us-west-2", "eu-west-1", "ap-south-1"], "required": True},
                     {"key": "instance_ids", "label": "Instance IDs (comma-separated)", "type": "text", "required": False},
+                    {"key": "log_groups", "label": "Log Groups (comma-separated)", "type": "text", "required": False},
                 ],
             },
             {

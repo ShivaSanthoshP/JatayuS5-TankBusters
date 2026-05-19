@@ -43,6 +43,7 @@ from app.config import (
     CLOUDWATCH_REGION,
     CLOUDWATCH_INSTANCE_IDS,
     CLOUDWATCH_POLL_INTERVAL_SECONDS,
+    CLOUDWATCH_LOG_GROUPS,
     AZURE_TENANT_ID,
     AZURE_CLIENT_ID,
     AZURE_CLIENT_SECRET,
@@ -160,6 +161,7 @@ class _Settings:
         self.cloudwatch_region: str = CLOUDWATCH_REGION
         self.cloudwatch_instance_ids: list[str] = list(CLOUDWATCH_INSTANCE_IDS)
         self.cloudwatch_poll_interval_seconds: int = CLOUDWATCH_POLL_INTERVAL_SECONDS
+        self.cloudwatch_log_groups: list[str] = list(CLOUDWATCH_LOG_GROUPS)
         self.cloudwatch_status: str = "disconnected"
         self.cloudwatch_error: str | None = None
 
@@ -218,6 +220,7 @@ class _Settings:
         "cloudwatch_region",
         "cloudwatch_instance_ids",
         "cloudwatch_poll_interval_seconds",
+        "cloudwatch_log_groups",
         "cloudwatch_status",
         "cloudwatch_error",
         "azure_tenant_id",
@@ -310,6 +313,7 @@ class _Settings:
                 "cloudwatch_region": self.cloudwatch_region,
                 "cloudwatch_instance_ids": list(self.cloudwatch_instance_ids),
                 "cloudwatch_poll_interval_seconds": self.cloudwatch_poll_interval_seconds,
+                "cloudwatch_log_groups": list(self.cloudwatch_log_groups),
                 "cloudwatch_status": self.cloudwatch_status,
                 "cloudwatch_error": self.cloudwatch_error,
                 "azure_tenant_id": self.azure_tenant_id,

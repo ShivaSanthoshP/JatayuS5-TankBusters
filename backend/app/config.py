@@ -52,6 +52,9 @@ CLOUDWATCH_INSTANCE_IDS = [
     i.strip() for i in os.getenv("CLOUDWATCH_INSTANCE_IDS", "").split(",") if i.strip()
 ]
 CLOUDWATCH_POLL_INTERVAL_SECONDS = int(os.getenv("CLOUDWATCH_POLL_INTERVAL_SECONDS", "30"))
+CLOUDWATCH_LOG_GROUPS = [
+    g.strip() for g in os.getenv("CLOUDWATCH_LOG_GROUPS", "/itops/ec2/syslog,/itops/ec2/auth").split(",") if g.strip()
+]
 
 # Azure Monitor
 AZURE_TENANT_ID = os.getenv("AZURE_TENANT_ID", "")

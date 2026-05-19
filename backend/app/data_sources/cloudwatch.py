@@ -11,9 +11,26 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
 
-from app.data_sources.base import DataSource, MetricEvent
+from app.data_sources.base import DataSource, LogEvent, MetricEvent
 
 logger = logging.getLogger("itops.cloudwatch")
+
+
+def _detect_log_level(message: str) -> str:
+    """Heuristic level detection from a raw syslog line."""
+    upper = message.upper()
+    if "CRITICAL" in upper or "EMERG" in upper or "FATAL" in upper or "PANIC" in upper:
+        return "CRITICAL"
+    if "ERROR" in upper or " ERR " in upper or "FAILED" in upper or "FAILURE" in upper:
+        return "ERROR"
+    if "WARN" in upper:
+        return "WARN"
+    return "INFO"
+
+
+def _source_from_log_group(log_group: str) -> str:
+    """Turn '/itops/ec2/syslog' into 'syslog' for the source column."""
+    return log_group.rsplit("/", 1)[-1] or log_group
 
 _RETRY_DELAYS = (1.0, 2.0, 4.0)
 
@@ -35,9 +52,11 @@ class CloudWatchDataSource(DataSource):
     def __init__(self) -> None:
         self._connected = False
         self._client = None
+        self._logs_client = None
         self._region = "us-east-1"
         self._instance_ids: list[str] = []
         self._poll_interval: int = 30
+        self._last_log_fetch_ms: dict[str, int] = {}
 
     @property
     def provider_name(self) -> str:
@@ -57,6 +76,12 @@ class CloudWatchDataSource(DataSource):
                 aws_secret_access_key=_s.cloudwatch_secret_access_key,
                 region_name=self._region,
             )
+            self._logs_client = boto3.client(
+                "logs",
+                aws_access_key_id=_s.cloudwatch_access_key_id,
+                aws_secret_access_key=_s.cloudwatch_secret_access_key,
+                region_name=self._region,
+            )
             # Validate credentials with a lightweight call
             self._client.list_metrics(Namespace="AWS/EC2", RecentlyActive="PT3H")
             self._connected = True
@@ -70,6 +95,7 @@ class CloudWatchDataSource(DataSource):
     async def disconnect(self) -> None:
         self._connected = False
         self._client = None
+        self._logs_client = None
 
     def _get_stat(self, namespace: str, metric: str, dims: list[dict], period: int = 60) -> float | None:
         end = datetime.now(timezone.utc)
@@ -221,6 +247,68 @@ class CloudWatchDataSource(DataSource):
                 last_exc = exc
                 await asyncio.sleep(delay)
         raise last_exc
+
+    def fetch_logs_for_instance(self, instance_id: str, max_events: int = 100) -> list[LogEvent]:
+        """
+        Pull new log events for one instance from every configured log group.
+
+        The CloudWatch agent writes one log stream per instance (log_stream_name
+        = "{instance_id}"), so we filter by that stream. A per-instance high-water
+        mark (_last_log_fetch_ms) makes each poll incremental — only events newer
+        than the last one we saw are returned. First call seeds at "now - 5 min"
+        so we don't replay the entire history on startup.
+        """
+        from app.services.settings_service import settings as _s
+
+        if self._logs_client is None:
+            return []
+        log_groups = [g.strip() for g in (_s.cloudwatch_log_groups or []) if g.strip()]
+        if not log_groups:
+            return []
+
+        now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        start_ms = self._last_log_fetch_ms.get(
+            instance_id, now_ms - 5 * 60 * 1000
+        )
+
+        events: list[LogEvent] = []
+        max_seen_ms = start_ms
+        for log_group in log_groups:
+            source = _source_from_log_group(log_group)
+            try:
+                resp = self._logs_client.filter_log_events(
+                    logGroupName=log_group,
+                    logStreamNames=[instance_id],
+                    startTime=start_ms + 1,
+                    limit=max_events,
+                )
+            except Exception as exc:
+                # Missing log group / stream is normal until the agent ships
+                # its first batch — debug-level only, never fatal.
+                logger.debug(
+                    "CloudWatch Logs fetch failed (%s / %s): %s",
+                    log_group, instance_id, exc,
+                )
+                continue
+
+            for evt in resp.get("events", []):
+                ts_ms = int(evt.get("timestamp", now_ms))
+                msg = (evt.get("message") or "").rstrip("\n")[:2000]
+                if not msg:
+                    continue
+                events.append(LogEvent(
+                    node_name=instance_id,
+                    timestamp=datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc),
+                    level=_detect_log_level(msg),
+                    source=source,
+                    message=msg,
+                ))
+                if ts_ms > max_seen_ms:
+                    max_seen_ms = ts_ms
+
+        self._last_log_fetch_ms[instance_id] = max_seen_ms
+        events.sort(key=lambda e: e.timestamp)
+        return events
 
     async def get_current_snapshot(self) -> list[MetricEvent]:
         return await self._with_retry(self._generate_batch)
