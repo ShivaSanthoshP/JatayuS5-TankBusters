@@ -8,21 +8,37 @@ from app.database.models import Base
 
 logger = logging.getLogger("itops.db")
 
-_connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
+_IS_SQLITE = DATABASE_URL.startswith("sqlite")
+_IS_POSTGRES = DATABASE_URL.startswith("postgres")
+
+_connect_args: dict = {}
+_engine_kwargs: dict = {"echo": False}
+
+if _IS_SQLITE:
     _connect_args = {
         "check_same_thread": False,
         "timeout": 30,
     }
+elif _IS_POSTGRES:
+    # Conservative pool sized for a 2-vCPU / 2 GiB t4g.small running 2 uvicorn
+    # workers. Each worker gets its own pool, so total real connections is
+    # workers * (pool_size + max_overflow). pool_pre_ping survives the
+    # PostgreSQL idle-connection drop without surprising the request.
+    _engine_kwargs.update(
+        pool_size=5,
+        max_overflow=5,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+    )
 
 engine = create_engine(
     DATABASE_URL,
     connect_args=_connect_args,
-    echo=False,
+    **_engine_kwargs,
 )
 
 
-if DATABASE_URL.startswith("sqlite"):
+if _IS_SQLITE:
     @event.listens_for(engine, "connect")
     def _configure_sqlite(dbapi_connection, _connection_record):
         cursor = dbapi_connection.cursor()
@@ -34,9 +50,11 @@ if DATABASE_URL.startswith("sqlite"):
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-# Lightweight column-add migrations for SQLite. Base.metadata.create_all()
-# only creates missing tables; if a deployed instance has an older schema for
-# a table, columns added in newer model revisions need explicit ALTER TABLE.
+# Lightweight column-add migrations. Base.metadata.create_all() only creates
+# missing tables; if a deployed instance has an older schema for a table,
+# columns added in newer model revisions need explicit ALTER TABLE. The DDL
+# below uses ANSI keywords (FALSE, not 0) so it works on both SQLite and
+# PostgreSQL — SQLite accepts FALSE as an alias for 0 on BOOLEAN columns.
 # Each entry: table -> {column_name: column_type_sql}.
 _RUNTIME_MIGRATIONS: dict[str, dict[str, str]] = {
     "runbook_entries": {
@@ -49,7 +67,7 @@ _RUNTIME_MIGRATIONS: dict[str, dict[str, str]] = {
         "remediation_summary": "TEXT",
         "remediation_steps": "JSON",
         "artifacts": "JSON",
-        "is_seeded": "BOOLEAN DEFAULT 0 NOT NULL",
+        "is_seeded": "BOOLEAN DEFAULT FALSE NOT NULL",
     },
 }
 
@@ -79,6 +97,8 @@ def _apply_runtime_migrations() -> None:
 
 
 def init_db():
+    flavor = "PostgreSQL" if _IS_POSTGRES else ("SQLite" if _IS_SQLITE else engine.dialect.name)
+    logger.info(f"Using {flavor} database ({engine.url.render_as_string(hide_password=True)})")
     Base.metadata.create_all(bind=engine)
     _apply_runtime_migrations()
 

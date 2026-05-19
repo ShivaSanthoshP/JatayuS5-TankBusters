@@ -1,6 +1,7 @@
 [Unit]
 Description=ITOps Backend (FastAPI / Uvicorn)
-After=network.target
+After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
@@ -11,11 +12,12 @@ EnvironmentFile=/opt/itops/backend/.env
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONDONTWRITEBYTECODE=1
 
-# Only 1 worker — SQLite does not support concurrent writers.
+# 2 workers — safe now that the durable store is PostgreSQL (concurrent
+# writers OK). Matches the 2 vCPUs on the t4g.small instance.
 ExecStart=/opt/itops/venv/bin/uvicorn app.main:app \
     --host 127.0.0.1 \
     --port 8000 \
-    --workers 1 \
+    --workers 2 \
     --log-level info
 
 Restart=on-failure

@@ -27,23 +27,60 @@ echo " Running as    : $EC2_USER"
 echo ""
 
 # ── 1. System packages ─────────────────────────────────────────────
-echo "[1/6] Installing system packages..."
+echo "[1/7] Installing system packages..."
 sudo dnf update -y -q
-sudo dnf install -y -q python3.11 python3.11-pip git nginx
+sudo dnf install -y -q python3.11 python3.11-pip python3.11-devel gcc git nginx \
+                       postgresql16 postgresql16-server postgresql16-contrib
 
 # ── 2. App directory structure ─────────────────────────────────────
-echo "[2/6] Creating directory structure..."
+echo "[2/7] Creating directory structure..."
 sudo mkdir -p "$APP_DIR/backend" "$APP_DIR/frontend/dist"
 sudo chown -R "$EC2_USER:$EC2_USER" "$APP_DIR"
 
 # ── 3. Python virtual environment ──────────────────────────────────
-echo "[3/6] Creating Python virtualenv..."
+echo "[3/7] Creating Python virtualenv..."
 python3.11 -m venv "$VENV_DIR"
 "$VENV_DIR/bin/pip" install --quiet --upgrade pip
 echo "      Virtualenv ready at $VENV_DIR"
 
-# ── 4. Nginx ───────────────────────────────────────────────────────
-echo "[4/6] Configuring nginx..."
+# ── 4. PostgreSQL (local, loopback-only) ───────────────────────────
+echo "[4/7] Initialising PostgreSQL..."
+DB_USER="itops"
+DB_NAME="itops"
+DB_CRED_FILE="/etc/itops-db.env"
+
+# Initialise the cluster on first run only.
+if [ ! -d /var/lib/pgsql/data/base ]; then
+    sudo postgresql-setup --initdb
+fi
+sudo systemctl enable --now postgresql
+
+# Switch host auth from ident → scram-sha-256 so the app can connect over
+# TCP with a password. Loopback only — Postgres still listens on localhost.
+PG_HBA=$(sudo -u postgres psql -tAc "SHOW hba_file" | tr -d '[:space:]')
+sudo sed -i \
+    -e 's|^\(host[[:space:]]\+all[[:space:]]\+all[[:space:]]\+127\.0\.0\.1/32[[:space:]]\+\)ident|\1scram-sha-256|' \
+    -e 's|^\(host[[:space:]]\+all[[:space:]]\+all[[:space:]]\+::1/128[[:space:]]\+\)ident|\1scram-sha-256|' \
+    "$PG_HBA"
+sudo systemctl reload postgresql
+
+# Create role + database (idempotent). Generated password is written to a
+# root-only file so re-runs don't rotate it from under a running service.
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='${DB_USER}'" | grep -q 1; then
+    DB_PASS=$(openssl rand -base64 24 | tr -d '+/=' | cut -c1-32)
+    sudo -u postgres psql -c "CREATE USER ${DB_USER} WITH PASSWORD '${DB_PASS}';"
+    sudo -u postgres psql -c "CREATE DATABASE ${DB_NAME} OWNER ${DB_USER};"
+    DB_URL="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
+    echo "DATABASE_URL=${DB_URL}" | sudo tee "$DB_CRED_FILE" > /dev/null
+    sudo chmod 600 "$DB_CRED_FILE"
+    echo "      Created role '${DB_USER}' and database '${DB_NAME}'."
+    echo "      DATABASE_URL saved to $DB_CRED_FILE (root-only)."
+else
+    echo "      Role '${DB_USER}' already exists — leaving password unchanged."
+fi
+
+# ── 5. Nginx ───────────────────────────────────────────────────────
+echo "[5/7] Configuring nginx..."
 
 # Remove the default server block that ships with nginx on AL2023
 sudo rm -f /etc/nginx/conf.d/default.conf
@@ -98,14 +135,18 @@ sudo systemctl enable nginx
 sudo systemctl restart nginx
 echo "      Nginx configured and started."
 
-# ── 5. systemd service ─────────────────────────────────────────────
-echo "[5/6] Creating systemd service (itops-backend)..."
+# ── 6. systemd service ─────────────────────────────────────────────
+echo "[6/7] Creating systemd service (itops-backend)..."
 
 # The heredoc delimiter is unquoted so $APP_DIR/$VENV_DIR/$EC2_USER expand.
+# Two EnvironmentFile lines: the second (DB creds) is required, but we mark
+# it optional with a leading "-" so the unit still starts if it's missing
+# (e.g. dev box). DATABASE_URL set there overrides the one in .env.
 sudo tee /etc/systemd/system/itops-backend.service > /dev/null << SVCEOF
 [Unit]
 Description=ITOps Backend (FastAPI / Uvicorn)
-After=network.target
+After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
 Type=simple
@@ -113,12 +154,13 @@ User=$EC2_USER
 Group=$EC2_USER
 WorkingDirectory=$APP_DIR/backend
 EnvironmentFile=$APP_DIR/backend/.env
+EnvironmentFile=-$DB_CRED_FILE
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=$VENV_DIR/bin/uvicorn app.main:app \\
     --host 127.0.0.1 \\
     --port 8000 \\
-    --workers 1 \\
+    --workers 2 \\
     --log-level info
 Restart=on-failure
 RestartSec=5
@@ -134,9 +176,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable itops-backend
 echo "      Service registered. Will start after first deploy."
 
-# ── 6. Sudoers — allow ec2-user to restart services without password
+# ── 7. Sudoers — allow ec2-user to restart services without password
 # GitHub Actions SSHs in as ec2-user and needs to restart services.
-echo "[6/6] Configuring passwordless sudo for service management..."
+echo "[7/7] Configuring passwordless sudo for service management..."
 sudo tee /etc/sudoers.d/itops > /dev/null << SUDOEOF
 $EC2_USER ALL=(ALL) NOPASSWD: \
   /usr/bin/systemctl restart itops-backend, \
@@ -151,6 +193,8 @@ sudo chmod 440 /etc/sudoers.d/itops
 echo "      Sudoers rule written."
 
 # ── Create .env from sample if it doesn't exist ────────────────────
+# DATABASE_URL is intentionally NOT set here — it lives in /etc/itops-db.env
+# (root-only) and is loaded by the systemd unit as a second EnvironmentFile.
 if [ ! -f "$APP_DIR/backend/.env" ]; then
     cat > "$APP_DIR/backend/.env" << 'ENVEOF'
 LLM_PROVIDER=gemini
@@ -166,6 +210,10 @@ OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 
 # Replace with your EC2 public IP or domain
 CORS_ALLOW_ORIGINS=http://YOUR_EC2_PUBLIC_IP
+
+# DATABASE_URL — leave commented; systemd loads it from /etc/itops-db.env.
+# Override here only for ad-hoc dev runs (e.g. `python -m app.main`).
+# DATABASE_URL=postgresql://itops:PASSWORD@localhost:5432/itops
 
 SIMULATOR_INTERVAL_SECONDS=10
 NUM_SIMULATED_SERVERS=6
@@ -200,11 +248,18 @@ echo " 3. EC2 Security Group — ensure inbound rules allow:"
 echo "      Port 22   (SSH)   — your IP"
 echo "      Port 80   (HTTP)  — 0.0.0.0/0"
 echo ""
-echo " 4. Push to main → GitHub Actions deploys the app."
+echo " 4. (Optional) Migrate existing SQLite data into PostgreSQL:"
+echo "      scp old-itops.db ec2-user@$PUBLIC_IP:/tmp/itops.db"
+echo "      sudo -E env DATABASE_URL=\$(sudo cat /etc/itops-db.env | cut -d= -f2-) \\"
+echo "          $VENV_DIR/bin/python -m scripts.migrate_sqlite_to_postgres \\"
+echo "          --source sqlite:////tmp/itops.db"
 echo ""
-echo " 5. After the first deploy, the service starts automatically."
+echo " 5. Push to main → GitHub Actions deploys the app."
+echo ""
+echo " 6. After the first deploy, the service starts automatically."
 echo "    Check with: sudo systemctl status itops-backend"
 echo "    Logs with:  sudo journalctl -u itops-backend -f"
+echo "    Postgres:   sudo systemctl status postgresql"
 echo ""
 echo " App URL: http://$PUBLIC_IP"
 echo " API docs: http://$PUBLIC_IP/docs"

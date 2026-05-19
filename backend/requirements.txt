@@ -9,6 +9,9 @@ eval_type_backport==0.3.1
 # Database
 sqlalchemy==2.0.36
 aiosqlite==0.20.0
+# PostgreSQL driver — used in production (Mumbai EC2) when DATABASE_URL is
+# a postgresql:// URL. The binary wheel avoids needing libpq-dev at build time.
+psycopg2-binary==2.9.10
 
 # LangChain / LangGraph / LLM
 langchain==0.3.14
