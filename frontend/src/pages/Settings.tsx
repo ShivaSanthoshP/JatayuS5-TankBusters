@@ -410,7 +410,7 @@ export default function Settings() {
           <div className="mt-5 p-3 rounded-lg bg-amber-50/80 border border-amber-200/50 flex items-start gap-2">
             <AlertCircle size={14} className="text-amber-500 mt-0.5 shrink-0" />
             <p className="text-[11px] text-amber-700">
-              <strong>Note:</strong> The embedding model for RAG (knowledge retrieval) always runs on Ollama, regardless of which chat provider you select above.
+              <strong>Note:</strong> Embeddings for RAG always use Ollama, regardless of which chat provider is selected. If Ollama is unavailable, the system falls back to keyword search automatically.
             </p>
           </div>
         </div>
@@ -873,10 +873,14 @@ export default function Settings() {
 
       {/* ── Embeddings (always Ollama) ───────────────────── */}
       <GlassCard hover={false}>
-        <div className="flex items-center gap-2 mb-5">
+        <div className="flex items-center gap-2 mb-4">
           <Cpu size={18} className="text-emerald-600" />
-          <h2 className="text-sm font-semibold text-slate-700">Embedding Model (RAG)</h2>
-          <span className="text-[11px] text-slate-400">— runs on Ollama</span>
+          <h2 className="text-sm font-semibold text-slate-700">Vector Store &amp; Embeddings</h2>
+        </div>
+
+        <div className="mb-5 p-3 rounded-lg bg-slate-50 border border-slate-200/60 text-[11px] text-slate-600 space-y-1.5">
+          <p><span className="font-semibold text-slate-700">Vector Store:</span> ChromaDB with HNSW indexing and cosine similarity. Collections are persisted to disk — no external server required.</p>
+          <p><span className="font-semibold text-slate-700">Embeddings:</span> Generated via Ollama using the model below. Falls back to keyword search automatically when Ollama is unavailable — no data is lost.</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">

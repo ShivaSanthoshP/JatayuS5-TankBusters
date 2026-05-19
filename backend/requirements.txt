@@ -21,7 +21,8 @@ ollama>=0.5.0
 openai>=1.40.0
 google-genai>=0.3.0
 
-# Vector DB (lightweight, no C++ build tools needed)
+# Vector DB
+chromadb>=0.5.0
 numpy>=1.26.0
 
 # WebSocket

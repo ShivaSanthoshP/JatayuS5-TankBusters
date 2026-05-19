@@ -445,12 +445,20 @@ export default function Dashboard() {
 
           <div className="mt-6 pt-4 hairline" />
           <div className="flex items-center justify-center gap-3 sm:gap-6 mt-3 label-eyebrow !text-[9.5px] flex-wrap text-center">
-            <span title="Past incidents stored in the vector database, used by agents as RAG context">
-              Memory · {safeStats.memory_incidents_stored.toLocaleString()} past incident{safeStats.memory_incidents_stored === 1 ? '' : 's'}
+            <span title="ChromaDB with HNSW indexing and cosine similarity — persistent on-disk vector store, no external server required">
+              Vector Store: ChromaDB (HNSW)
+            </span>
+            <span className="text-[var(--color-ink-faint)]">·</span>
+            <span title="Past incidents stored in the vector store, used by agents as RAG context">
+              {safeStats.memory_incidents_stored.toLocaleString()} incident{safeStats.memory_incidents_stored === 1 ? '' : 's'}
             </span>
             <span className="text-[var(--color-ink-faint)]">·</span>
             <span title="Auto-generated runbooks built from resolved incidents">
               {safeStats.memory_runbooks_stored.toLocaleString()} runbook{safeStats.memory_runbooks_stored === 1 ? '' : 's'}
+            </span>
+            <span className="text-[var(--color-ink-faint)]">·</span>
+            <span title="Embeddings generated via Ollama (nomic-embed-text). Falls back to keyword search automatically when Ollama is unavailable.">
+              Embeddings: nomic-embed-text (Ollama)
             </span>
           </div>
         </GlassCard>

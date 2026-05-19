@@ -1,104 +1,71 @@
 from __future__ import annotations
 """
-Institutional Memory System — lightweight vector store.
+Institutional Memory System — ChromaDB vector store.
 
-Uses Ollama embeddings + numpy cosine similarity for RAG.
-Persists to a JSON file on disk. No C++ build tools required.
+Uses ChromaDB (HNSW, cosine) with Ollama embeddings for semantic search.
+Falls back to zero-vector storage when Ollama is unavailable so HNSW
+index stays consistent; those entries rank last until re-indexed.
 """
 
-import json
 import logging
-import os
-import tempfile
 import threading
 from pathlib import Path
 
-import numpy as np
-import ollama
+import chromadb
+from chromadb import Settings as ChromaSettings
 
 from app.config import CHROMA_PERSIST_DIR
 from app.services.settings_service import settings as _settings
 
 logger = logging.getLogger("itops.memory")
 
+_EMBED_DIM = 768  # nomic-embed-text default; updated on first successful embed
+
+
+class _OllamaEmbedFn(chromadb.EmbeddingFunction):
+    """ChromaDB embedding function backed by Ollama."""
+
+    def __call__(self, input: chromadb.Documents) -> chromadb.Embeddings:
+        global _EMBED_DIM
+        import ollama as _ol
+        client = _ol.Client(host=_settings.ollama_base_url)
+        model = _settings.ollama_embedding_model
+        results: chromadb.Embeddings = []
+        for text in input:
+            try:
+                resp = client.embed(model=model, input=text[:8000])
+                emb = resp["embeddings"][0]
+                _EMBED_DIM = len(emb)
+                results.append(emb)
+            except Exception as exc:
+                logger.warning("Ollama embed unavailable (%s) — storing zero vector", exc)
+                results.append([0.0] * _EMBED_DIM)
+        return results
+
 
 class InstitutionalMemory:
-    """Vector store for incident knowledge and runbooks using Ollama embeddings."""
+    """ChromaDB-backed vector store for incident knowledge and runbooks."""
 
-    def __init__(self):
-        self._persist_dir = Path(CHROMA_PERSIST_DIR)
-        self._persist_dir.mkdir(parents=True, exist_ok=True)
-        self._incidents_path = self._persist_dir / "incidents.json"
-        self._runbooks_path = self._persist_dir / "runbooks.json"
+    def __init__(self) -> None:
+        persist_dir = Path(CHROMA_PERSIST_DIR)
+        persist_dir.mkdir(parents=True, exist_ok=True)
 
-        # Guards both the in-memory lists and the on-disk JSON files. Calls
-        # come in from asyncio.to_thread workers, so concurrent store/search
-        # is real and the file write is not natively atomic.
+        self._embed_fn = _OllamaEmbedFn()
+        self._db = chromadb.PersistentClient(
+            path=str(persist_dir),
+            settings=ChromaSettings(anonymized_telemetry=False),
+        )
+        self._incidents = self._db.get_or_create_collection(
+            name="incidents",
+            embedding_function=self._embed_fn,
+            metadata={"hnsw:space": "cosine"},
+        )
+        self._runbooks = self._db.get_or_create_collection(
+            name="runbooks",
+            embedding_function=self._embed_fn,
+            metadata={"hnsw:space": "cosine"},
+        )
         self._lock = threading.RLock()
-
-        self._incidents: list[dict] = self._load(self._incidents_path)
-        self._runbooks: list[dict] = self._load(self._runbooks_path)
-
-        # Initialize Ollama client
-        self._client = ollama.Client(host=_settings.ollama_base_url)
-
-    @staticmethod
-    def _load(path: Path) -> list[dict]:
-        if path.exists():
-            try:
-                with open(path, "r") as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError):
-                return []
-        return []
-
-    def _save(self, path: Path, data: list[dict]) -> None:
-        """Atomically persist the collection. Write to a temp file in the
-        same directory, fsync, then os.replace — guarantees readers either
-        see the old or new file, never a partial write."""
-        try:
-            fd, tmp_path = tempfile.mkstemp(
-                prefix=path.name + ".",
-                suffix=".tmp",
-                dir=str(path.parent),
-            )
-            try:
-                with os.fdopen(fd, "w") as f:
-                    json.dump(data, f, indent=2, default=str)
-                    f.flush()
-                    os.fsync(f.fileno())
-                os.replace(tmp_path, path)
-            except Exception:
-                try:
-                    os.unlink(tmp_path)
-                except OSError:
-                    pass
-                raise
-        except (IOError, OSError) as e:
-            logger.error(f"Failed to persist memory: {e}")
-
-    def _get_embedding(self, text: str) -> list[float] | None:
-        if not self._client:
-            return None
-        try:
-            response = self._client.embed(
-                model=_settings.ollama_embedding_model,
-                input=text[:8000],  # Truncate to reasonable limit
-            )
-            return response["embeddings"][0]
-        except Exception as e:
-            logger.warning(f"Embedding failed: {e}")
-            return None
-
-    @staticmethod
-    def _cosine_similarity(a: list[float], b: list[float]) -> float:
-        a_arr = np.array(a)
-        b_arr = np.array(b)
-        dot = np.dot(a_arr, b_arr)
-        norm = np.linalg.norm(a_arr) * np.linalg.norm(b_arr)
-        if norm == 0:
-            return 0.0
-        return float(dot / norm)
 
     def store_incident(
         self,
@@ -111,31 +78,17 @@ class InstitutionalMemory:
         node_type: str,
     ) -> None:
         doc = (
-            f"Incident: {title}\n"
-            f"Description: {description}\n"
-            f"Root Cause: {root_cause}\n"
-            f"Resolution: {resolution}\n"
-            f"Severity: {severity}\n"
-            f"Node Type: {node_type}"
+            f"Incident: {title}\nDescription: {description}\n"
+            f"Root Cause: {root_cause}\nResolution: {resolution}\n"
+            f"Severity: {severity}\nNode Type: {node_type}"
         )
-        embedding = self._get_embedding(doc)
-
+        doc_id = f"incident-{incident_id}"
+        meta = {"incident_id": incident_id, "severity": severity, "node_type": node_type}
         with self._lock:
-            # Upsert: replace if same incident_id exists
-            self._incidents = [
-                e for e in self._incidents if e.get("id") != f"incident-{incident_id}"
-            ]
-            self._incidents.append({
-                "id": f"incident-{incident_id}",
-                "document": doc,
-                "embedding": embedding,
-                "metadata": {
-                    "incident_id": incident_id,
-                    "severity": severity,
-                    "node_type": node_type,
-                },
-            })
-            self._save(self._incidents_path, self._incidents)
+            if self._incidents.get(ids=[doc_id])["ids"]:
+                self._incidents.update(ids=[doc_id], documents=[doc], metadatas=[meta])
+            else:
+                self._incidents.add(ids=[doc_id], documents=[doc], metadatas=[meta])
 
     def store_runbook(
         self,
@@ -145,111 +98,55 @@ class InstitutionalMemory:
         solution_steps: str,
     ) -> None:
         doc = f"Runbook: {title}\nProblem: {problem_pattern}\nSolution:\n{solution_steps}"
-        embedding = self._get_embedding(doc)
-
+        doc_id = f"runbook-{runbook_id}"
+        meta = {"runbook_id": runbook_id, "title": title}
         with self._lock:
-            self._runbooks = [
-                e for e in self._runbooks if e.get("id") != f"runbook-{runbook_id}"
-            ]
-            self._runbooks.append({
-                "id": f"runbook-{runbook_id}",
-                "document": doc,
-                "embedding": embedding,
-                "metadata": {"runbook_id": runbook_id, "title": title},
-            })
-            self._save(self._runbooks_path, self._runbooks)
+            if self._runbooks.get(ids=[doc_id])["ids"]:
+                self._runbooks.update(ids=[doc_id], documents=[doc], metadatas=[meta])
+            else:
+                self._runbooks.add(ids=[doc_id], documents=[doc], metadatas=[meta])
 
-    def _search(self, collection: list[dict], persist_path: Path,
-                query: str, n_results: int) -> list[dict]:
-        if not collection:
+    def _search(self, collection: chromadb.Collection, query: str, n_results: int) -> list[dict]:
+        count = collection.count()
+        if count == 0:
+            return []
+        try:
+            results = collection.query(
+                query_texts=[query],
+                n_results=min(n_results, count),
+                include=["documents", "metadatas", "distances"],
+            )
+        except Exception as exc:
+            logger.warning("ChromaDB query failed: %s", exc)
             return []
 
-        query_embedding = self._get_embedding(query)
-        patched = False
-
-        if query_embedding:
-            # Cosine path. For any entry missing an embedding (e.g. seeded
-            # while Ollama was down), lazily compute and persist one so
-            # subsequent searches rank consistently on the same scale.
-            scored = []
-            for entry in collection:
-                emb = entry.get("embedding")
-                if not emb:
-                    doc = entry.get("document", "")
-                    if doc:
-                        new_emb = self._get_embedding(doc)
-                        if new_emb:
-                            entry["embedding"] = new_emb
-                            emb = new_emb
-                            patched = True
-                if emb:
-                    sim = self._cosine_similarity(query_embedding, emb)
-                    scored.append((sim, entry))
-                else:
-                    # Embedding service is up but failed for this doc —
-                    # fall back to keyword for this single entry.
-                    scored.append((self._keyword_score(query, entry.get("document", "")), entry))
-            scored.sort(key=lambda x: x[0], reverse=True)
-        else:
-            # Pure keyword fallback when Ollama is unavailable.
-            scored = [
-                (self._keyword_score(query, entry.get("document", "")), entry)
-                for entry in collection
-            ]
-            scored.sort(key=lambda x: x[0], reverse=True)
-
-        if patched:
-            with self._lock:
-                self._save(persist_path, collection)
-
         return [
-            {
-                "document": entry.get("document", ""),
-                "metadata": entry.get("metadata", {}),
-                "distance": round(1.0 - score, 4),
-            }
-            for score, entry in scored[:n_results]
+            {"document": doc, "metadata": meta, "distance": round(dist, 4)}
+            for doc, meta, dist in zip(
+                results["documents"][0],
+                results["metadatas"][0],
+                results["distances"][0],
+            )
         ]
 
-    @staticmethod
-    def _keyword_score(query: str, document: str) -> float:
-        """Simple keyword overlap score as fallback."""
-        query_words = set(query.lower().split())
-        doc_words = set(document.lower().split())
-        if not query_words:
-            return 0.0
-        overlap = query_words & doc_words
-        return len(overlap) / len(query_words)
-
     def search_similar_incidents(self, query: str, n_results: int = 5) -> list[dict]:
-        # Snapshot under the lock so a concurrent store can't mutate the list
-        # mid-iteration. Entry dicts are shared with the live list, so any
-        # lazy re-embed performed inside _search is visible to future calls.
-        with self._lock:
-            collection = list(self._incidents)
-        return self._search(collection, self._incidents_path, query, n_results)
+        return self._search(self._incidents, query, n_results)
 
     def search_runbooks(self, query: str, n_results: int = 5) -> list[dict]:
-        with self._lock:
-            collection = list(self._runbooks)
-        return self._search(collection, self._runbooks_path, query, n_results)
+        return self._search(self._runbooks, query, n_results)
 
     def persist(self) -> None:
-        with self._lock:
-            self._save(self._incidents_path, self._incidents)
-            self._save(self._runbooks_path, self._runbooks)
+        pass  # ChromaDB auto-persists on every write
 
     @property
     def incident_count(self) -> int:
-        return len(self._incidents)
+        return self._incidents.count()
 
     @property
     def runbook_count(self) -> int:
-        return len(self._runbooks)
+        return self._runbooks.count()
 
 
-# Singleton — guarded so concurrent asyncio.to_thread workers can't both
-# construct separate instances on a cold start.
 _memory_instance: InstitutionalMemory | None = None
 _memory_instance_lock = threading.Lock()
 
