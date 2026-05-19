@@ -260,8 +260,8 @@ export default function Settings() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-        <span className="ml-3 text-slate-500">Loading settings...</span>
+        <Loader2 className="w-6 h-6 animate-spin text-accent" />
+        <span className="ml-3 text-ink-mute">Loading settings...</span>
       </div>
     );
   }
@@ -269,8 +269,8 @@ export default function Settings() {
   if (!settings) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <p className="text-red-400 text-sm">Failed to load settings: {error}</p>
-        <button onClick={fetchSettings} className="text-emerald-600 text-sm underline">Retry</button>
+        <p className="text-critical text-sm">Failed to load settings: {error}</p>
+        <button onClick={fetchSettings} className="text-accent text-sm underline">Retry</button>
       </div>
     );
   }
@@ -317,7 +317,7 @@ export default function Settings() {
             <SettingsIcon size={20} className="text-[var(--color-accent)]" />
             Settings
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-ink-mute mt-1">
             Configure your active LLM provider, pipeline behaviour, and runtime options
           </p>
         </div>
@@ -327,24 +327,24 @@ export default function Settings() {
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
-              className="text-xs text-emerald-600 flex items-center gap-1"
+              className="text-xs text-success flex items-center gap-1"
             >
               <Check size={14} /> Saved
             </motion.span>
           )}
-          {saving && <Loader2 size={14} className="animate-spin text-emerald-500" />}
+          {saving && <Loader2 size={14} className="animate-spin text-accent" />}
           <button
             onClick={fetchSettings}
-            className="glass-sm p-2 rounded-lg hover:bg-emerald-50 transition-colors"
+            className="glass-sm p-2 rounded-lg hover:bg-accent/8 transition-colors"
             title="Refresh"
           >
-            <RefreshCw size={16} className="text-slate-500" />
+            <RefreshCw size={16} className="text-ink-mute" />
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600 flex items-center gap-2">
+        <div className="bg-critical/10 border border-critical/25 rounded-xl p-3 text-sm text-critical flex items-center gap-2">
           <AlertCircle size={14} /> {error}
         </div>
       )}
@@ -352,19 +352,25 @@ export default function Settings() {
       {/* ── AI Brain Selector ─────────────────────────────── */}
       <GlassCard hover={false} className="relative overflow-hidden">
         {/* Background decoration */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-100/50 to-transparent rounded-bl-full pointer-events-none" />
-        
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[var(--color-accent-glow)] to-transparent rounded-bl-full pointer-events-none" />
+
         <div className="relative">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <Brain size={20} className="text-white" />
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dim) 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 6px 16px -6px var(--color-accent-glow)',
+              }}
+            >
+              <Brain size={20} className="text-[var(--color-surface)]" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Choose Your AI Brain</h2>
-              <p className="text-xs text-slate-500">Select which Large Language Model powers your AIOps agents</p>
+              <h2 className="text-lg font-semibold text-ink">Choose Your AI Brain</h2>
+              <p className="text-xs text-ink-mute">Select which Large Language Model powers your AIOps agents</p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6">
             {(Object.keys(PROVIDER_META) as LlmProvider[]).map((p) => {
               const { label, subtitle, description, Icon } = PROVIDER_META[p];
@@ -373,41 +379,41 @@ export default function Settings() {
                 <button
                   key={p}
                   onClick={() => saveProvider(p)}
-                  className={`relative rounded-xl p-5 text-left transition-all duration-200 border-2 group ${
+                  className={`relative rounded-xl p-5 text-left transition-all duration-200 border-2 group cursor-pointer ${
                     active
-                      ? 'border-emerald-500 bg-gradient-to-br from-emerald-50 to-teal-50/50 shadow-lg shadow-emerald-500/10'
-                      : 'border-slate-200 hover:border-emerald-300 hover:shadow-md bg-white/50'
+                      ? 'border-accent bg-accent/8 shadow-sm'
+                      : 'border-hairline-strong hover:border-accent/40 bg-surface/50'
                   }`}
                 >
                   {active && (
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-                      <Check size={14} className="text-white" />
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-accent rounded-full flex items-center justify-center shadow-md">
+                      <Check size={14} className="text-[var(--color-surface)]" />
                     </div>
                   )}
                   <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition-colors ${
-                    active 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-slate-100 text-slate-500 group-hover:bg-emerald-100 group-hover:text-emerald-600'
+                    active
+                      ? 'bg-accent text-[var(--color-surface)]'
+                      : 'bg-ink/8 text-ink-mute group-hover:bg-accent/12 group-hover:text-accent'
                   }`}>
                     <Icon size={20} />
                   </div>
-                  <h3 className={`font-semibold mb-0.5 ${active ? 'text-emerald-700' : 'text-slate-700'}`}>
+                  <h3 className={`font-semibold mb-0.5 ${active ? 'text-accent' : 'text-ink-soft'}`}>
                     {label}
                   </h3>
-                  <p className={`text-xs font-medium mb-2 ${active ? 'text-emerald-600' : 'text-slate-500'}`}>
+                  <p className={`text-xs font-medium mb-2 ${active ? 'text-accent-bright' : 'text-ink-mute'}`}>
                     {subtitle}
                   </p>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-ink-faint leading-relaxed">
                     {description}
                   </p>
                 </button>
               );
             })}
           </div>
-          
-          <div className="mt-5 p-3 rounded-lg bg-amber-50/80 border border-amber-200/50 flex items-start gap-2">
-            <AlertCircle size={14} className="text-amber-500 mt-0.5 shrink-0" />
-            <p className="text-[11px] text-amber-700">
+
+          <div className="mt-5 p-3 rounded-lg bg-warning/10 border border-warning/25 flex items-start gap-2">
+            <AlertCircle size={14} className="text-warning mt-0.5 shrink-0" />
+            <p className="text-[11px] text-warning">
               <strong>Note:</strong> The embedding provider is independent of the chat LLM. You can use Google embeddings with any chat provider. After switching providers, re-seed runbooks so all vectors use the same model.
             </p>
           </div>
@@ -420,18 +426,18 @@ export default function Settings() {
         <div className="grid lg:grid-cols-2 gap-6">
           <GlassCard hover={false}>
             <div className="flex items-center gap-2 mb-5">
-              <Server size={18} className="text-emerald-600" />
-              <h2 className="text-sm font-semibold text-slate-700">Ollama — Chat Model</h2>
+              <Server size={18} className="text-accent" />
+              <h2 className="text-sm font-semibold text-ink-soft">Ollama — Chat Model</h2>
             </div>
 
-            <label className="text-xs text-slate-500 mb-1.5 block">Active Model</label>
+            <label className="text-xs text-ink-mute mb-1.5 block">Active Model</label>
             <div className="relative mb-4">
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'ollama-llm' ? null : 'ollama-llm')}
-                className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-emerald-300"
+                className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
               >
                 <span className="font-medium">{settings.ollama_model}</span>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'ollama-llm' ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'ollama-llm' ? 'rotate-180' : ''}`} />
               </button>
               {openDropdown === 'ollama-llm' && (
                 <motion.div
@@ -443,13 +449,13 @@ export default function Settings() {
                     <button
                       key={model}
                       onClick={() => { save({ ollama_model: model }); setOpenDropdown(null); }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 flex items-center justify-between ${
-                        model === settings.ollama_model ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-700'
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 flex items-center justify-between ${
+                        model === settings.ollama_model ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
                       }`}
                     >
                       <span>{model}</span>
                       {isInstalled(model) && (
-                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">installed</span>
+                        <span className="text-[10px] bg-accent/12 text-accent px-1.5 py-0.5 rounded-full">installed</span>
                       )}
                     </button>
                   ))}
@@ -457,7 +463,7 @@ export default function Settings() {
               )}
             </div>
 
-            <label className="text-xs text-slate-500 mb-1.5 block">Add Custom Model</label>
+            <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -465,21 +471,21 @@ export default function Settings() {
                 onChange={(e) => setNewOllamaModel(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_llm_models', newOllamaModel, () => setNewOllamaModel(''))}
                 placeholder="e.g. phi3:mini"
-                className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
               />
               <button
                 onClick={() => addCustomModel('custom_llm_models', newOllamaModel, () => setNewOllamaModel(''))}
-                className="glass-sm rounded-lg px-3 py-2 hover:bg-emerald-50"
+                className="glass-sm rounded-lg px-3 py-2 hover:bg-accent/8"
               >
-                <Plus size={16} className="text-emerald-600" />
+                <Plus size={16} className="text-accent" />
               </button>
             </div>
             {settings.custom_llm_models.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {settings.custom_llm_models.map((m) => (
-                  <span key={m} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                  <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
                     {m}
-                    <button onClick={() => removeCustomModel('custom_llm_models', m)} className="hover:text-red-500">
+                    <button onClick={() => removeCustomModel('custom_llm_models', m)} className="hover:text-critical">
                       <X size={12} />
                     </button>
                   </span>
@@ -490,11 +496,11 @@ export default function Settings() {
 
           <GlassCard hover={false}>
             <div className="flex items-center gap-2 mb-5">
-              <RefreshCw size={18} className="text-emerald-600" />
-              <h2 className="text-sm font-semibold text-slate-700">Ollama Server + Test</h2>
+              <RefreshCw size={18} className="text-accent" />
+              <h2 className="text-sm font-semibold text-ink-soft">Ollama Server + Test</h2>
             </div>
 
-            <label className="text-xs text-slate-500 mb-1.5 block">Base URL</label>
+            <label className="text-xs text-ink-mute mb-1.5 block">Base URL</label>
             <div className="flex items-center gap-2 mb-3">
               <input
                 type="text"
@@ -502,24 +508,24 @@ export default function Settings() {
                 onChange={(e) => setSettings({ ...settings, ollama_base_url: e.target.value })}
                 onBlur={(e) => save({ ollama_base_url: e.target.value.trim() })}
                 onKeyDown={(e) => { if (e.key === 'Enter') save({ ollama_base_url: (e.target as HTMLInputElement).value.trim() }); }}
-                className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
               />
             </div>
             <button
               onClick={() => runTest('ollama')}
               disabled={testing === 'ollama'}
-              className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-accent hover:bg-accent/8 disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {testing === 'ollama' ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               Test Connection
             </button>
             {testResult.ollama && (
-              <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.ollama.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+              <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.ollama.ok ? 'text-success' : 'text-critical'}`}>
                 {testResult.ollama.ok ? <Check size={12} /> : <X size={12} />}
                 {testResult.ollama.message}
               </p>
             )}
-            <p className="text-[11px] text-slate-400 mt-3">
+            <p className="text-[11px] text-ink-faint mt-3">
               {ollamaModels.length > 0
                 ? `Connected — ${ollamaModels.length} model${ollamaModels.length > 1 ? 's' : ''} available`
                 : 'Unable to reach Ollama server. Make sure it is running.'}
@@ -531,28 +537,28 @@ export default function Settings() {
       {activeProvider === 'openai' && (
         <GlassCard hover={false}>
           <div className="flex items-center gap-2 mb-5">
-            <Sparkles size={18} className="text-indigo-600" />
-            <h2 className="text-sm font-semibold text-slate-700">OpenAI</h2>
+            <Sparkles size={18} className="text-accent" />
+            <h2 className="text-sm font-semibold text-ink-soft">OpenAI</h2>
           </div>
 
           {/* API key */}
-          <label className="text-xs text-slate-500 mb-1.5 block">API Key</label>
+          <label className="text-xs text-ink-mute mb-1.5 block">API Key</label>
           {settings.openai_api_key_set && !openaiKeyDraft && (
             <div className="flex items-center gap-2 mb-4 flex-wrap sm:flex-nowrap">
-              <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-slate-700 flex items-center gap-2">
-                <KeyRound size={14} className="text-emerald-500" />
+              <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-ink-soft flex items-center gap-2">
+                <KeyRound size={14} className="text-success" />
                 ••••••••••••••••
-                <span className="ml-auto text-[10px] text-emerald-600">saved</span>
+                <span className="ml-auto text-[10px] text-success">saved</span>
               </div>
               <button
                 onClick={() => setOpenaiKeyDraft(' ')}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-slate-600 hover:bg-slate-50"
+                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-soft hover:bg-canvas-soft"
               >
                 Change
               </button>
               <button
                 onClick={clearOpenaiKey}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-red-600 hover:bg-red-50"
+                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-critical hover:bg-critical/10"
               >
                 Remove
               </button>
@@ -567,12 +573,12 @@ export default function Settings() {
                   onChange={(e) => setOpenaiKeyDraft(e.target.value)}
                   placeholder="sk-..."
                   autoComplete="off"
-                  className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
                 <button
                   type="button"
                   onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-soft"
                 >
                   {showOpenaiKey ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -580,14 +586,14 @@ export default function Settings() {
               <button
                 onClick={saveOpenaiKey}
                 disabled={!openaiKeyDraft.trim()}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50"
+                className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/8 disabled:opacity-50"
               >
                 Save
               </button>
               {settings.openai_api_key_set && (
                 <button
                   onClick={() => setOpenaiKeyDraft('')}
-                  className="glass-sm rounded-lg px-3 py-2.5 text-xs text-slate-500 hover:bg-slate-50"
+                  className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-mute hover:bg-canvas-soft"
                 >
                   Cancel
                 </button>
@@ -596,14 +602,14 @@ export default function Settings() {
           )}
 
           {/* Model */}
-          <label className="text-xs text-slate-500 mb-1.5 block">Model</label>
+          <label className="text-xs text-ink-mute mb-1.5 block">Model</label>
           <div className="relative mb-4">
             <button
               onClick={() => setOpenDropdown(openDropdown === 'openai-model' ? null : 'openai-model')}
-              className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-indigo-300"
+              className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
             >
               <span className="font-medium">{settings.openai_model}</span>
-              <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'openai-model' ? 'rotate-180' : ''}`} />
+              <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'openai-model' ? 'rotate-180' : ''}`} />
             </button>
             {openDropdown === 'openai-model' && (
               <motion.div
@@ -615,8 +621,8 @@ export default function Settings() {
                   <button
                     key={model}
                     onClick={() => { save({ openai_model: model }); setOpenDropdown(null); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-indigo-50 ${
-                      model === settings.openai_model ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-700'
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
+                      model === settings.openai_model ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
                     }`}
                   >
                     {model}
@@ -627,7 +633,7 @@ export default function Settings() {
           </div>
 
           {/* Add custom OpenAI model */}
-          <label className="text-xs text-slate-500 mb-1.5 block">Add Custom Model</label>
+          <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
           <div className="flex gap-2 mb-2">
             <input
               type="text"
@@ -635,21 +641,21 @@ export default function Settings() {
               onChange={(e) => setNewOpenaiModel(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_openai_models', newOpenaiModel, () => setNewOpenaiModel(''))}
               placeholder="e.g. gpt-4.1"
-              className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
             />
             <button
               onClick={() => addCustomModel('custom_openai_models', newOpenaiModel, () => setNewOpenaiModel(''))}
-              className="glass-sm rounded-lg px-3 py-2 hover:bg-indigo-50"
+              className="glass-sm rounded-lg px-3 py-2 hover:bg-accent/8"
             >
-              <Plus size={16} className="text-indigo-600" />
+              <Plus size={16} className="text-accent" />
             </button>
           </div>
           {settings.custom_openai_models.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5">
               {settings.custom_openai_models.map((m) => (
-                <span key={m} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
                   {m}
-                  <button onClick={() => removeCustomModel('custom_openai_models', m)} className="hover:text-red-500">
+                  <button onClick={() => removeCustomModel('custom_openai_models', m)} className="hover:text-critical">
                     <X size={12} />
                   </button>
                 </span>
@@ -661,13 +667,13 @@ export default function Settings() {
           <button
             onClick={() => runTest('openai')}
             disabled={testing === 'openai' || (!settings.openai_api_key_set && !openaiKeyDraft.trim())}
-            className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-accent hover:bg-accent/8 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
           >
             {testing === 'openai' ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             Test Connection
           </button>
           {testResult.openai && (
-            <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.openai.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+            <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.openai.ok ? 'text-success' : 'text-critical'}`}>
               {testResult.openai.ok ? <Check size={12} /> : <X size={12} />}
               {testResult.openai.message}
             </p>
@@ -678,28 +684,28 @@ export default function Settings() {
       {activeProvider === 'gemini' && (
         <GlassCard hover={false}>
           <div className="flex items-center gap-2 mb-5">
-            <Cloud size={18} className="text-sky-600" />
-            <h2 className="text-sm font-semibold text-slate-700">Google Gemini</h2>
+            <Cloud size={18} className="text-info" />
+            <h2 className="text-sm font-semibold text-ink-soft">Google Gemini</h2>
           </div>
 
           {/* API key */}
-          <label className="text-xs text-slate-500 mb-1.5 block">API Key</label>
+          <label className="text-xs text-ink-mute mb-1.5 block">API Key</label>
           {settings.gemini_api_key_set && !geminiKeyDraft && (
             <div className="flex items-center gap-2 mb-4 flex-wrap sm:flex-nowrap">
-              <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-slate-700 flex items-center gap-2">
-                <KeyRound size={14} className="text-emerald-500" />
+              <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-ink-soft flex items-center gap-2">
+                <KeyRound size={14} className="text-success" />
                 ••••••••••••••••
-                <span className="ml-auto text-[10px] text-emerald-600">saved</span>
+                <span className="ml-auto text-[10px] text-success">saved</span>
               </div>
               <button
                 onClick={() => setGeminiKeyDraft(' ')}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-slate-600 hover:bg-slate-50"
+                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-soft hover:bg-canvas-soft"
               >
                 Change
               </button>
               <button
                 onClick={clearGeminiKey}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-red-600 hover:bg-red-50"
+                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-critical hover:bg-critical/10"
               >
                 Remove
               </button>
@@ -714,12 +720,12 @@ export default function Settings() {
                   onChange={(e) => setGeminiKeyDraft(e.target.value)}
                   placeholder="AIza..."
                   autoComplete="off"
-                  className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                  className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-info/40"
                 />
                 <button
                   type="button"
                   onClick={() => setShowGeminiKey(!showGeminiKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-soft"
                 >
                   {showGeminiKey ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
@@ -727,14 +733,14 @@ export default function Settings() {
               <button
                 onClick={saveGeminiKey}
                 disabled={!geminiKeyDraft.trim()}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-sky-600 hover:bg-sky-50 disabled:opacity-50"
+                className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-info hover:bg-info/10 disabled:opacity-50"
               >
                 Save
               </button>
               {settings.gemini_api_key_set && (
                 <button
                   onClick={() => setGeminiKeyDraft('')}
-                  className="glass-sm rounded-lg px-3 py-2.5 text-xs text-slate-500 hover:bg-slate-50"
+                  className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-mute hover:bg-canvas-soft"
                 >
                   Cancel
                 </button>
@@ -744,13 +750,13 @@ export default function Settings() {
 
           {/* Model */}
           <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs text-slate-500">Model</label>
+            <label className="text-xs text-ink-mute">Model</label>
             {settings.gemini_api_key_set && (
               <button
                 onClick={() => fetchGeminiModels()}
                 disabled={geminiModelsLoading}
                 title="Refresh model list from Google"
-                className="text-[11px] text-sky-600 hover:text-sky-700 flex items-center gap-1 disabled:opacity-50"
+                className="text-[11px] text-info hover:text-info flex items-center gap-1 disabled:opacity-50"
               >
                 {geminiModelsLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                 {geminiModels.length > 0
@@ -760,7 +766,7 @@ export default function Settings() {
             )}
           </div>
           {geminiModelsError && (
-            <p className="text-[11px] text-amber-600 mb-1.5 flex items-center gap-1">
+            <p className="text-[11px] text-warning mb-1.5 flex items-center gap-1">
               <AlertCircle size={11} />
               Couldn't fetch live model list — using defaults. ({geminiModelsError})
             </p>
@@ -768,15 +774,15 @@ export default function Settings() {
           <div className="relative mb-4">
             <button
               onClick={() => setOpenDropdown(openDropdown === 'gemini-model' ? null : 'gemini-model')}
-              className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-sky-300"
+              className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-info/40"
             >
               <span className="font-medium flex items-center gap-2">
                 {settings.gemini_model}
                 {geminiInfoByName.get(settings.gemini_model)?.deprecated && (
-                  <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Deprecated</span>
+                  <span className="text-[10px] uppercase tracking-wide bg-warning/15 text-warning px-1.5 py-0.5 rounded">Deprecated</span>
                 )}
               </span>
-              <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'gemini-model' ? 'rotate-180' : ''}`} />
+              <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'gemini-model' ? 'rotate-180' : ''}`} />
             </button>
             {openDropdown === 'gemini-model' && (
               <motion.div
@@ -792,24 +798,24 @@ export default function Settings() {
                     key={model}
                     onClick={() => { save({ gemini_model: model }); setOpenDropdown(null); }}
                     title={info?.description || ''}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-sky-50 ${
-                      isSelected ? 'bg-sky-50 text-sky-700' : 'text-slate-700'
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-info/10 ${
+                      isSelected ? 'bg-info/10 text-info' : 'text-ink-soft'
                     } ${info?.deprecated ? 'opacity-60' : ''}`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className={`truncate ${isSelected ? 'font-medium' : ''}`}>
                         {info?.display_name && info.display_name !== model
-                          ? <><span className="font-mono text-[12px]">{model}</span> <span className="text-slate-400">— {info.display_name}</span></>
+                          ? <><span className="font-mono text-[12px]">{model}</span> <span className="text-ink-faint">— {info.display_name}</span></>
                           : <span className="font-mono text-[12px]">{model}</span>}
                       </span>
                       {info?.deprecated ? (
-                        <span className="text-[10px] uppercase tracking-wide bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded shrink-0">Deprecated</span>
+                        <span className="text-[10px] uppercase tracking-wide bg-warning/15 text-warning px-1.5 py-0.5 rounded shrink-0">Deprecated</span>
                       ) : info ? (
-                        <span className="text-[10px] uppercase tracking-wide bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded shrink-0">Active</span>
+                        <span className="text-[10px] uppercase tracking-wide bg-success/15 text-success px-1.5 py-0.5 rounded shrink-0">Active</span>
                       ) : null}
                     </div>
                     {info && (info.input_token_limit > 0 || info.output_token_limit > 0) && (
-                      <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
+                      <div className="text-[10px] text-ink-faint mt-0.5 font-mono">
                         in {info.input_token_limit.toLocaleString()} · out {info.output_token_limit.toLocaleString()} tok
                       </div>
                     )}
@@ -821,7 +827,7 @@ export default function Settings() {
           </div>
 
           {/* Add custom Gemini model */}
-          <label className="text-xs text-slate-500 mb-1.5 block">Add Custom Model</label>
+          <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
           <div className="flex gap-2 mb-2">
             <input
               type="text"
@@ -829,21 +835,21 @@ export default function Settings() {
               onChange={(e) => setNewGeminiModel(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_gemini_models', newGeminiModel, () => setNewGeminiModel(''))}
               placeholder="e.g. gemini-2.5-flash"
-              className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-300"
+              className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-info/40"
             />
             <button
               onClick={() => addCustomModel('custom_gemini_models', newGeminiModel, () => setNewGeminiModel(''))}
-              className="glass-sm rounded-lg px-3 py-2 hover:bg-sky-50"
+              className="glass-sm rounded-lg px-3 py-2 hover:bg-info/10"
             >
-              <Plus size={16} className="text-sky-600" />
+              <Plus size={16} className="text-info" />
             </button>
           </div>
           {settings.custom_gemini_models.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5">
               {settings.custom_gemini_models.map((m) => (
-                <span key={m} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
                   {m}
-                  <button onClick={() => removeCustomModel('custom_gemini_models', m)} className="hover:text-red-500">
+                  <button onClick={() => removeCustomModel('custom_gemini_models', m)} className="hover:text-critical">
                     <X size={12} />
                   </button>
                 </span>
@@ -855,13 +861,13 @@ export default function Settings() {
           <button
             onClick={() => runTest('gemini')}
             disabled={testing === 'gemini' || (!settings.gemini_api_key_set && !geminiKeyDraft.trim())}
-            className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-sky-600 hover:bg-sky-50 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-info hover:bg-info/10 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
           >
             {testing === 'gemini' ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             Test Connection
           </button>
           {testResult.gemini && (
-            <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.gemini.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+            <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.gemini.ok ? 'text-success' : 'text-critical'}`}>
               {testResult.gemini.ok ? <Check size={12} /> : <X size={12} />}
               {testResult.gemini.message}
             </p>
@@ -872,39 +878,43 @@ export default function Settings() {
       {/* ── Vector Store & Embeddings ────────────────────── */}
       <GlassCard hover={false}>
         <div className="flex items-center gap-2 mb-4">
-          <Cpu size={18} className="text-emerald-600" />
-          <h2 className="text-sm font-semibold text-slate-700">Vector Store &amp; Embeddings</h2>
+          <Cpu size={18} className="text-accent" />
+          <h2 className="text-sm font-semibold text-ink-soft">Vector Store &amp; Embeddings</h2>
         </div>
 
         {/* Provider toggle */}
-        <label className="text-xs text-slate-500 mb-2 block">Embedding Provider</label>
+        <label className="text-xs text-ink-mute mb-2 block">Embedding Provider</label>
         <div className="flex gap-2 mb-5">
-          {(['google', 'ollama'] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => save({ embedding_provider: p })}
-              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                settings.embedding_provider === p
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'glass-sm text-slate-600 hover:bg-emerald-50'
-              }`}
-            >
-              {p === 'google' ? '✦ Google Gemini' : '⬡ Ollama (local)'}
-            </button>
-          ))}
+          {(['google', 'ollama'] as const).map((p) => {
+            const ProvIcon = p === 'google' ? Sparkles : Server;
+            return (
+              <button
+                key={p}
+                onClick={() => save({ embedding_provider: p })}
+                className={`flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                  settings.embedding_provider === p
+                    ? 'bg-accent text-[var(--color-surface)] shadow-sm'
+                    : 'glass-sm text-ink-soft hover:bg-accent/8'
+                }`}
+              >
+                <ProvIcon size={15} />
+                {p === 'google' ? 'Google Gemini' : 'Ollama (local)'}
+              </button>
+            );
+          })}
         </div>
 
         {/* Google model selector */}
         {settings.embedding_provider === 'google' && (
           <div>
-            <label className="text-xs text-slate-500 mb-1.5 block">Google Embedding Model</label>
+            <label className="text-xs text-ink-mute mb-1.5 block">Google Embedding Model</label>
             <div className="relative">
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'google-embedding' ? null : 'google-embedding')}
-                className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-emerald-300"
+                className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
               >
                 <span className="font-medium">{settings.gemini_embedding_model || 'models/text-embedding-004'}</span>
-                <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'google-embedding' ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'google-embedding' ? 'rotate-180' : ''}`} />
               </button>
               {openDropdown === 'google-embedding' && (
                 <motion.div
@@ -916,18 +926,18 @@ export default function Settings() {
                     <button
                       key={model}
                       onClick={() => { save({ gemini_embedding_model: model }); setOpenDropdown(null); }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 flex items-center justify-between ${
-                        settings.gemini_embedding_model === model ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-700'
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 flex items-center justify-between ${
+                        settings.gemini_embedding_model === model ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
                       }`}
                     >
                       <span>{model}</span>
-                      {model === 'models/text-embedding-004' && <span className="text-[10px] text-emerald-500">recommended</span>}
+                      {model === 'models/text-embedding-004' && <span className="text-[10px] text-accent">recommended</span>}
                     </button>
                   ))}
                 </motion.div>
               )}
             </div>
-            <p className="text-[11px] text-slate-400 mt-2">Uses your Gemini API key. Free within Google AI quota — no model download required.</p>
+            <p className="text-[11px] text-ink-faint mt-2">Uses your Gemini API key. Free within Google AI quota — no model download required.</p>
           </div>
         )}
 
@@ -935,14 +945,14 @@ export default function Settings() {
         {settings.embedding_provider === 'ollama' && (
           <div className="space-y-4">
             <div>
-              <label className="text-xs text-slate-500 mb-1.5 block">Ollama Embedding Model</label>
+              <label className="text-xs text-ink-mute mb-1.5 block">Ollama Embedding Model</label>
               <div className="relative">
                 <button
                   onClick={() => setOpenDropdown(openDropdown === 'ollama-embedding' ? null : 'ollama-embedding')}
-                  className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-slate-800 hover:ring-2 hover:ring-emerald-300"
+                  className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
                 >
                   <span className="font-medium">{settings.ollama_embedding_model || 'nomic-embed-text'}</span>
-                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${openDropdown === 'ollama-embedding' ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'ollama-embedding' ? 'rotate-180' : ''}`} />
                 </button>
                 {openDropdown === 'ollama-embedding' && (
                   <motion.div
@@ -954,8 +964,8 @@ export default function Settings() {
                       <button
                         key={model}
                         onClick={() => { save({ ollama_embedding_model: model }); setOpenDropdown(null); }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 ${
-                          model === settings.ollama_embedding_model ? 'bg-emerald-50 text-emerald-700 font-medium' : 'text-slate-700'
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
+                          model === settings.ollama_embedding_model ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
                         }`}
                       >
                         {model}
@@ -964,10 +974,10 @@ export default function Settings() {
                   </motion.div>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400 mt-2">Requires Ollama running at the configured base URL. Model must be pulled locally.</p>
+              <p className="text-[11px] text-ink-faint mt-2">Requires Ollama running at the configured base URL. Model must be pulled locally.</p>
             </div>
             <div>
-              <label className="text-xs text-slate-500 mb-1.5 block">Add Custom Model</label>
+              <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -975,21 +985,21 @@ export default function Settings() {
                   onChange={(e) => setNewEmbeddingModel(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_embedding_models', newEmbeddingModel, () => setNewEmbeddingModel(''))}
                   placeholder="e.g. bge-large"
-                  className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
                 />
                 <button
                   onClick={() => addCustomModel('custom_embedding_models', newEmbeddingModel, () => setNewEmbeddingModel(''))}
-                  className="glass-sm rounded-lg px-3 py-2 hover:bg-emerald-50"
+                  className="glass-sm rounded-lg px-3 py-2 hover:bg-accent/8"
                 >
-                  <Plus size={16} className="text-emerald-600" />
+                  <Plus size={16} className="text-accent" />
                 </button>
               </div>
               {settings.custom_embedding_models.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {settings.custom_embedding_models.map((m) => (
-                    <span key={m} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                    <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
                       {m}
-                      <button onClick={() => removeCustomModel('custom_embedding_models', m)} className="hover:text-red-500">
+                      <button onClick={() => removeCustomModel('custom_embedding_models', m)} className="hover:text-critical">
                         <X size={12} />
                       </button>
                     </span>
@@ -1004,15 +1014,15 @@ export default function Settings() {
       {/* ── Shared: Temperature + Auto-run ───────────────── */}
       <GlassCard hover={false}>
         <div className="flex items-center gap-2 mb-5">
-          <Timer size={18} className="text-emerald-600" />
-          <h2 className="text-sm font-semibold text-slate-700">Agent Behaviour</h2>
+          <Timer size={18} className="text-accent" />
+          <h2 className="text-sm font-semibold text-ink-soft">Agent Behaviour</h2>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Temperature */}
           <div>
-            <label className="text-xs text-slate-500 mb-1.5 block">
-              Agent Temperature: <span className="font-medium text-slate-700">{settings.agent_temperature}</span>
+            <label className="text-xs text-ink-mute mb-1.5 block">
+              Agent Temperature: <span className="font-medium text-ink-soft">{settings.agent_temperature}</span>
             </label>
             <input
               type="range"
@@ -1023,9 +1033,9 @@ export default function Settings() {
               onChange={(e) => setSettings({ ...settings, agent_temperature: parseFloat(e.target.value) })}
               onMouseUp={(e) => save({ agent_temperature: parseFloat((e.target as HTMLInputElement).value) })}
               onTouchEnd={(e) => save({ agent_temperature: parseFloat((e.target as HTMLInputElement).value) })}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+              className="w-full h-2 bg-ink/10 rounded-lg appearance-none cursor-pointer accent-accent"
             />
-            <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+            <div className="flex justify-between text-[10px] text-ink-faint mt-1">
               <span>0 (Precise)</span>
               <span>1 (Creative)</span>
             </div>
@@ -1033,37 +1043,34 @@ export default function Settings() {
 
           {/* Auto-run toggle */}
           <div>
-            <label className="text-xs text-slate-500 mb-3 block">Automatic Pipeline Execution</label>
+            <label className="text-xs text-ink-mute mb-3 block">Automatic Pipeline Execution</label>
             <div
               onClick={() => save({ auto_run_pipeline: !settings.auto_run_pipeline })}
-              className="flex items-center justify-between gap-4 glass-sm rounded-xl px-4 py-3 cursor-pointer hover:bg-slate-50"
+              className="flex items-center justify-between gap-4 glass-sm rounded-xl px-4 py-3 cursor-pointer hover:bg-canvas-soft"
             >
               <div className="text-left flex-1 min-w-0">
-                <span className={`text-sm font-medium ${settings.auto_run_pipeline ? 'text-emerald-700' : 'text-slate-600'}`}>
+                <span className={`text-sm font-medium ${settings.auto_run_pipeline ? 'text-accent' : 'text-ink-soft'}`}>
                   {settings.auto_run_pipeline ? 'Enabled' : 'Disabled'}
                 </span>
-                <p className="text-[11px] text-slate-400 mt-0.5">
+                <p className="text-[11px] text-ink-faint mt-0.5">
                   {settings.auto_run_pipeline
                     ? `Anomalies auto-run the pipeline; full sweep every ${settings.auto_run_interval_seconds}s`
                     : 'Monitoring only — no automatic incidents or pipelines'}
                 </p>
               </div>
-              <button
-                type="button"
+              <span
                 role="switch"
                 aria-checked={settings.auto_run_pipeline}
-                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
-                  settings.auto_run_pipeline ? 'bg-emerald-500' : 'bg-red-500'
-                }`}
+                className="toggle shrink-0"
+                data-on={settings.auto_run_pipeline}
               >
                 <span className="sr-only">Toggle Auto-Run</span>
                 <span
                   aria-hidden="true"
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                    settings.auto_run_pipeline ? 'translate-x-5' : 'translate-x-0'
-                  }`}
+                  className="toggle-thumb transition-transform duration-200 ease-in-out"
+                  style={{ transform: settings.auto_run_pipeline ? 'translateX(16px)' : 'translateX(0)' }}
                 />
-              </button>
+              </span>
             </div>
 
             {/* Interval */}
@@ -1082,11 +1089,11 @@ export default function Settings() {
                   if (e.key === 'Enter') save({ auto_run_interval_seconds: Math.max(5, parseInt((e.target as HTMLInputElement).value) || 5) });
                 }}
                 disabled={!settings.auto_run_pipeline}
-                className={`w-24 glass-sm rounded-lg px-3 py-2 text-sm font-medium text-center focus:outline-none focus:ring-2 focus:ring-emerald-300 ${
-                  !settings.auto_run_pipeline ? 'opacity-50 cursor-not-allowed' : 'text-slate-800'
+                className={`w-24 glass-sm rounded-lg px-3 py-2 text-sm font-medium text-center focus:outline-none focus:ring-2 focus:ring-accent/40 ${
+                  !settings.auto_run_pipeline ? 'opacity-50 cursor-not-allowed' : 'text-ink'
                 }`}
               />
-              <span className="text-sm text-slate-500">seconds</span>
+              <span className="text-sm text-ink-mute">seconds</span>
               <div className="flex gap-1.5 ml-auto flex-wrap">
                 {[10, 30, 60, 120, 300].map((s) => (
                   <button
@@ -1095,8 +1102,8 @@ export default function Settings() {
                     disabled={!settings.auto_run_pipeline}
                     className={`text-xs px-2 py-1 rounded-full ${
                       settings.auto_run_interval_seconds === s
-                        ? 'bg-emerald-100 text-emerald-700 font-medium'
-                        : 'glass-sm text-slate-500 hover:bg-slate-100'
+                        ? 'bg-accent/12 text-accent font-medium'
+                        : 'glass-sm text-ink-mute hover:bg-ink/8'
                     } ${!settings.auto_run_pipeline ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {s < 60 ? `${s}s` : `${s / 60}m`}

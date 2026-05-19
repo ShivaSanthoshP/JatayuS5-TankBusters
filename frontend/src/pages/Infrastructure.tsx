@@ -43,7 +43,7 @@ export default function Infrastructure() {
       <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3 sm:gap-4">
         <div>
           <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Infrastructure</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Monitored nodes and their metric histories</p>
+          <p className="text-xs sm:text-sm text-ink-mute mt-1">Monitored nodes and their metric histories</p>
         </div>
         {/* Filter pills */}
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -51,7 +51,7 @@ export default function Infrastructure() {
             <button key={f} onClick={() => setFilter(f)}
               className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f
                 ? 'bg-accent text-white'
-                : 'bg-black/5 text-slate-500 hover:bg-black/10'
+                : 'bg-black/5 text-ink-mute hover:bg-black/10'
                 }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)} {counts[f] > 0 ? `(${counts[f]})` : ''}
@@ -72,31 +72,31 @@ export default function Infrastructure() {
               transition={{ delay: i * 0.04 }}
               whileHover={{ scale: 1.02 }}
               onClick={() => setSelectedNode(node)}
-              className={`glass p-4 cursor-pointer space-y-3 ${node.status === 'critical' ? 'border-red-400/30 glow-red' :
-                node.status === 'degraded' ? 'border-amber-400/30 glow-amber' :
-                  node.status === 'offline' ? 'border-slate-400/20 opacity-60' : ''
+              className={`glass p-4 cursor-pointer space-y-3 ${node.status === 'critical' ? 'border-critical/30 glow-red' :
+                node.status === 'degraded' ? 'border-warning/30 glow-amber' :
+                  node.status === 'offline' ? 'border-ink-faint/20 opacity-60' : ''
                 }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${node.status === 'healthy' ? 'bg-green-100' :
-                    node.status === 'degraded' ? 'bg-amber-100' :
-                      node.status === 'offline' ? 'bg-slate-100' : 'bg-red-100'
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${node.status === 'healthy' ? 'bg-success/15' :
+                    node.status === 'degraded' ? 'bg-warning/15' :
+                      node.status === 'offline' ? 'bg-ink/8' : 'bg-critical/15'
                     }`}>
                     <Icon size={16} className={
-                      node.status === 'healthy' ? 'text-green-600' :
-                        node.status === 'degraded' ? 'text-amber-600' :
-                          node.status === 'offline' ? 'text-slate-400' : 'text-red-600'
+                      node.status === 'healthy' ? 'text-success' :
+                        node.status === 'degraded' ? 'text-warning' :
+                          node.status === 'offline' ? 'text-ink-faint' : 'text-critical'
                     } />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-800">{node.node_name}</p>
-                    <p className="text-[10px] text-slate-400">{node.node_type} &middot; {node.region}</p>
+                    <p className="text-sm font-medium text-ink">{node.node_name}</p>
+                    <p className="text-[10px] text-ink-faint">{node.node_type} &middot; {node.region}</p>
                   </div>
                 </div>
                 <StatusBadge status={node.status} pulse={node.status !== 'healthy'} />
               </div>
-              <div className="flex items-center gap-4 text-xs text-slate-400">
+              <div className="flex items-center gap-4 text-xs text-ink-faint">
                 <span>{node.provider}</span>
                 <span>{node.ip_address}</span>
               </div>
@@ -104,7 +104,7 @@ export default function Infrastructure() {
           );
         })}
         {filtered.length === 0 && (
-          <div className="col-span-full text-center py-16 text-slate-400">
+          <div className="col-span-full text-center py-16 text-ink-faint">
             <Server size={32} className="mx-auto mb-3 opacity-30" />
             <p>{filter === 'all' ? 'No nodes registered yet.' : `No ${filter} nodes.`}</p>
           </div>
@@ -136,11 +136,11 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
   })) || [];
 
   const CHARTS = [
-    { key: 'cpu', label: 'CPU %', color: '#22c55e' },
-    { key: 'mem', label: 'Memory %', color: '#4ade80' },
-    { key: 'disk', label: 'Disk %', color: '#06b6d4' },
-    { key: 'err', label: 'Error Rate %', color: '#f97316' },
-    { key: 'lat', label: 'Latency ms', color: '#a855f7' },
+    { key: 'cpu',  label: 'CPU %',        color: '#244745' }, // accent (deep teal)
+    { key: 'mem',  label: 'Memory %',     color: '#3a6f6a' }, // accent-bright
+    { key: 'disk', label: 'Disk %',       color: '#3a5a7d' }, // info (calm blue)
+    { key: 'err',  label: 'Error Rate %', color: '#c08a3e' }, // warning (amber)
+    { key: 'lat',  label: 'Latency ms',   color: '#15191a' }, // ink (charcoal)
   ];
 
   return (
@@ -149,7 +149,7 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-start justify-center pt-10 sm:pt-20 px-3 sm:px-4"
+      className="sheet-backdrop flex items-start justify-center pt-10 sm:pt-20 px-3 sm:px-4"
       onClick={onClose}
     >
       <motion.div
@@ -161,11 +161,11 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-bold text-slate-800 truncate">{node.node_name}</h2>
-            <p className="text-[11px] sm:text-xs text-slate-500 break-words">{node.node_type} &middot; {node.provider} &middot; {node.region} &middot; {node.ip_address}</p>
+            <h2 className="text-base sm:text-lg font-bold text-ink truncate">{node.node_name}</h2>
+            <p className="text-[11px] sm:text-xs text-ink-mute break-words">{node.node_type} &middot; {node.provider} &middot; {node.region} &middot; {node.ip_address}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-black/8 rounded-lg transition-colors">
-            <X size={18} className="text-slate-500" />
+            <X size={18} className="text-ink-mute" />
           </button>
         </div>
 
@@ -175,20 +175,27 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
           <div className="grid sm:grid-cols-2 gap-4">
             {CHARTS.map(ch => (
               <div key={ch.key} className="glass-sm p-3">
-                <span className="text-xs text-slate-500 block mb-2">{ch.label}</span>
+                <span className="text-xs text-ink-mute block mb-2">{ch.label}</span>
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={100}>
                     <LineChart data={chartData}>
                       <XAxis dataKey="time" hide />
                       <YAxis hide domain={['auto', 'auto']} />
                       <Tooltip
-                        contentStyle={{ background: '#ffffff', border: '1px solid rgba(22,163,74,0.15)', borderRadius: 8, fontSize: 11 }}
+                        contentStyle={{
+                          background: 'rgba(255,253,247,0.95)',
+                          border: '1px solid rgba(21,25,26,0.10)',
+                          borderRadius: 8,
+                          fontSize: 11,
+                          fontFamily: 'JetBrains Mono, monospace',
+                          boxShadow: '0 8px 20px -8px rgba(21,25,26,0.20)',
+                        }}
                       />
                       <Line type="monotone" dataKey={ch.key} stroke={ch.color} strokeWidth={1.5} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-[100px] flex items-center justify-center text-xs text-slate-600">No data</div>
+                  <div className="h-[100px] flex items-center justify-center text-xs text-ink-soft">No data</div>
                 )}
               </div>
             ))}

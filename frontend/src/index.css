@@ -33,6 +33,8 @@
   /* ── Hairlines ──────────────────────────────────────────── */
   --color-hairline:        rgba(21, 25, 26, 0.07);
   --color-hairline-strong: rgba(21, 25, 26, 0.13);
+  /* Alias retained for legacy `border-glass-border` references */
+  --color-glass-border:    rgba(21, 25, 26, 0.13);
 
   /* ── Radii ──────────────────────────────────────────────── */
   --radius-card: 22px;
@@ -493,6 +495,25 @@ button {
 }
 
 .bg-grid { display: none; }
+
+/* ───────────────────────────────────────────────────────────────────
+   ROW HOVER — neutral cream tint for clickable rows / list items.
+   Use anywhere a list row is interactive — avoid green hover so
+   critical incidents don't read as "success" on hover.
+   ─────────────────────────────────────────────────────────────────── */
+.hover-row {
+  transition: background-color var(--duration-fast, 180ms) var(--ease-out-soft, ease);
+}
+.hover-row:hover {
+  background-color: rgba(252, 248, 240, 0.55);
+}
+
+/* Terminal pane — dark surface that respects the warm palette */
+.terminal-pane {
+  background: #0e1112;
+  color: #d9d4c8;
+}
+.terminal-pane::selection { background: rgba(252, 248, 240, 0.20); }
 
 /* ───────────────────────────────────────────────────────────────────
    FOCUS RING — keyboard friendly

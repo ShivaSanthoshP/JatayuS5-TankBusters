@@ -51,7 +51,7 @@ export default function Incidents() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <div>
         <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Incidents</h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">Detected anomalies, diagnostics, and remediation tracking</p>
+        <p className="text-xs sm:text-sm text-ink-mute mt-1">Detected anomalies, diagnostics, and remediation tracking</p>
       </div>
 
 
@@ -75,7 +75,7 @@ export default function Incidents() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className={`glass overflow-hidden transition-all ${inc.severity === 'critical' ? 'border-red-400/25 glow-red' : ''
+                className={`glass overflow-hidden transition-all ${inc.severity === 'critical' ? 'border-critical/25 glow-red' : ''
                   }`}
               >
                 {/* Header row */}
@@ -85,12 +85,12 @@ export default function Incidents() {
                     setExpanded(next);
                     if (next != null) void loadRemediation(inc.id);
                   }}
-                  className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 cursor-pointer hover:bg-green-50/50"
+                  className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 cursor-pointer hover-row"
                 >
-                  <span className="text-xs sm:text-sm font-mono text-slate-400 w-8 sm:w-12 shrink-0">#{inc.id}</span>
+                  <span className="text-xs sm:text-sm font-mono text-ink-faint w-8 sm:w-12 shrink-0">#{inc.id}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-800 truncate">{inc.title}</p>
-                    <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">{inc.node_name} &middot; {inc.detected_at ? new Date(inc.detected_at).toLocaleString() : ''}</p>
+                    <p className="text-sm text-ink truncate">{inc.title}</p>
+                    <p className="text-[11px] sm:text-xs text-ink-faint mt-0.5 truncate">{inc.node_name} &middot; {inc.detected_at ? new Date(inc.detected_at).toLocaleString() : ''}</p>
                   </div>
                   <div className="hidden sm:flex items-center gap-2 shrink-0">
                     <StatusBadge status={inc.severity} />
@@ -99,7 +99,7 @@ export default function Incidents() {
                   <div className="flex sm:hidden shrink-0">
                     <StatusBadge status={inc.severity} />
                   </div>
-                  {isOpen ? <ChevronUp size={16} className="text-slate-400 shrink-0" /> : <ChevronDown size={16} className="text-slate-400 shrink-0" />}
+                  {isOpen ? <ChevronUp size={16} className="text-ink-faint shrink-0" /> : <ChevronDown size={16} className="text-ink-faint shrink-0" />}
                 </div>
 
                 {/* Expanded detail */}
@@ -114,7 +114,7 @@ export default function Incidents() {
                     >
                       <div className="px-4 pb-4 pt-0 space-y-4 border-t border-glass-border">
                         {remediationLoading[inc.id] && (
-                          <div className="mt-4 flex items-center gap-2 text-xs text-slate-400">
+                          <div className="mt-4 flex items-center gap-2 text-xs text-ink-faint">
                             <Loader2 size={12} className="animate-spin" />
                             Loading remediation scripts...
                           </div>
@@ -124,10 +124,10 @@ export default function Incidents() {
                         {inc.root_cause && (
                           <div className="mt-4">
                             <div className="flex items-center gap-2 mb-1">
-                              <Brain size={14} className="text-purple-600" />
-                              <span className="text-xs font-semibold text-slate-600">Root Cause</span>
+                              <Brain size={14} className="text-accent" />
+                              <span className="text-xs font-semibold text-ink-soft">Root Cause</span>
                             </div>
-                            <p className="text-xs text-slate-500 leading-relaxed bg-green-50/60 rounded-lg p-3">{inc.root_cause}</p>
+                            <p className="text-xs text-ink-mute leading-relaxed bg-canvas-soft rounded-lg p-3">{inc.root_cause}</p>
                           </div>
                         )}
 
@@ -136,11 +136,11 @@ export default function Incidents() {
                           <div className="grid sm:grid-cols-2 gap-3">
                             {diagnostic.reasons && diagnostic.reasons.length > 0 && (
                               <div className="sm:col-span-2">
-                                <span className="text-xs font-semibold text-slate-600 block mb-1">Why This Happened</span>
+                                <span className="text-xs font-semibold text-ink-soft block mb-1">Why This Happened</span>
                                 <div className="space-y-1">
                                   {diagnostic.reasons.map((reason, i) => (
-                                    <div key={i} className="text-xs text-slate-500 flex items-start gap-1.5 bg-green-50/60 rounded-lg px-3 py-2">
-                                      <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-amber-500/70 shrink-0" />
+                                    <div key={i} className="text-xs text-ink-mute flex items-start gap-1.5 bg-canvas-soft rounded-lg px-3 py-2">
+                                      <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-warning/70 shrink-0" />
                                       <span>{reason}</span>
                                     </div>
                                   ))}
@@ -149,10 +149,10 @@ export default function Incidents() {
                             )}
                             {diagnostic.causal_chain && (
                               <div>
-                                <span className="text-xs font-semibold text-slate-600 block mb-1">Causal Chain</span>
+                                <span className="text-xs font-semibold text-ink-soft block mb-1">Causal Chain</span>
                                 <div className="space-y-1">
                                   {diagnostic.causal_chain.map((c, i) => (
-                                    <div key={i} className="text-xs text-slate-500 flex items-center gap-1.5">
+                                    <div key={i} className="text-xs text-ink-mute flex items-center gap-1.5">
                                       <span className="w-1.5 h-1.5 rounded-full bg-accent/50" />
                                       {c}
                                     </div>
@@ -162,10 +162,10 @@ export default function Incidents() {
                             )}
                             {diagnostic.blast_radius && (
                               <div>
-                                <span className="text-xs font-semibold text-slate-600 block mb-1">Blast Radius</span>
+                                <span className="text-xs font-semibold text-ink-soft block mb-1">Blast Radius</span>
                                 <div className="flex flex-wrap gap-1.5">
                                   {diagnostic.blast_radius.map((s, i) => (
-                                    <span key={i} className="px-2 py-0.5 rounded bg-red-50 text-red-600 text-xs">{s}</span>
+                                    <span key={i} className="px-2 py-0.5 rounded bg-critical/10 text-critical text-xs">{s}</span>
                                   ))}
                                 </div>
                               </div>
@@ -177,21 +177,21 @@ export default function Incidents() {
                         {inc.prediction_details && (inc.prediction_details as any).failure_probability !== undefined && (
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <Shield size={14} className="text-cyan-700" />
-                              <span className="text-xs font-semibold text-slate-600">Prediction</span>
+                              <Shield size={14} className="text-info" />
+                              <span className="text-xs font-semibold text-ink-soft">Prediction</span>
                             </div>
                             <div className="grid grid-cols-3 gap-2 text-xs">
-                              <div className="bg-green-50/60 rounded-lg p-2 text-center">
-                                <div className="text-lg font-bold text-slate-800">{((inc.prediction_details as any).failure_probability * 100).toFixed(0)}%</div>
-                                <div className="text-slate-400">Failure Prob.</div>
+                              <div className="bg-canvas-soft rounded-lg p-2 text-center">
+                                <div className="text-lg font-bold text-ink">{((inc.prediction_details as any).failure_probability * 100).toFixed(0)}%</div>
+                                <div className="text-ink-faint">Failure Prob.</div>
                               </div>
-                              <div className="bg-green-50/60 rounded-lg p-2 text-center">
-                                <div className="text-lg font-bold text-slate-800">{(inc.prediction_details as any).escalation_risk || '—'}</div>
-                                <div className="text-slate-400">Escalation</div>
+                              <div className="bg-canvas-soft rounded-lg p-2 text-center">
+                                <div className="text-lg font-bold text-ink">{(inc.prediction_details as any).escalation_risk || '—'}</div>
+                                <div className="text-ink-faint">Escalation</div>
                               </div>
-                              <div className="bg-green-50/60 rounded-lg p-2 text-center">
-                                <div className="text-lg font-bold text-slate-800">{(inc.prediction_details as any).recommended_urgency || '—'}</div>
-                                <div className="text-slate-400">Urgency</div>
+                              <div className="bg-canvas-soft rounded-lg p-2 text-center">
+                                <div className="text-lg font-bold text-ink">{(inc.prediction_details as any).recommended_urgency || '—'}</div>
+                                <div className="text-ink-faint">Urgency</div>
                               </div>
                             </div>
                           </div>
@@ -200,21 +200,21 @@ export default function Incidents() {
                         {remediationByIncident[inc.id] && (
                           <div className="space-y-3">
                             <div className="flex items-center gap-2 mb-1">
-                              <Wrench size={14} className="text-orange-600" />
-                              <span className="text-xs font-semibold text-slate-600">Remediation</span>
+                              <Wrench size={14} className="text-warning" />
+                              <span className="text-xs font-semibold text-ink-soft">Remediation</span>
                             </div>
 
                             {remediationByIncident[inc.id]?.plan_summary && (
                               <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                                <div className="bg-green-50/60 rounded-lg p-3">
-                                  <div className="text-slate-400 mb-1">Plan Summary</div>
-                                  <div className="text-slate-700 leading-relaxed">
+                                <div className="bg-canvas-soft rounded-lg p-3">
+                                  <div className="text-ink-faint mb-1">Plan Summary</div>
+                                  <div className="text-ink-soft leading-relaxed">
                                     {remediationByIncident[inc.id]?.plan_summary}
                                   </div>
                                 </div>
-                                <div className="bg-green-50/60 rounded-lg p-3">
-                                  <div className="text-slate-400 mb-1">Delivery Strategy</div>
-                                  <div className="text-slate-700 capitalize">
+                                <div className="bg-canvas-soft rounded-lg p-3">
+                                  <div className="text-ink-faint mb-1">Delivery Strategy</div>
+                                  <div className="text-ink-soft capitalize">
                                     {remediationByIncident[inc.id]?.strategy || 'shell'}
                                   </div>
                                 </div>
@@ -223,16 +223,16 @@ export default function Incidents() {
 
                             {remediationSteps.length > 0 && (
                               <div>
-                                <div className="text-xs font-semibold text-slate-600 mb-2">Simple Fix Steps</div>
+                                <div className="text-xs font-semibold text-ink-soft mb-2">Simple Fix Steps</div>
                                 <div className="space-y-2">
                                   {remediationSteps.map((step, index) => {
                                     const action = String(step['action'] || `Step ${index + 1}`);
                                     const description = String(step['description'] || '');
                                     return (
-                                      <div key={index} className="rounded-lg bg-orange-50/70 border border-orange-100 px-3 py-2">
-                                        <div className="text-xs font-medium text-slate-700">{index + 1}. {action}</div>
+                                      <div key={index} className="rounded-lg bg-warning/8 border border-warning/20 px-3 py-2">
+                                        <div className="text-xs font-medium text-ink-soft">{index + 1}. {action}</div>
                                         {description && (
-                                          <div className="text-xs text-slate-500 mt-1 leading-relaxed">{description}</div>
+                                          <div className="text-xs text-ink-mute mt-1 leading-relaxed">{description}</div>
                                         )}
                                       </div>
                                     );
@@ -262,7 +262,7 @@ export default function Incidents() {
         </AnimatePresence>
 
         {incidentList.length === 0 && (
-          <div className="text-center py-16 text-slate-400">
+          <div className="text-center py-16 text-ink-faint">
             <AlertTriangle size={32} className="mx-auto mb-3 opacity-30" />
             <p>No incidents found</p>
           </div>
@@ -271,25 +271,25 @@ export default function Incidents() {
         {/* ── Pagination controls ─────────────────────────── */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between pt-4 flex-wrap gap-3">
-            <p className="text-xs text-slate-400">
-              Showing <b className="text-slate-600">{(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, incidentList.length)}</b> of <b className="text-slate-600">{incidentList.length}</b> incidents
+            <p className="text-xs text-ink-faint">
+              Showing <b className="text-ink-soft">{(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, incidentList.length)}</b> of <b className="text-ink-soft">{incidentList.length}</b> incidents
             </p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-slate-600 hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={14} />
                 Previous
               </button>
-              <span className="text-xs text-slate-500 font-medium px-2">
+              <span className="text-xs text-ink-mute font-medium px-2">
                 Page {currentPage} of {totalPages}
               </span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-slate-600 hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Next
                 <ChevronRight size={14} />

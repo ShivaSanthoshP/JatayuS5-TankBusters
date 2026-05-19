@@ -17,23 +17,23 @@ import type { Simulator, SimulatorMetrics } from '../types';
 /* ── Constants ────────────────────────────────────────────────── */
 
 const TYPE_META: Record<string, { icon: React.ElementType; label: string; gradient: string; iconColor: string }> = {
-  vm:            { icon: Server,    label: 'EC2 / VM',       gradient: 'from-blue-500/10 to-blue-50/60',    iconColor: '#3b82f6' },
-  db:            { icon: Database,  label: 'Database',       gradient: 'from-violet-500/10 to-violet-50/60', iconColor: '#8b5cf6' },
-  cache:         { icon: HardDrive, label: 'Cache (Redis)',  gradient: 'from-red-500/10 to-red-50/60',      iconColor: '#ef4444' },
-  load_balancer: { icon: Globe,     label: 'Load Balancer',  gradient: 'from-amber-500/10 to-amber-50/60',  iconColor: '#f59e0b' },
-  queue:         { icon: Radio,     label: 'Message Queue',  gradient: 'from-emerald-500/10 to-emerald-50/60', iconColor: '#10b981' },
-  metrics:       { icon: BarChart2, label: 'Fleet Metrics',  gradient: 'from-teal-500/10 to-teal-50/60',    iconColor: '#14b8a6' },
+  vm:            { icon: Server,    label: 'EC2 / VM',       gradient: 'from-[rgba(58,90,125,0.10)] to-transparent',   iconColor: '#3a5a7d' },
+  db:            { icon: Database,  label: 'Database',       gradient: 'from-[rgba(102,71,116,0.10)] to-transparent',  iconColor: '#664774' },
+  cache:         { icon: HardDrive, label: 'Cache (Redis)',  gradient: 'from-[rgba(197,82,77,0.10)] to-transparent',   iconColor: '#c5524d' },
+  load_balancer: { icon: Globe,     label: 'Load Balancer',  gradient: 'from-[rgba(192,138,62,0.10)] to-transparent',  iconColor: '#c08a3e' },
+  queue:         { icon: Radio,     label: 'Message Queue',  gradient: 'from-[rgba(61,125,101,0.10)] to-transparent',  iconColor: '#3d7d65' },
+  metrics:       { icon: BarChart2, label: 'Fleet Metrics',  gradient: 'from-[rgba(36,71,69,0.08)] to-transparent',    iconColor: '#244745' },
 };
 
 const METRIC_DEFS: { key: keyof SimulatorMetrics; label: string; unit: string; max: number; color: string }[] = [
-  { key: 'cpu_percent',      label: 'CPU',      unit: '%',     max: 100,  color: '#3b82f6' },
-  { key: 'memory_percent',   label: 'Memory',   unit: '%',     max: 100,  color: '#8b5cf6' },
-  { key: 'disk_percent',     label: 'Disk',     unit: '%',     max: 100,  color: '#f59e0b' },
-  { key: 'network_in_mbps',  label: 'Net In',   unit: 'Mbps',  max: 1000, color: '#10b981' },
-  { key: 'network_out_mbps', label: 'Net Out',  unit: 'Mbps',  max: 1000, color: '#06b6d4' },
-  { key: 'request_rate',     label: 'Req/s',    unit: 'req/s', max: 5000, color: '#f97316' },
-  { key: 'error_rate',       label: 'Errors',   unit: '%',     max: 100,  color: '#ef4444' },
-  { key: 'latency_ms',       label: 'Latency',  unit: 'ms',    max: 2000, color: '#a855f7' },
+  { key: 'cpu_percent',      label: 'CPU',      unit: '%',     max: 100,  color: '#244745' }, // accent
+  { key: 'memory_percent',   label: 'Memory',   unit: '%',     max: 100,  color: '#3a6f6a' }, // accent-bright
+  { key: 'disk_percent',     label: 'Disk',     unit: '%',     max: 100,  color: '#3a5a7d' }, // info
+  { key: 'network_in_mbps',  label: 'Net In',   unit: 'Mbps',  max: 1000, color: '#3d7d65' }, // success
+  { key: 'network_out_mbps', label: 'Net Out',  unit: 'Mbps',  max: 1000, color: '#664774' }, // plum
+  { key: 'request_rate',     label: 'Req/s',    unit: 'req/s', max: 5000, color: '#c08a3e' }, // warning
+  { key: 'error_rate',       label: 'Errors',   unit: '%',     max: 100,  color: '#c5524d' }, // critical
+  { key: 'latency_ms',       label: 'Latency',  unit: 'ms',    max: 2000, color: '#15191a' }, // ink
 ];
 
 const DEFAULT_METRICS: SimulatorMetrics = {
@@ -52,9 +52,9 @@ function MiniMetricBar({ label, value, max, unit, color }: { label: string; valu
   const pct = Math.min(100, (value / max) * 100);
   return (
     <div className="space-y-0.5">
-      <div className="flex justify-between text-[10px] text-slate-400">
+      <div className="flex justify-between text-[10px] text-ink-faint">
         <span>{label}</span>
-        <span className="font-medium text-slate-600">{value}{unit}</span>
+        <span className="font-medium text-ink-soft">{value}{unit}</span>
       </div>
       <div className="h-1 bg-black/8 rounded-full overflow-hidden">
         <motion.div
@@ -80,7 +80,7 @@ function MetricsConfigPanel({
     <div className="grid grid-cols-2 gap-x-4 gap-y-3">
       {METRIC_DEFS.map(({ key, label, unit, max }) => (
         <div key={key}>
-          <label className="block text-[10px] font-medium text-slate-500 mb-1">
+          <label className="block text-[10px] font-medium text-ink-mute mb-1">
             {label} ({unit})
           </label>
           <div className="flex items-center gap-2">
@@ -93,7 +93,7 @@ function MetricsConfigPanel({
               onChange={(e) => onChange(key, Number(e.target.value))}
               className="flex-1 accent-accent h-1.5"
             />
-            <span className="text-xs text-slate-600 w-12 text-right tabular-nums">
+            <span className="text-xs text-ink-soft w-12 text-right tabular-nums">
               {config[key] ?? 0}
             </span>
           </div>
@@ -146,7 +146,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
     <Portal>
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
+      className="sheet-backdrop flex items-center justify-center px-4"
       onClick={onClose}
     >
       <motion.div
@@ -156,25 +156,25 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800">New Simulator</h2>
+          <h2 className="text-lg font-bold text-ink">New Simulator</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-black/8 rounded-lg transition-colors">
-            <X size={18} className="text-slate-400" />
+            <X size={18} className="text-ink-faint" />
           </button>
         </div>
 
         <div className="space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Name *</label>
+            <label className="block text-xs font-medium text-ink-mute mb-1.5">Name *</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. web-server-01"
-              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
+              className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
             />
           </div>
 
           {/* Type */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Instance Type *</label>
+            <label className="block text-xs font-medium text-ink-mute mb-1.5">Instance Type *</label>
             <div className="grid grid-cols-2 gap-2">
               {(['vm', 'db', 'cache', 'load_balancer', 'queue'] as const).map((t) => {
                 const meta = TYPE_META[t];
@@ -184,7 +184,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       type === t
                         ? 'bg-accent/10 text-accent ring-1 ring-accent/40'
-                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        : 'bg-canvas-soft text-ink-soft hover:bg-canvas'
                     }`}
                   >
                     <Icon size={15} />{meta.label}
@@ -196,23 +196,23 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 
           {/* Interval */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Log Playback Interval (seconds)</label>
+            <label className="block text-xs font-medium text-ink-mute mb-1.5">Log Playback Interval (seconds)</label>
             <div className="relative">
-              <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
               <input type="number" min="1" max="60" value={interval} onChange={(e) => setInterval(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
+                className="w-full bg-white border border-hairline-strong rounded-lg pl-8 pr-3 py-2 text-sm text-ink focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
               />
             </div>
-            <p className="text-xs text-slate-400 mt-1">One log line emitted every {interval || '5'}s</p>
+            <p className="text-xs text-ink-faint mt-1">One log line emitted every {interval || '5'}s</p>
           </div>
 
           {/* File upload */}
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1.5">Log File (.log / .txt)</label>
+            <label className="block text-xs font-medium text-ink-mute mb-1.5">Log File (.log / .txt)</label>
             <input ref={fileRef} type="file" accept=".log,.txt" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="hidden" />
             <button onClick={() => fileRef.current?.click()}
               className={`w-full flex flex-col items-center justify-center gap-2 px-4 py-5 border-2 border-dashed rounded-lg text-sm transition-colors ${
-                file ? 'border-accent/40 bg-accent/5 text-accent' : 'border-slate-200 text-slate-400 hover:border-accent/40 hover:text-accent'
+                file ? 'border-accent/40 bg-accent/5 text-accent' : 'border-hairline-strong text-ink-faint hover:border-accent/40 hover:text-accent'
               }`}
             >
               {file ? (
@@ -224,19 +224,19 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
           </div>
 
           {/* ── Performance Metrics toggle ── */}
-          <div className="bg-slate-50 rounded-xl overflow-hidden">
+          <div className="bg-canvas-soft rounded-xl overflow-hidden">
             <button
               onClick={() => setMetricsOn((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-100 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-canvas transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Activity size={15} className="text-accent" />
-                <span className="text-sm font-medium text-slate-700">Performance Metrics</span>
-                <span className="text-xs text-slate-400">optional</span>
+                <span className="text-sm font-medium text-ink-soft">Performance Metrics</span>
+                <span className="text-xs text-ink-faint">optional</span>
               </div>
               {metricsOn
                 ? <ToggleRight size={22} className="text-accent" />
-                : <ToggleLeft size={22} className="text-slate-300" />}
+                : <ToggleLeft size={22} className="text-ink-faint" />}
             </button>
 
             <AnimatePresence>
@@ -245,8 +245,8 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                   initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-4 pb-4 pt-2 border-t border-slate-200/70 space-y-3">
-                    <p className="text-xs text-slate-400">
+                  <div className="px-4 pb-4 pt-2 border-t border-hairline-strong/70 space-y-3">
+                    <p className="text-xs text-ink-faint">
                       Set simulated metric values. Small variance (±5%) applied automatically while running.
                     </p>
                     <MetricsConfigPanel config={metricsConfig} onChange={handleMetricChange} />
@@ -257,14 +257,14 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
           </div>
         </div>
 
-        {error && <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
+        {error && <p className="text-xs text-critical bg-critical/10 border border-critical/20 px-3 py-2 rounded-lg">{error}</p>}
 
         <div className="flex gap-3 pt-1">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-black/5 text-slate-600 rounded-lg text-sm font-medium hover:bg-black/10 transition-colors">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-black/5 text-ink-soft rounded-lg text-sm font-medium hover:bg-black/10 transition-colors">
             Cancel
           </button>
           <button onClick={handleCreate} disabled={!name.trim() || creating}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40"
           >
             {creating
               ? <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full" />Creating...</>
@@ -304,7 +304,7 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
     <Portal>
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
+      className="sheet-backdrop flex items-center justify-center px-4"
       onClick={onClose}
     >
       <motion.div
@@ -315,17 +315,17 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity size={16} className="text-accent" />
-            <h2 className="text-lg font-bold text-slate-800">Metrics — {simulator.name}</h2>
+            <h2 className="text-lg font-bold text-ink">Metrics — {simulator.name}</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-black/8 rounded-lg transition-colors"><X size={18} className="text-slate-400" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-black/8 rounded-lg transition-colors"><X size={18} className="text-ink-faint" /></button>
         </div>
 
         {/* Toggle */}
         <button onClick={() => setEnabled((v) => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-canvas-soft rounded-xl hover:bg-canvas transition-colors"
         >
-          <span className="text-sm font-medium text-slate-700">Enable metrics simulation</span>
-          {enabled ? <ToggleRight size={22} className="text-accent" /> : <ToggleLeft size={22} className="text-slate-300" />}
+          <span className="text-sm font-medium text-ink-soft">Enable metrics simulation</span>
+          {enabled ? <ToggleRight size={22} className="text-accent" /> : <ToggleLeft size={22} className="text-ink-faint" />}
         </button>
 
         <AnimatePresence>
@@ -337,9 +337,9 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
         </AnimatePresence>
 
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-black/5 text-slate-600 rounded-lg text-sm font-medium hover:bg-black/10 transition-colors">Cancel</button>
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 bg-black/5 text-ink-soft rounded-lg text-sm font-medium hover:bg-black/10 transition-colors">Cancel</button>
           <button onClick={handleSave} disabled={saving}
-            className="flex-1 px-4 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
+            className="flex-1 px-4 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
@@ -352,12 +352,12 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
 
 /* ── LogViewerModal ───────────────────────────────────────────── */
 const LEVEL_COLORS: Record<string, string> = {
-  CRITICAL: 'text-rose-400',
-  ERROR:    'text-red-400',
-  WARN:     'text-amber-300',
-  WARNING:  'text-amber-300',
-  INFO:     'text-emerald-300',
-  DEBUG:    'text-sky-300',
+  CRITICAL: 'text-[#e0726c]',
+  ERROR:    'text-[#e0726c]',
+  WARN:     'text-[#dba94f]',
+  WARNING:  'text-[#dba94f]',
+  INFO:     'text-[#7fb3a3]',
+  DEBUG:    'text-[#7fa3c4]',
 };
 
 function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose: () => void }) {
@@ -388,7 +388,7 @@ function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose:
     <Portal>
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-3 sm:px-4"
+      className="sheet-backdrop flex items-center justify-center px-3 sm:px-4"
       onClick={onClose}
     >
       <motion.div
@@ -397,40 +397,40 @@ function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose:
         className="glass-modal w-full max-w-5xl flex flex-col overflow-hidden h-[88vh] sm:h-[76vh]"
       >
         {/* Header */}
-        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 border-b border-slate-200/60 shrink-0 flex-wrap">
-          <Terminal size={15} className="text-slate-400 shrink-0" />
-          <span className="font-semibold text-slate-800 text-sm truncate">{simulator.name}</span>
+        <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 border-b border-hairline-strong/60 shrink-0 flex-wrap">
+          <Terminal size={15} className="text-ink-faint shrink-0" />
+          <span className="font-semibold text-ink text-sm truncate">{simulator.name}</span>
           <StatusBadge status={wsStatus} pulse={wsStatus === 'running'} />
-          <span className={`hidden sm:flex items-center gap-1 text-xs ${connected ? 'text-green-500' : 'text-slate-400'}`}>
+          <span className={`hidden sm:flex items-center gap-1 text-xs ${connected ? 'text-success' : 'text-ink-faint'}`}>
             {connected ? <Wifi size={11} /> : <WifiOff size={11} />}
             {connected ? 'Live' : 'Disconnected'}
           </span>
           {!connected && <button onClick={reconnect} className="text-xs text-accent hover:underline">Reconnect</button>}
           <div className="ml-auto flex items-center gap-2">
             {isMetrics ? (
-              <span className="hidden sm:inline text-xs text-slate-400 tabular-nums">
+              <span className="hidden sm:inline text-xs text-ink-faint tabular-nums">
                 {logs.length} {logs.length === 1 ? 'line' : 'lines'} streamed
               </span>
             ) : (
-              <span className="hidden sm:inline text-xs text-slate-400 tabular-nums">{currentLine} / {totalLines} lines</span>
+              <span className="hidden sm:inline text-xs text-ink-faint tabular-nums">{currentLine} / {totalLines} lines</span>
             )}
-            <button onClick={clearLogs} className="px-2.5 py-1 bg-black/5 hover:bg-black/10 text-slate-500 text-xs rounded-lg transition-colors">Clear</button>
-            <button onClick={onClose} className="p-1.5 hover:bg-black/8 rounded-lg transition-colors"><X size={15} className="text-slate-400" /></button>
+            <button onClick={clearLogs} className="px-2.5 py-1 bg-black/5 hover:bg-black/10 text-ink-mute text-xs rounded-lg transition-colors">Clear</button>
+            <button onClick={onClose} className="p-1.5 hover:bg-black/8 rounded-lg transition-colors"><X size={15} className="text-ink-faint" /></button>
           </div>
         </div>
 
         {/* Progress bar — only meaningful for log-file playback */}
         {!isMetrics && (
-          <div className="h-0.5 bg-slate-100 shrink-0">
+          <div className="h-0.5 bg-ink/8 shrink-0">
             <motion.div className="h-full bg-accent" animate={{ width: `${progress}%` }} transition={{ duration: 0.3 }} />
           </div>
         )}
 
         <div className="flex flex-1 overflow-hidden">
           {/* Log terminal */}
-          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto bg-slate-950 font-mono text-xs p-4">
+          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-auto terminal-pane font-mono text-xs p-4">
             {logs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-2">
+              <div className="flex flex-col items-center justify-center h-full text-ink-soft gap-2">
                 <Terminal size={28} className="opacity-40" />
                 <p>
                   {isMetrics
@@ -441,11 +441,11 @@ function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose:
             ) : (
               logs.map((entry, i) => {
                 const colorClass = entry.level
-                  ? LEVEL_COLORS[entry.level.toUpperCase()] ?? 'text-green-400'
-                  : 'text-green-400';
+                  ? LEVEL_COLORS[entry.level.toUpperCase()] ?? 'text-[#7fb3a3]'
+                  : 'text-[#7fb3a3]';
                 return (
                   <div key={i} className="flex gap-3 py-0.5 hover:bg-white/5 px-1 rounded leading-5">
-                    <span className="text-slate-600 select-none w-10 text-right shrink-0 tabular-nums">{i + 1}</span>
+                    <span className="text-ink-soft select-none w-10 text-right shrink-0 tabular-nums">{i + 1}</span>
                     <span className={`${colorClass} break-all whitespace-pre-wrap`}>{entry.line}</span>
                   </div>
                 );
@@ -456,10 +456,10 @@ function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose:
 
           {/* Live metrics panel — log-file simulators only */}
           {hasMetricsPanel && liveMetrics && (
-            <div className="hidden md:flex md:flex-col w-56 shrink-0 border-l border-slate-200/30 bg-slate-900/60 p-4 gap-3 overflow-auto">
+            <div className="hidden md:flex md:flex-col w-56 shrink-0 border-l border-white/5 bg-[#13171a] p-4 gap-3 overflow-auto">
               <div className="flex items-center gap-1.5 mb-2">
                 <Activity size={12} className="text-accent" />
-                <span className="text-xs font-semibold text-slate-300">Live Metrics</span>
+                <span className="text-xs font-semibold text-ink-faint">Live Metrics</span>
               </div>
               {METRIC_DEFS.filter((d) => liveMetrics[d.key] != null).map(({ key, label, unit, max, color }) => (
                 <MiniMetricBar
@@ -509,21 +509,21 @@ function SimulatorCard({
             <Icon size={20} style={{ color: meta.iconColor }} />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-slate-800 truncate">{sim.name}</h3>
-            <p className="text-xs text-slate-400">{meta.label}</p>
+            <h3 className="text-sm font-semibold text-ink truncate">{sim.name}</h3>
+            <p className="text-xs text-ink-faint">{meta.label}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => onViewLogs(sim)}
             title="Open live log terminal"
-            className="group relative p-1.5 rounded-lg bg-slate-900/85 hover:bg-slate-900 text-emerald-300 hover:text-emerald-200 ring-1 ring-slate-700/60 hover:ring-emerald-400/40 transition-all shadow-sm"
+            className="group relative p-1.5 rounded-lg bg-[#13171a] hover:bg-[#0e1112] text-[#7fb3a3] hover:text-[#9fcab9] ring-1 ring-white/10 hover:ring-[#7fb3a3]/40 transition-all shadow-sm"
           >
             <Terminal size={13} />
             {sim.status === 'running' && (
               <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
               </span>
             )}
           </button>
@@ -534,7 +534,7 @@ function SimulatorCard({
       {/* Log progress — only for vm/db types */}
       {!isMetrics && (
         <div className="space-y-1.5">
-          <div className="flex justify-between text-xs text-slate-400">
+          <div className="flex justify-between text-xs text-ink-faint">
             <span>Log Progress</span>
             <span className="tabular-nums">{sim.current_line_index} / {sim.total_lines} lines</span>
           </div>
@@ -546,11 +546,11 @@ function SimulatorCard({
 
       {/* Metrics mini-bars */}
       {(isMetrics || (sim.metrics_enabled && Object.keys(cfg).length > 0)) && (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1 border-t border-slate-200/50">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1 border-t border-hairline-strong/50">
           {isMetrics ? (
             /* Fleet metrics: show live indicator */
             <div className="col-span-2 flex items-center gap-2 text-xs">
-              <span className={`flex items-center gap-1 ${sim.status === 'running' ? 'text-teal-600' : 'text-slate-400'}`}>
+              <span className={`flex items-center gap-1 ${sim.status === 'running' ? 'text-accent' : 'text-ink-faint'}`}>
                 <Activity size={11} />
                 {sim.status === 'running' ? 'Streaming infrastructure metrics' : 'Metrics paused'}
               </span>
@@ -564,7 +564,7 @@ function SimulatorCard({
       )}
 
       {/* Info row */}
-      <div className="flex items-center gap-3 text-xs text-slate-400">
+      <div className="flex items-center gap-3 text-xs text-ink-faint">
         {!isMetrics && <span className="flex items-center gap-1"><Clock size={10} />{sim.interval_seconds}s</span>}
         {!isMetrics && <span className="flex items-center gap-1"><FileText size={10} />{sim.total_lines > 0 ? `${sim.total_lines} lines` : 'No log'}</span>}
         {isMetrics && <span className="flex items-center gap-1"><Activity size={10} />Auto-generated fleet node</span>}
@@ -574,31 +574,31 @@ function SimulatorCard({
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-1 pt-2 border-t border-slate-200/60 flex-wrap">
+      <div className="flex items-center gap-1 pt-2 border-t border-hairline-strong/60 flex-wrap">
         {sim.status !== 'running' && (
           <button onClick={() => onAction(sim.id, 'start')}
             disabled={!isMetrics && sim.total_lines === 0}
             title={!isMetrics && sim.total_lines === 0 ? 'No log file attached' : 'Start'}
-            className="flex items-center gap-1 px-2 py-1.5 bg-green-500/10 text-green-600 rounded-lg text-xs font-medium hover:bg-green-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-2 py-1.5 bg-success/10 text-success rounded-lg text-xs font-medium hover:bg-success/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Play size={11} /> Start
           </button>
         )}
         {sim.status === 'running' && (
           <button onClick={() => onAction(sim.id, 'pause')}
-            className="flex items-center gap-1 px-2 py-1.5 bg-amber-500/10 text-amber-600 rounded-lg text-xs font-medium hover:bg-amber-500/20 transition-colors"
+            className="flex items-center gap-1 px-2 py-1.5 bg-warning/10 text-warning rounded-lg text-xs font-medium hover:bg-warning/20 transition-colors"
           >
             <Pause size={11} /> Pause
           </button>
         )}
         <button onClick={() => onAction(sim.id, 'stop')}
-          className="flex items-center gap-1 px-2 py-1.5 bg-slate-500/10 text-slate-500 rounded-lg text-xs font-medium hover:bg-slate-500/20 transition-colors"
+          className="flex items-center gap-1 px-2 py-1.5 bg-ink/8 text-ink-mute rounded-lg text-xs font-medium hover:bg-ink/15 transition-colors"
         >
           <Square size={11} /> Stop
         </button>
         {!isMetrics && (
           <button onClick={() => onAction(sim.id, 'reset')}
-            className="flex items-center gap-1 px-2 py-1.5 bg-blue-500/10 text-blue-500 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition-colors"
+            className="flex items-center gap-1 px-2 py-1.5 bg-info/10 text-info rounded-lg text-xs font-medium hover:bg-info/20 transition-colors"
           >
             <RotateCcw size={11} /> Reset
           </button>
@@ -608,20 +608,20 @@ function SimulatorCard({
 
         {!isMetrics && (
           <button onClick={() => onEditMetrics(sim)} title="Configure metrics"
-            className={`p-1.5 rounded-lg transition-colors ${sim.metrics_enabled ? 'bg-accent/10 text-accent hover:bg-accent/20' : 'hover:bg-black/8 text-slate-400'}`}
+            className={`p-1.5 rounded-lg transition-colors ${sim.metrics_enabled ? 'bg-accent/10 text-accent hover:bg-accent/20' : 'hover:bg-black/8 text-ink-faint'}`}
           >
             <Activity size={13} />
           </button>
         )}
         {!isMetrics && (
           <button onClick={() => onViewLogs(sim)}
-            className="flex items-center gap-0.5 px-2 py-1.5 bg-violet-500/10 text-violet-600 rounded-lg text-xs font-medium hover:bg-violet-500/20 transition-colors"
+            className="flex items-center gap-0.5 px-2 py-1.5 bg-accent/10 text-accent rounded-lg text-xs font-medium hover:bg-accent/20 transition-colors"
           >
             <Terminal size={11} /><ChevronRight size={10} />
           </button>
         )}
-        <button onClick={() => onDelete(sim.id)} title="Delete" className="p-1.5 hover:bg-red-100 rounded-lg transition-colors">
-          <Trash2 size={13} className="text-red-400" />
+        <button onClick={() => onDelete(sim.id)} title="Delete" className="p-1.5 hover:bg-critical/15 rounded-lg transition-colors">
+          <Trash2 size={13} className="text-critical" />
         </button>
       </div>
     </motion.div>
@@ -655,18 +655,18 @@ export default function Simulators() {
       <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3 sm:gap-4">
         <div>
           <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Simulators</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+          <p className="text-xs sm:text-sm text-ink-mute mt-0.5">
             EC2 / VM, database, and fleet metrics simulators — stream logs &amp; metrics in real time
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           {running > 0 && (
-            <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full border border-green-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 pulse-live" />{running} running
+            <span className="flex items-center gap-1.5 text-xs text-success bg-success/10 px-3 py-1.5 rounded-full border border-success/25">
+              <span className="w-1.5 h-1.5 rounded-full bg-success pulse-live" />{running} running
             </span>
           )}
           <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors shadow-sm"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors shadow-sm"
           >
             <Plus size={15} />New Simulator
           </button>
@@ -677,13 +677,13 @@ export default function Simulators() {
       {list.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Total',    value: list.length,                                              color: 'text-slate-700' },
-            { label: 'Running',  value: running,                                                  color: 'text-green-600' },
-            { label: 'Paused',   value: list.filter((s) => s.status === 'paused').length,         color: 'text-amber-600' },
-            { label: 'Fleet',    value: list.filter((s) => s.simulator_type === 'metrics').length, color: 'text-teal-600' },
+            { label: 'Total',    value: list.length,                                              color: 'text-ink-soft' },
+            { label: 'Running',  value: running,                                                  color: 'text-success' },
+            { label: 'Paused',   value: list.filter((s) => s.status === 'paused').length,         color: 'text-warning' },
+            { label: 'Fleet',    value: list.filter((s) => s.simulator_type === 'metrics').length, color: 'text-accent' },
           ].map(({ label, value, color }) => (
             <div key={label} className="glass px-4 py-3 flex items-center justify-between">
-              <span className="text-xs text-slate-500">{label}</span>
+              <span className="text-xs text-ink-mute">{label}</span>
               <span className={`text-lg font-bold ${color}`}>{value}</span>
             </div>
           ))}
@@ -692,12 +692,12 @@ export default function Simulators() {
 
       {/* Grid */}
       {list.length === 0 ? (
-        <div className="glass flex flex-col items-center justify-center py-24 text-slate-400 gap-3">
+        <div className="glass flex flex-col items-center justify-center py-24 text-ink-faint gap-3">
           <Server size={36} className="opacity-25" />
           <p className="text-sm font-medium">No simulators yet</p>
           <p className="text-xs">Create one and upload a log file to start streaming</p>
           <button onClick={() => setShowCreate(true)}
-            className="mt-2 flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+            className="mt-2 flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors"
           >
             <Plus size={14} />New Simulator
           </button>

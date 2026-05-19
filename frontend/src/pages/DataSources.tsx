@@ -23,15 +23,17 @@ const PROVIDER_ICONS: Record<string, React.ElementType> = {
   custom: Send,
 };
 
+// Provider accents — desaturated to fit the warm-cream system while still
+// staying brand-recognizable (amber for AWS, info-blue for Azure, etc.).
 const PROVIDER_COLORS: Record<string, { bg: string; accent: string; glow: string }> = {
-  simulated:  { bg: 'from-green-500/10 to-green-100/40',  accent: '#22c55e', glow: '0 0 30px rgba(34,197,94,0.1)' },
-  aws:        { bg: 'from-orange-500/10 to-orange-100/40', accent: '#f97316', glow: '0 0 30px rgba(249,115,22,0.1)' },
-  azure:      { bg: 'from-blue-500/10 to-blue-100/40',    accent: '#3b82f6', glow: '0 0 30px rgba(59,130,246,0.1)' },
-  gcp:        { bg: 'from-red-500/10 to-red-100/40',      accent: '#ef4444', glow: '0 0 30px rgba(239,68,68,0.1)' },
-  prometheus: { bg: 'from-rose-500/10 to-rose-100/40',    accent: '#e11d48', glow: '0 0 30px rgba(225,29,72,0.1)' },
-  docker:     { bg: 'from-sky-500/10 to-sky-100/40',      accent: '#0ea5e9', glow: '0 0 30px rgba(14,165,233,0.1)' },
-  logfile:    { bg: 'from-teal-500/10 to-teal-100/40',    accent: '#14b8a6', glow: '0 0 30px rgba(20,184,166,0.1)' },
-  custom:     { bg: 'from-violet-500/10 to-violet-100/40', accent: '#8b5cf6', glow: '0 0 30px rgba(139,92,246,0.1)' },
+  simulated:  { bg: 'from-[rgba(61,125,101,0.10)] to-transparent',  accent: '#3d7d65', glow: '0 0 30px rgba(61,125,101,0.10)' },
+  aws:        { bg: 'from-[rgba(192,138,62,0.12)] to-transparent',  accent: '#c08a3e', glow: '0 0 30px rgba(192,138,62,0.10)' },
+  azure:      { bg: 'from-[rgba(58,90,125,0.10)] to-transparent',   accent: '#3a5a7d', glow: '0 0 30px rgba(58,90,125,0.10)' },
+  gcp:        { bg: 'from-[rgba(197,82,77,0.10)] to-transparent',   accent: '#c5524d', glow: '0 0 30px rgba(197,82,77,0.10)' },
+  prometheus: { bg: 'from-[rgba(192,138,62,0.10)] to-transparent',  accent: '#b07a2e', glow: '0 0 30px rgba(176,122,46,0.10)' },
+  docker:     { bg: 'from-[rgba(58,111,106,0.10)] to-transparent',  accent: '#3a6f6a', glow: '0 0 30px rgba(58,111,106,0.10)' },
+  logfile:    { bg: 'from-[rgba(36,71,69,0.08)] to-transparent',    accent: '#244745', glow: '0 0 30px rgba(36,71,69,0.10)' },
+  custom:     { bg: 'from-[rgba(102,71,116,0.10)] to-transparent',  accent: '#664774', glow: '0 0 30px rgba(102,71,116,0.10)' },
 };
 
 export default function DataSources() {
@@ -111,7 +113,7 @@ export default function DataSources() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <div>
         <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Data Sources</h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+        <p className="text-xs sm:text-sm text-ink-mute mt-1">
           Connect to cloud platforms, monitoring tools, or use simulated data
         </p>
       </div>
@@ -119,7 +121,7 @@ export default function DataSources() {
       {/* ── Active sources ────────────────────────────────────── */}
       {sources.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-slate-600 mb-3">Active Sources</h2>
+          <h2 className="text-sm font-semibold text-ink-soft mb-3">Active Sources</h2>
           <div className="flex flex-wrap gap-3">
             {sources.map(src => {
               const c = PROVIDER_COLORS[src.provider] || PROVIDER_COLORS.simulated;
@@ -133,15 +135,15 @@ export default function DataSources() {
                 >
                   <Icon size={16} style={{ color: c.accent }} />
                   <div>
-                    <span className="text-sm font-medium text-slate-800">{src.name || src.provider}</span>
+                    <span className="text-sm font-medium text-ink">{src.name || src.provider}</span>
                     <StatusBadge status={src.status} />
                   </div>
                   {src.provider !== 'simulated' && (
                     <button
                       onClick={() => handleRemove(src.provider)}
-                      className="ml-2 p-1 hover:bg-red-100 rounded transition-colors"
+                      className="ml-2 p-1 hover:bg-critical/15 rounded transition-colors"
                     >
-                      <Trash2 size={12} className="text-red-600" />
+                      <Trash2 size={12} className="text-critical" />
                     </button>
                   )}
                 </motion.div>
@@ -153,7 +155,7 @@ export default function DataSources() {
 
       {/* ── Provider cards ────────────────────────────────────── */}
       <div>
-        <h2 className="text-sm font-semibold text-slate-600 mb-3">Available Providers</h2>
+        <h2 className="text-sm font-semibold text-ink-soft mb-3">Available Providers</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {providers.map((prov, i) => {
             const Icon = PROVIDER_ICONS[prov.id] || Database;
@@ -181,15 +183,15 @@ export default function DataSources() {
                     <Icon size={20} style={{ color: c.accent }} />
                   </div>
                   {isConfigured ? (
-                    <span className="flex items-center gap-1 text-xs text-green-600">
+                    <span className="flex items-center gap-1 text-xs text-success">
                       <CheckCircle size={12} /> Connected
                     </span>
                   ) : (
-                    <ChevronRight size={16} className="text-slate-400" />
+                    <ChevronRight size={16} className="text-ink-faint" />
                   )}
                 </div>
-                <h3 className="text-slate-800 font-semibold">{prov.name}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{prov.description}</p>
+                <h3 className="text-ink font-semibold">{prov.name}</h3>
+                <p className="text-xs text-ink-mute leading-relaxed">{prov.description}</p>
               </motion.div>
             );
           })}
@@ -204,7 +206,7 @@ export default function DataSources() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
+            className="sheet-backdrop flex items-center justify-center px-4"
             onClick={() => setConfiguring(null)}
           >
             <motion.div
@@ -215,26 +217,26 @@ export default function DataSources() {
               className="glass-modal w-full max-w-lg p-6 space-y-5"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-800">Configure {configuring.name}</h2>
+                <h2 className="text-lg font-bold text-ink">Configure {configuring.name}</h2>
                 <button onClick={() => setConfiguring(null)} className="p-2 hover:bg-black/8 rounded-lg">
-                  <X size={18} className="text-slate-500" />
+                  <X size={18} className="text-ink-mute" />
                 </button>
               </div>
 
-              <p className="text-xs text-slate-500">{configuring.description}</p>
+              <p className="text-xs text-ink-mute">{configuring.description}</p>
 
               {/* Config fields */}
               <div className="space-y-3">
                 {configuring.config_fields.map(field => (
                   <div key={field.key}>
-                    <label className="text-xs text-slate-500 block mb-1">
-                      {field.label} {field.required && <span className="text-red-600">*</span>}
+                    <label className="text-xs text-ink-mute block mb-1">
+                      {field.label} {field.required && <span className="text-critical">*</span>}
                     </label>
                     {field.type === 'select' ? (
                       <select
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
+                        className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                       >
                         <option value="">Select...</option>
                         {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -244,7 +246,7 @@ export default function DataSources() {
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
                         rows={4}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 resize-none"
+                        className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 resize-none"
                       />
                     ) : field.type === 'boolean' ? (
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -254,14 +256,14 @@ export default function DataSources() {
                           onChange={e => setFormData({ ...formData, [field.key]: String(e.target.checked) })}
                           className="w-4 h-4 rounded accent-accent"
                         />
-                        <span className="text-sm text-slate-600">Enable</span>
+                        <span className="text-sm text-ink-soft">Enable</span>
                       </label>
                     ) : (
                       <input
                         type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'}
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
+                        className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                       />
                     )}
                   </div>
@@ -274,7 +276,7 @@ export default function DataSources() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex items-center gap-2 p-3 rounded-lg text-xs ${
-                    testResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                    testResult.success ? 'bg-success/10 text-success border border-success/25' : 'bg-critical/10 text-critical border border-critical/25'
                   }`}
                 >
                   {testResult.success ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
@@ -287,7 +289,7 @@ export default function DataSources() {
                 <button
                   onClick={() => handleTest(configuring)}
                   disabled={testing}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-black/5 text-slate-600 rounded-lg text-sm font-medium hover:bg-black/10 transition-colors disabled:opacity-40"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-black/5 text-ink-soft rounded-lg text-sm font-medium hover:bg-black/10 transition-colors disabled:opacity-40"
                 >
                   {testing ? <Loader2 size={14} className="animate-spin" /> : <TestTube size={14} />}
                   Test Connection
@@ -295,7 +297,7 @@ export default function DataSources() {
                 <button
                   onClick={() => handleSave(configuring)}
                   disabled={saving}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
+                  className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                   Save & Connect
@@ -315,7 +317,7 @@ export default function DataSources() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-lg flex items-center justify-center px-4"
+            className="sheet-backdrop flex items-center justify-center px-4"
             onClick={() => setShowIngest(false)}
           >
             <motion.div
@@ -326,13 +328,13 @@ export default function DataSources() {
               className="glass-modal w-full max-w-lg p-6 space-y-5"
             >
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-800">Push Metrics via API</h2>
+                <h2 className="text-lg font-bold text-ink">Push Metrics via API</h2>
                 <button onClick={() => setShowIngest(false)} className="p-2 hover:bg-black/8 rounded-lg">
-                  <X size={18} className="text-slate-500" />
+                  <X size={18} className="text-ink-mute" />
                 </button>
               </div>
 
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-ink-mute">
                 Manually push metric data for any node. Useful for testing or custom integrations.
               </p>
 
@@ -347,12 +349,12 @@ export default function DataSources() {
                   { key: 'latency_ms', label: 'Latency ms', type: 'number' },
                 ].map(f => (
                   <div key={f.key} className={f.full ? 'col-span-2' : ''}>
-                    <label className="text-xs text-slate-500 block mb-1">{f.label}</label>
+                    <label className="text-xs text-ink-mute block mb-1">{f.label}</label>
                     <input
                       type={f.type || 'text'}
                       value={(ingestData as any)[f.key]}
                       onChange={e => setIngestData({ ...ingestData, [f.key]: e.target.value })}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
+                      className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                     />
                   </div>
                 ))}
@@ -365,7 +367,7 @@ export default function DataSources() {
               <button
                 onClick={handleIngest}
                 disabled={!ingestData.node_name}
-                className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-40"
+                className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40"
               >
                 <Send size={14} />
                 Push Metrics

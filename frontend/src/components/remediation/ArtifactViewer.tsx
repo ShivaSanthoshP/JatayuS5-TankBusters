@@ -27,9 +27,9 @@ function triggerTextDownload(content: string, name: string) {
 }
 
 function artifactAccent(artifact: RemediationArtifact) {
-  if (artifact.kind === 'terraform') return 'text-sky-600 bg-sky-500/10 border-sky-500/20';
-  if (artifact.purpose === 'rollback') return 'text-amber-600 bg-amber-500/10 border-amber-500/20';
-  return 'text-emerald-700 bg-emerald-500/10 border-emerald-500/20';
+  if (artifact.kind === 'terraform') return 'text-info bg-info/10 border-info/20';
+  if (artifact.purpose === 'rollback') return 'text-warning bg-warning/10 border-warning/20';
+  return 'text-success bg-success/10 border-success/20';
 }
 
 function artifactIcon(artifact: RemediationArtifact) {
@@ -73,7 +73,7 @@ export default function ArtifactViewer({
 
   if (!normalizedArtifacts.length) {
     return (
-      <div className="glass-sm p-4 text-xs text-slate-400">
+      <div className="glass-sm p-4 text-xs text-ink-faint">
         {emptyLabel}
       </div>
     );
@@ -83,12 +83,12 @@ export default function ArtifactViewer({
     <div className="glass-sm p-4 space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-700">{title}</h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <h3 className="text-sm font-semibold text-ink-soft">{title}</h3>
+          <p className="text-xs text-ink-faint mt-1">
             Review generated shell and Terraform remediation artifacts before applying them.
           </p>
         </div>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-ink-faint">
           {normalizedArtifacts.length} file{normalizedArtifacts.length === 1 ? '' : 's'}
         </span>
       </div>
@@ -98,7 +98,7 @@ export default function ArtifactViewer({
           const Icon = artifactIcon(artifact);
           const selectedClass = artifact.id === selected?.id
             ? 'border-accent/40 bg-accent/10 text-accent'
-            : 'border-glass-border bg-white/50 text-slate-500 hover:border-accent/20';
+            : 'border-hairline-strong bg-surface/50 text-ink-mute hover:border-accent/20';
 
           return (
             <button
@@ -121,15 +121,15 @@ export default function ArtifactViewer({
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-medium ${artifactAccent(selected)}`}>
                   {selected.kind}
                 </span>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 text-[11px] font-medium text-slate-500 bg-white/60">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-hairline-strong text-[11px] font-medium text-ink-mute bg-surface/60">
                   {selected.purpose}
                 </span>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 text-[11px] font-medium text-slate-500 bg-white/60">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-hairline-strong text-[11px] font-medium text-ink-mute bg-surface/60">
                   {selected.language}
                 </span>
               </div>
               {selected.description && (
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-ink-mute leading-relaxed">
                   {selected.description}
                 </p>
               )}
@@ -137,14 +137,14 @@ export default function ArtifactViewer({
 
             <button
               onClick={() => handleDownload(selected)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent text-white text-xs font-medium hover:bg-green-700 transition-colors shrink-0"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent text-white text-xs font-medium hover:bg-accent-bright transition-colors shrink-0"
             >
               <Download size={12} />
               Download
             </button>
           </div>
 
-          <pre className="bg-slate-950 text-slate-100 text-xs rounded-xl p-4 overflow-x-auto max-h-[420px] leading-5 border border-slate-900/80">
+          <pre className="terminal-pane text-xs rounded-xl p-4 overflow-x-auto max-h-[420px] leading-5 border border-white/5">
             <code>{selected.content}</code>
           </pre>
         </div>

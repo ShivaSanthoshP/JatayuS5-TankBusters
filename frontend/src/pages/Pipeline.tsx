@@ -21,12 +21,14 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
   reporting: FileText,
 };
 
+// Earthy palette aligned with the warm-cream + deep-teal system. Each agent
+// keeps a distinct hue but stays within the palette family.
 const AGENT_GLOW: Record<string, string> = {
-  monitoring: '#16a34a',
-  predictive: '#0891b2',
-  diagnostic: '#9333ea',
-  remediation: '#ea580c',
-  reporting: '#2563eb',
+  monitoring: '#3a5a7d',   // info — calm blue
+  predictive: '#3a6f6a',   // accent-bright — bright teal
+  diagnostic: '#664774',   // muted plum
+  remediation: '#c08a3e',  // warning — amber
+  reporting: '#3d7d65',    // success — green
 };
 
 const PIPELINE_STEPS = ['monitoring', 'predictive', 'diagnostic', 'remediation', 'reporting'];
@@ -294,10 +296,10 @@ export default function Pipeline() {
   };
 
   const statusColor = (s: string) => {
-    if (s === 'critical') return 'text-red-500 bg-red-500/10 border-red-500/20';
-    if (s === 'degraded') return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-    if (s === 'healthy') return 'text-green-500 bg-green-500/10 border-green-500/20';
-    return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
+    if (s === 'critical') return 'text-critical bg-critical/10 border-critical/20';
+    if (s === 'degraded') return 'text-warning bg-warning/10 border-warning/20';
+    if (s === 'healthy') return 'text-success bg-success/10 border-success/20';
+    return 'text-ink-faint bg-ink/5 border-hairline-strong';
   };
 
   if (nodesLoading) return <Loader text="Loading infrastructure nodes..." />;
@@ -307,7 +309,7 @@ export default function Pipeline() {
       {/* Header */}
       <div>
         <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Run Pipeline</h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+        <p className="text-xs sm:text-sm text-ink-mute mt-1">
           Select a node, review its status, and trigger the full agent pipeline
         </p>
       </div>
@@ -318,24 +320,24 @@ export default function Pipeline() {
         <GlassCard hover={false} className="lg:col-span-1">
           <div className="flex items-center gap-2 mb-4">
             <Filter size={16} className="text-accent" />
-            <h2 className="text-sm font-semibold text-slate-600">Filters</h2>
+            <h2 className="text-sm font-semibold text-ink-soft">Filters</h2>
           </div>
 
           <div className="space-y-3">
             {/* Status filter */}
             <div>
-              <label className="text-xs text-slate-500 block mb-1.5 font-medium">Node Status</label>
+              <label className="text-xs text-ink-mute block mb-1.5 font-medium">Node Status</label>
               <div className="flex flex-wrap gap-2">
                 {['all', 'critical', 'degraded', 'healthy'].map(s => (
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${statusFilter === s
-                      ? s === 'critical' ? 'bg-red-500/15 text-red-600 border-red-500/30'
-                        : s === 'degraded' ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
-                          : s === 'healthy' ? 'bg-green-500/15 text-green-600 border-green-500/30'
+                      ? s === 'critical' ? 'bg-critical/15 text-critical border-critical/30'
+                        : s === 'degraded' ? 'bg-warning/15 text-warning border-warning/30'
+                          : s === 'healthy' ? 'bg-success/15 text-success border-success/30'
                             : 'bg-accent/10 text-accent border-accent/30'
-                      : 'bg-black/5 text-slate-500 border-transparent hover:border-slate-200'
+                      : 'bg-ink/5 text-ink-mute border-transparent hover:border-hairline-strong'
                       }`}
                   >
                     {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
@@ -346,11 +348,11 @@ export default function Pipeline() {
 
             {/* Type filter */}
             <div>
-              <label className="text-xs text-slate-500 block mb-1.5 font-medium">Node Type</label>
+              <label className="text-xs text-ink-mute block mb-1.5 font-medium">Node Type</label>
               <select
                 value={typeFilter}
                 onChange={e => setTypeFilter(e.target.value)}
-                className="w-full bg-black/5 border border-glass-border rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-accent/50"
+                className="w-full bg-black/5 border border-glass-border rounded-lg px-3 py-2 text-sm text-ink-soft focus:outline-none focus:border-accent/50"
               >
                 {nodeTypes.map(t => (
                   <option key={t} value={t}>
@@ -362,8 +364,8 @@ export default function Pipeline() {
 
             {/* Count summary */}
             <div className="pt-2 border-t border-glass-border">
-              <p className="text-xs text-slate-500">
-                Showing <b className="text-slate-700">{filteredNodes.length}</b> of {nodeList.length} nodes
+              <p className="text-xs text-ink-mute">
+                Showing <b className="text-ink-soft">{filteredNodes.length}</b> of {nodeList.length} nodes
               </p>
             </div>
           </div>
@@ -373,7 +375,7 @@ export default function Pipeline() {
         <GlassCard hover={false} className="lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">
             <Server size={16} className="text-accent" />
-            <h2 className="text-sm font-semibold text-slate-600">Select Node</h2>
+            <h2 className="text-sm font-semibold text-ink-soft">Select Node</h2>
           </div>
 
           {/* Custom dropdown */}
@@ -388,17 +390,17 @@ export default function Pipeline() {
                     {NODE_TYPE_ICONS[selectedNodeObj.node_type] || 'N'}
                   </span>
                   <div className="min-w-0 truncate">
-                    <span className="text-slate-800 font-medium">{selectedNodeObj.node_name}</span>
-                    <span className="text-slate-400 ml-2 text-xs hidden sm:inline">({selectedNodeObj.node_type})</span>
+                    <span className="text-ink font-medium">{selectedNodeObj.node_name}</span>
+                    <span className="text-ink-faint ml-2 text-xs hidden sm:inline">({selectedNodeObj.node_type})</span>
                   </div>
                   <span className="ml-auto shrink-0">
                     <StatusBadge status={selectedNodeObj.status} />
                   </span>
                 </div>
               ) : (
-                <span className="text-slate-400">Choose a node to run pipeline on...</span>
+                <span className="text-ink-faint">Choose a node to run pipeline on...</span>
               )}
-              <ChevronDown size={16} className={`text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={16} className={`text-ink-faint transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
             </button>
 
             <AnimatePresence>
@@ -410,7 +412,7 @@ export default function Pipeline() {
                   className="absolute z-50 top-full mt-1 w-full max-h-64 overflow-y-auto glass-dropdown"
                 >
                   {filteredNodes.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-xs text-slate-400">
+                    <div className="px-4 py-6 text-center text-xs text-ink-faint">
                       No nodes match the current filters
                     </div>
                   ) : (
@@ -425,8 +427,8 @@ export default function Pipeline() {
                           {NODE_TYPE_ICONS[node.node_type] || 'N'}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <span className="text-sm text-slate-800 font-medium truncate block">{node.node_name}</span>
-                          <span className="text-xs text-slate-400">{node.node_type} &middot; {node.region}</span>
+                          <span className="text-sm text-ink font-medium truncate block">{node.node_name}</span>
+                          <span className="text-xs text-ink-faint">{node.node_type} &middot; {node.region}</span>
                         </div>
                         <StatusBadge status={node.status} />
                       </button>
@@ -442,24 +444,24 @@ export default function Pipeline() {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-4 rounded-xl bg-gradient-to-r from-slate-50 to-transparent border border-glass-border space-y-3"
+              className="p-4 rounded-xl bg-gradient-to-r from-canvas-soft to-transparent border border-hairline-strong space-y-3"
             >
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-400 block">Status</span>
+                  <span className="text-ink-faint block">Status</span>
                   <StatusBadge status={selectedNodeObj.status} />
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-1">Type</span>
-                  <span className="text-slate-700 font-medium capitalize">{selectedNodeObj.node_type.replace(/_/g, ' ')}</span>
+                  <span className="text-ink-faint block mb-1">Type</span>
+                  <span className="text-ink-soft font-medium capitalize">{selectedNodeObj.node_type.replace(/_/g, ' ')}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-1">Provider</span>
-                  <span className="text-slate-700 font-medium">{selectedNodeObj.provider}</span>
+                  <span className="text-ink-faint block mb-1">Provider</span>
+                  <span className="text-ink-soft font-medium">{selectedNodeObj.provider}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block mb-1">Region</span>
-                  <span className="text-slate-700 font-medium">{selectedNodeObj.region}</span>
+                  <span className="text-ink-faint block mb-1">Region</span>
+                  <span className="text-ink-soft font-medium">{selectedNodeObj.region}</span>
                 </div>
               </div>
             </motion.div>
@@ -470,7 +472,7 @@ export default function Pipeline() {
             <button
               onClick={handleRunPipeline}
               disabled={running || !selectedNode}
-              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
               Run Pipeline
@@ -478,7 +480,7 @@ export default function Pipeline() {
             <button
               onClick={handleRunAll}
               disabled={running}
-              className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-black/5 text-slate-600 rounded-lg text-sm font-medium hover:bg-black/10 transition-colors disabled:opacity-40"
+              className="flex items-center gap-2 px-4 sm:px-5 py-2.5 bg-black/5 text-ink-soft rounded-lg text-sm font-medium hover:bg-black/10 transition-colors disabled:opacity-40"
             >
               <RefreshCw size={14} />
               Run All Nodes
@@ -487,7 +489,7 @@ export default function Pipeline() {
               <button
                 onClick={handleSelectNewNode}
                 disabled={running}
-                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 border border-slate-200 text-slate-500 rounded-lg text-sm font-medium hover:bg-slate-50 hover:text-slate-700 hover:border-slate-300 transition-all disabled:opacity-40"
+                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 border border-hairline-strong text-ink-mute rounded-lg text-sm font-medium hover:bg-canvas-soft hover:text-ink-soft hover:border-ink/20 transition-all disabled:opacity-40"
               >
                 <RotateCcw size={14} />
                 Select New Node
@@ -500,11 +502,11 @@ export default function Pipeline() {
       {/* ── Pipeline Flow Visualization ───────────────────────── */}
       <GlassCard hover={false}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-sm font-semibold text-slate-600">Pipeline Flow</h2>
+          <h2 className="text-sm font-semibold text-ink-soft">Pipeline Flow</h2>
           {(running || result?.agent_trace?.length) && (
             <div className="flex items-center gap-2 text-xs font-mono">
-              <Clock size={14} className={running ? 'text-amber-500 animate-pulse' : 'text-green-500'} />
-              <span className={running ? 'text-amber-600' : 'text-green-600'}>{formatElapsed(elapsedMs)}</span>
+              <Clock size={14} className={running ? 'text-warning animate-pulse' : 'text-success'} />
+              <span className={running ? 'text-warning' : 'text-success'}>{formatElapsed(elapsedMs)}</span>
             </div>
           )}
         </div>
@@ -522,7 +524,7 @@ export default function Pipeline() {
                   <motion.div
                     animate={running && isPending ? { opacity: [0.55, 1, 0.55] } : { opacity: 1 }}
                     transition={running && isPending ? { duration: 1.5, repeat: Infinity } : { duration: 0.3 }}
-                    className={`relative w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isDone ? 'border-green-500 bg-green-50' : isPending ? 'border-slate-200 bg-slate-50/50' : ''
+                    className={`relative w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isDone ? 'border-success bg-success/10' : isPending ? 'border-hairline-strong bg-canvas-soft/50' : ''
                       }`}
                     style={running && isPending ? {
                       borderColor: `${color}66`,
@@ -530,18 +532,18 @@ export default function Pipeline() {
                     } : {}}
                   >
                     {isDone ? (
-                      <CheckCircle2 size={20} className="text-green-500" />
+                      <CheckCircle2 size={20} className="text-success" />
                     ) : (
-                      <Icon size={20} className={running ? 'text-slate-500' : 'text-slate-400'} />
+                      <Icon size={20} className={running ? 'text-ink-mute' : 'text-ink-faint'} />
                     )}
                   </motion.div>
-                  <span className={`text-[11px] font-medium ${isCurrent ? 'text-slate-800' : isDone ? 'text-green-600' : 'text-slate-400'
+                  <span className={`text-[11px] font-medium ${isCurrent ? 'text-ink' : isDone ? 'text-success' : 'text-ink-faint'
                     }`}>
                     {step.charAt(0).toUpperCase() + step.slice(1)}
                   </span>
                 </div>
                 {i < PIPELINE_STEPS.length - 1 && (
-                  <div className={`w-10 h-0.5 rounded-full mb-5 transition-colors duration-500 ${isDone ? 'bg-green-400' : 'bg-slate-200'}`} />
+                  <div className={`w-10 h-0.5 rounded-full mb-5 transition-colors duration-500 ${isDone ? 'bg-success' : 'bg-hairline-strong'}`} />
                 )}
               </div>
             );
@@ -552,7 +554,7 @@ export default function Pipeline() {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 flex items-center gap-2 text-xs text-amber-600 bg-amber-50/80 border border-amber-200/50 rounded-lg px-3 py-2.5"
+            className="mt-4 flex items-center gap-2 text-xs text-warning bg-warning/10 border border-warning/25 rounded-lg px-3 py-2.5"
           >
             <Loader2 size={13} className="animate-spin" />
             <span>
@@ -569,8 +571,8 @@ export default function Pipeline() {
         <GlassCard hover={false}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Terminal size={16} className="text-slate-500" />
-              <h2 className="text-sm font-semibold text-slate-600">Pipeline Logs</h2>
+              <Terminal size={16} className="text-ink-mute" />
+              <h2 className="text-sm font-semibold text-ink-soft">Pipeline Logs</h2>
             </div>
             {running && <Loader2 size={14} className="animate-spin text-accent" />}
             {!running && displayedLogs.length > 0 && (
@@ -579,7 +581,7 @@ export default function Pipeline() {
                   setLogs([]);
                   setPipelineRun(null);
                 }}
-                className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-[10px] text-ink-faint hover:text-ink-soft transition-colors"
               >
                 Clear
               </button>
@@ -587,21 +589,21 @@ export default function Pipeline() {
           </div>
           <div
             ref={logsContainerRef}
-            className="bg-slate-900 rounded-lg p-4 max-h-64 overflow-y-auto font-mono text-xs leading-5 space-y-0.5"
+            className="terminal-pane rounded-lg p-4 max-h-64 overflow-y-auto font-mono text-xs leading-5 space-y-0.5"
           >
             {displayedLogs.map((log, i) => (
-              <div key={i} className={`flex gap-3 ${log.type === 'error' ? 'text-red-400' :
-                log.type === 'success' ? 'text-green-400' :
-                  log.type === 'agent' ? 'text-cyan-400' :
-                    'text-slate-400'
+              <div key={i} className={`flex gap-3 ${log.type === 'error' ? 'text-critical' :
+                log.type === 'success' ? 'text-success' :
+                  log.type === 'agent' ? 'text-info' :
+                    'text-ink-faint'
                 }`}>
-                <span className="text-slate-600 shrink-0">[{formatElapsed(log.timestamp)}]</span>
+                <span className="text-ink-soft shrink-0">[{formatElapsed(log.timestamp)}]</span>
                 <span>{log.message}</span>
               </div>
             ))}
             {running && (
-              <div className="flex gap-3 text-slate-500">
-                <span className="text-slate-600 shrink-0">[{formatElapsed(elapsedMs)}]</span>
+              <div className="flex gap-3 text-ink-mute">
+                <span className="text-ink-soft shrink-0">[{formatElapsed(elapsedMs)}]</span>
                 <span className="animate-pulse">█</span>
               </div>
             )}
@@ -620,10 +622,10 @@ export default function Pipeline() {
           >
             <GlassCard hover={false} glow="red">
               <div className="flex items-center gap-3">
-                <XCircle size={20} className="text-red-500" />
+                <XCircle size={20} className="text-critical" />
                 <div>
-                  <h3 className="text-sm font-semibold text-red-700">Pipeline Error</h3>
-                  <p className="text-xs text-red-500 mt-0.5">{error}</p>
+                  <h3 className="text-sm font-semibold text-critical">Pipeline Error</h3>
+                  <p className="text-xs text-critical mt-0.5">{error}</p>
                 </div>
               </div>
             </GlassCard>
@@ -652,7 +654,7 @@ export default function Pipeline() {
               return (
                 <GlassCard hover={false} glow={hasAnomaly ? 'red' : 'green'}>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-semibold text-slate-600">Pipeline Result</h2>
+                    <h2 className="text-sm font-semibold text-ink-soft">Pipeline Result</h2>
                     <div className="flex items-center gap-2">
                       <StatusBadge status={aggregateStatus} />
                       {!isRunAll && result.severity && <StatusBadge status={result.severity} />}
@@ -660,33 +662,33 @@ export default function Pipeline() {
                   </div>
 
                   {hasAnomaly ? (
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50/50 border border-red-200/50 mb-4">
-                      <AlertTriangle size={18} className="text-red-500" />
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-critical/8 border border-critical/25 mb-4">
+                      <AlertTriangle size={18} className="text-critical" />
                       <div>
                         {isRunAll ? (
                           <>
-                            <span className="text-sm font-semibold text-red-700">
+                            <span className="text-sm font-semibold text-critical">
                               {anomaliesDetected} {anomaliesDetected === 1 ? 'Anomaly' : 'Anomalies'} Detected
                             </span>
-                            <span className="text-xs text-red-500 ml-2">
+                            <span className="text-xs text-critical ml-2">
                               across {totalNodes} {totalNodes === 1 ? 'node' : 'nodes'}
                               {incidentsCreated > 0 && ` · ${incidentsCreated} ${incidentsCreated === 1 ? 'incident' : 'incidents'} created`}
                             </span>
                           </>
                         ) : (
                           <>
-                            <span className="text-sm font-semibold text-red-700">Anomaly Detected</span>
+                            <span className="text-sm font-semibold text-critical">Anomaly Detected</span>
                             {result.incident_id && (
-                              <span className="text-xs text-red-500 ml-2">Incident #{result.incident_id} created</span>
+                              <span className="text-xs text-critical ml-2">Incident #{result.incident_id} created</span>
                             )}
                           </>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50/50 border border-green-200/50 mb-4">
-                      <CheckCircle2 size={18} className="text-green-500" />
-                      <span className="text-sm font-semibold text-green-700">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-success/8 border border-success/25 mb-4">
+                      <CheckCircle2 size={18} className="text-success" />
+                      <span className="text-sm font-semibold text-success">
                         {isRunAll
                           ? `No Anomalies Across ${totalNodes} ${totalNodes === 1 ? 'Node' : 'Nodes'} — All Clear`
                           : 'No Anomaly — All Clear'}
@@ -697,17 +699,17 @@ export default function Pipeline() {
                   {/* Run-All summary */}
                   {isRunAll && (
                     <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="p-3 rounded-lg bg-black/5">
-                        <div className="text-lg font-bold text-slate-800">{totalNodes}</div>
-                        <div className="text-xs text-slate-500">Nodes Scanned</div>
+                      <div className="p-3 rounded-lg bg-ink/5">
+                        <div className="text-lg font-bold text-ink">{totalNodes}</div>
+                        <div className="text-xs text-ink-mute">Nodes Scanned</div>
                       </div>
-                      <div className="p-3 rounded-lg bg-red-500/5">
-                        <div className="text-lg font-bold text-red-600">{anomaliesDetected}</div>
-                        <div className="text-xs text-slate-500">Anomalies</div>
+                      <div className="p-3 rounded-lg bg-critical/8">
+                        <div className="text-lg font-bold text-critical">{anomaliesDetected}</div>
+                        <div className="text-xs text-ink-mute">Anomalies</div>
                       </div>
-                      <div className="p-3 rounded-lg bg-green-500/5">
-                        <div className="text-lg font-bold text-green-600">{incidentsCreated}</div>
-                        <div className="text-xs text-slate-500">Incidents Created</div>
+                      <div className="p-3 rounded-lg bg-success/8">
+                        <div className="text-lg font-bold text-success">{incidentsCreated}</div>
+                        <div className="text-xs text-ink-mute">Incidents Created</div>
                       </div>
                     </div>
                   )}
@@ -722,7 +724,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Monitoring"
                   icon={Eye}
-                  color="#16a34a"
+                  color="#3a5a7d"
                   items={[
                     { label: 'Anomaly Type', value: result.monitoring_result?.anomaly_type as string },
                     { label: 'Severity', value: result.monitoring_result?.severity as string, badge: true },
@@ -735,7 +737,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Predictive"
                   icon={TrendingUp}
-                  color="#0891b2"
+                  color="#3a6f6a"
                   items={[
                     { label: 'Failure Probability', value: result.prediction_result?.failure_probability != null ? `${Math.round((result.prediction_result.failure_probability as number) * 100)}%` : undefined },
                     { label: 'Escalation Risk', value: result.prediction_result?.escalation_risk as string, badge: true },
@@ -748,7 +750,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Diagnostic"
                   icon={Search}
-                  color="#9333ea"
+                  color="#664774"
                   items={[
                     { label: 'Root Cause', value: result.diagnostic_result?.root_cause as string },
                     { label: 'Issue Type', value: result.diagnostic_result?.issue_type as string },
@@ -761,7 +763,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Remediation"
                   icon={Wrench}
-                  color="#ea580c"
+                  color="#c08a3e"
                   items={[
                     { label: 'Plan', value: result.remediation_result?.plan_summary as string },
                     { label: 'Service', value: result.remediation_result?.service_name as string },
@@ -775,7 +777,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Reporting"
                   icon={FileText}
-                  color="#2563eb"
+                  color="#3d7d65"
                   items={[
                     { label: 'Summary', value: result.reporting_result?.executive_summary as string },
                     { label: 'Runbook', value: result.reporting_result?.runbook_title as string },
@@ -785,7 +787,7 @@ export default function Pipeline() {
                 {/* Trace timeline */}
                 {result.agent_trace && result.agent_trace.length > 0 && (
                   <GlassCard hover={false} className="md:col-span-2 xl:col-span-1">
-                    <h3 className="text-xs font-semibold text-slate-600 mb-3 flex items-center gap-2">
+                    <h3 className="text-xs font-semibold text-ink-soft mb-3 flex items-center gap-2">
                       <Activity size={14} className="text-accent" />
                       Agent Trace
                     </h3>
@@ -797,8 +799,8 @@ export default function Pipeline() {
                         return (
                           <div key={i} className="flex items-center gap-2 text-xs">
                             <span className="w-2 h-2 rounded-full bg-accent" />
-                            <span className="text-slate-700 font-medium capitalize w-20">{t.agent}</span>
-                            <span className="text-slate-400 flex-1">
+                            <span className="text-ink-soft font-medium capitalize w-20">{t.agent}</span>
+                            <span className="text-ink-faint flex-1">
                               {dur > 0 ? `${(dur / 1000).toFixed(1)}s` : '<1s'}
                             </span>
                           </div>
@@ -814,13 +816,13 @@ export default function Pipeline() {
               <div className="grid lg:grid-cols-2 gap-4">
                 {diagnosticReasons.length > 0 && (
                   <GlassCard hover={false}>
-                    <h3 className="text-xs font-semibold text-slate-600 mb-3 flex items-center gap-2">
-                      <Search size={14} className="text-purple-600" />
+                    <h3 className="text-xs font-semibold text-ink-soft mb-3 flex items-center gap-2">
+                      <Search size={14} className="text-accent" />
                       Why This Happened
                     </h3>
                     <div className="space-y-2">
                       {diagnosticReasons.map((reason, index) => (
-                        <div key={index} className="rounded-lg bg-purple-50/60 border border-purple-100 px-3 py-2 text-xs text-slate-600 leading-relaxed">
+                        <div key={index} className="rounded-lg bg-accent/8 border border-accent/15 px-3 py-2 text-xs text-ink-soft leading-relaxed">
                           {reason}
                         </div>
                       ))}
@@ -830,18 +832,18 @@ export default function Pipeline() {
 
                 {remediationSteps.length > 0 && (
                   <GlassCard hover={false}>
-                    <h3 className="text-xs font-semibold text-slate-600 mb-3 flex items-center gap-2">
-                      <Wrench size={14} className="text-orange-600" />
+                    <h3 className="text-xs font-semibold text-ink-soft mb-3 flex items-center gap-2">
+                      <Wrench size={14} className="text-warning" />
                       Simple Fix Steps
                     </h3>
                     <div className="space-y-2">
                       {remediationSteps.map((step, index) => (
-                        <div key={index} className="rounded-lg bg-orange-50/70 border border-orange-100 px-3 py-2">
-                          <div className="text-xs font-medium text-slate-700">
+                        <div key={index} className="rounded-lg bg-warning/8 border border-warning/20 px-3 py-2">
+                          <div className="text-xs font-medium text-ink-soft">
                             {index + 1}. {String(step['action'] || `Step ${index + 1}`)}
                           </div>
                           {step['description'] && (
-                            <div className="text-xs text-slate-500 mt-1 leading-relaxed">
+                            <div className="text-xs text-ink-mute mt-1 leading-relaxed">
                               {String(step['description'])}
                             </div>
                           )}
@@ -868,8 +870,8 @@ export default function Pipeline() {
       {!result && !error && !running && (
         <GlassCard hover={false}>
           <div className="text-center py-8">
-            <Activity size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400">Select a node and run the pipeline to see results</p>
+            <Activity size={32} className="text-ink-faint mx-auto mb-3" />
+            <p className="text-sm text-ink-faint">Select a node and run the pipeline to see results</p>
           </div>
         </GlassCard>
       )}
@@ -893,17 +895,17 @@ function AgentResultCard({
         <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
           <Icon size={14} style={{ color }} />
         </div>
-        <h3 className="text-xs font-semibold text-slate-600">{agent}</h3>
+        <h3 className="text-xs font-semibold text-ink-soft">{agent}</h3>
       </div>
       <div className="space-y-2">
         {items.map(({ label, value, badge }) =>
           value ? (
             <div key={label} className="text-xs">
-              <span className="text-slate-400">{label}: </span>
+              <span className="text-ink-faint">{label}: </span>
               {badge ? (
                 <StatusBadge status={value} />
               ) : (
-                <span className="text-slate-700">{value}</span>
+                <span className="text-ink-soft">{value}</span>
               )}
             </div>
           ) : null,
