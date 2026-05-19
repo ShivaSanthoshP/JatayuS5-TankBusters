@@ -69,6 +69,10 @@ class SettingsUpdate(BaseModel):
     gemini_api_key: str | None = None
     gemini_model: str | None = None
 
+    # Embedding
+    embedding_provider: str | None = None
+    gemini_embedding_model: str | None = None
+
     # Shared
     agent_temperature: float | None = None
     custom_llm_models: list[str] | None = None
