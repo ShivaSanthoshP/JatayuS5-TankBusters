@@ -18,7 +18,7 @@ from app.services.infra_service import InfraService
 from app.services.incident_service import IncidentService
 from app.data_sources.simulator import SimulatorDataSource
 from app.data_sources.base import MetricEvent
-from app.database.models import RunbookEntry
+from app.database.models import RunbookEntry, LogEntry
 from app.config import utc_now
 
 logger = logging.getLogger("itops.api.agents")
@@ -380,6 +380,67 @@ def list_runbooks(limit: int = 2000, db: Session = Depends(get_db)):
         )
         for e in entries
     ]
+
+
+@router.delete("/runbooks/{runbook_id}")
+def delete_runbook(runbook_id: int, db: Session = Depends(get_db)):
+    """Delete a runbook record from the DB and the vector store.
+
+    Seeded runbooks (shipped with the system) can't be deleted — they get
+    re-seeded on next startup anyway. Only learned/auto-generated entries
+    are deletable.
+    """
+    rb = db.query(RunbookEntry).filter(RunbookEntry.id == runbook_id).first()
+    if not rb:
+        raise HTTPException(status_code=404, detail="Runbook not found")
+    if rb.is_seeded:
+        raise HTTPException(
+            status_code=400,
+            detail="Seeded runbooks cannot be deleted — they get re-seeded on startup.",
+        )
+    db.delete(rb)
+    db.commit()
+    # Drop from the vector store too so RAG stops surfacing it.
+    try:
+        from app.memory.vector_store import get_memory
+        get_memory().delete_runbook(runbook_id)
+    except Exception as exc:
+        logger.warning("Vector store cleanup for runbook %d failed: %s", runbook_id, exc)
+    return {"message": f"Deleted runbook {runbook_id}", "id": runbook_id}
+
+
+# Same self-emitted markers used by the CloudWatch ingest filter. Lines whose
+# message body contains any of these were almost certainly emitted by iTOps
+# itself — keeping them in the log store creates a feedback loop where the
+# monitoring agent flags real EC2 hosts as critical based on iTOps' own
+# anomaly-detection log lines.
+_SELF_LOG_MARKERS_SQL = (
+    "itops-backend",
+    "[itops]",
+    "itops.cloudwatch",
+    "itops.simulator",
+    "itops.pipeline",
+    "uvicorn",
+)
+
+
+@router.post("/logs/purge-self-emitted")
+def purge_self_emitted_logs(db: Session = Depends(get_db)):
+    """One-shot cleanup: delete LogEntry rows that came from iTOps' own output.
+
+    The CloudWatch adapter now skips these at ingest, but rows stored before
+    that fix landed need to be purged so the monitoring agent stops reading
+    them back as 'critical evidence'.
+    """
+    from sqlalchemy import or_
+    q = db.query(LogEntry).filter(
+        or_(*[LogEntry.message.ilike(f"%{m}%") for m in _SELF_LOG_MARKERS_SQL])
+    )
+    count = q.count()
+    q.delete(synchronize_session=False)
+    db.commit()
+    logger.info("Purged %d self-emitted log entries", count)
+    return {"deleted": count}
 
 
 @router.get("/memory/search")

@@ -60,6 +60,10 @@ export const runPipeline = (body: any) =>
 export const runPipelineAll = () =>
   requestWithTimeout<any>('/agents/pipeline/run-all', 120000, { method: 'POST' });
 export const getRunbooks = () => request<any[]>('/agents/runbooks');
+export const deleteRunbook = (id: number) =>
+  request<{ message: string; id: number }>(`/agents/runbooks/${id}`, { method: 'DELETE' });
+export const purgeSelfEmittedLogs = () =>
+  request<{ deleted: number }>('/agents/logs/purge-self-emitted', { method: 'POST' });
 export const searchMemory = (query: string, collection = 'incidents', n = 10) =>
   request<any>(`/agents/memory/search?query=${encodeURIComponent(query)}&collection=${collection}&n=${n}`);
 

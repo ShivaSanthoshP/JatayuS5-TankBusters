@@ -179,6 +179,16 @@ class InstitutionalMemory:
             else:
                 self._runbooks.add(ids=[doc_id], documents=[doc], metadatas=[meta])
 
+    def delete_runbook(self, runbook_id: int) -> None:
+        """Drop a runbook entry from the vector store so it stops surfacing in RAG."""
+        doc_id = f"runbook-{runbook_id}"
+        with self._lock:
+            try:
+                if self._runbooks.get(ids=[doc_id])["ids"]:
+                    self._runbooks.delete(ids=[doc_id])
+            except Exception as exc:
+                logger.warning("ChromaDB runbook delete failed: %s", exc)
+
     def _search(self, collection: chromadb.Collection, query: str, n_results: int) -> list[dict]:
         count = collection.count()
         if count == 0:

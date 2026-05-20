@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Search, Hash, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  X, Wrench, Shield, FileText, Copy, Check, ExternalLink,
+  X, Wrench, Shield, FileText, Copy, Check, ExternalLink, Trash2,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import Loader from '../components/ui/Loader';
@@ -143,10 +143,12 @@ function RunbookCard({
   rb,
   isOpen,
   onToggle,
+  onDelete,
 }: {
   rb: RunbookEntry;
   isOpen: boolean;
   onToggle: () => void;
+  onDelete?: () => void;
 }) {
   const remediationSteps = (rb.remediation_steps ?? []) as Array<Record<string, unknown>>;
   const recommendedActions = (rb.recommended_actions ?? []) as Array<Record<string, unknown>>;
@@ -228,6 +230,15 @@ function RunbookCard({
           >
             {rb.times_used} {rb.times_used === 1 ? 'apply' : 'applies'}
           </span>
+          {!rb.is_seeded && onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="p-1 rounded hover:bg-critical/10"
+              title="Delete this learned runbook"
+            >
+              <Trash2 size={12} className="text-critical/70 hover:text-critical" />
+            </button>
+          )}
           {isOpen ? <ChevronUp size={14} className="text-ink-faint" /> : <ChevronDown size={14} className="text-ink-faint" />}
         </div>
       </div>
@@ -411,7 +422,33 @@ function RunbookCard({
 
 /* ── Page ────────────────────────────────────────────────────── */
 export default function Runbooks() {
-  const { data: runbooks, loading } = usePolling<RunbookEntry[]>(api.getRunbooks, 15000);
+  const { data: runbooks, loading, refetch } = usePolling<RunbookEntry[]>(api.getRunbooks, 15000);
+  const [purgeMsg, setPurgeMsg] = useState<string | null>(null);
+  const [purging, setPurging] = useState(false);
+
+  const handleDelete = async (id: number, title: string) => {
+    if (!confirm(`Delete runbook "${title}"?\n\nThis removes it from the database and the search index. Seeded runbooks cannot be deleted.`)) return;
+    try {
+      await api.deleteRunbook(id);
+      refetch();
+    } catch (e: any) {
+      alert(`Delete failed: ${e?.message ?? e}`);
+    }
+  };
+
+  const handlePurge = async () => {
+    if (!confirm('Purge log entries emitted by iTOps itself?\n\nThis cleans up old self-emitted lines that were ingested before the loop fix, so the monitoring agent stops re-detecting them as critical.')) return;
+    setPurging(true);
+    setPurgeMsg(null);
+    try {
+      const res = await api.purgeSelfEmittedLogs();
+      setPurgeMsg(`Purged ${res.deleted} self-emitted log lines.`);
+    } catch (e: any) {
+      setPurgeMsg(`Failed: ${e?.message ?? e}`);
+    } finally {
+      setPurging(false);
+    }
+  };
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -521,11 +558,27 @@ export default function Runbooks() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       {/* ── Header ───────────────────────────────────────────── */}
-      <div>
-        <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Runbooks</h1>
-        <p className="text-xs sm:text-sm text-ink-mute mt-1">
-          Playbooks for known issues — seeded canonical runbooks plus learned ones from past resolved incidents.
-        </p>
+      <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3 sm:gap-4">
+        <div>
+          <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Runbooks</h1>
+          <p className="text-xs sm:text-sm text-ink-mute mt-1">
+            Playbooks for known issues — seeded canonical runbooks plus learned ones from past resolved incidents.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={handlePurge}
+            disabled={purging}
+            className="glass-sm rounded-lg px-3 py-1.5 text-xs text-ink-soft hover:bg-critical/10 hover:text-critical disabled:opacity-50 flex items-center gap-1.5"
+            title="Remove log entries emitted by iTOps itself (one-shot cleanup of the pre-fix feedback loop)"
+          >
+            <Trash2 size={12} />
+            {purging ? 'Purging…' : 'Purge self-emitted logs'}
+          </button>
+          {purgeMsg && (
+            <span className="text-[10px] text-ink-faint">{purgeMsg}</span>
+          )}
+        </div>
       </div>
 
       {/* ── Find a fix (RAG search) ──────────────────────────── */}
@@ -672,6 +725,7 @@ export default function Runbooks() {
               rb={rb}
               isOpen={expandedId === rb.id}
               onToggle={() => setExpandedId(expandedId === rb.id ? null : rb.id)}
+              onDelete={() => handleDelete(rb.id, rb.title)}
             />
           ))}
 
