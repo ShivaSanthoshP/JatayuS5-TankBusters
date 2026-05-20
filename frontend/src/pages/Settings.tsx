@@ -486,14 +486,14 @@ export default function Settings() {
                 }`}
               >
                 {mode === 'local' ? <Server size={15} /> : <Cloud size={15} />}
-                {mode === 'local' ? 'Local' : 'Online'}
+                {mode === 'local' ? 'Ollama (Local)' : 'Cloud LLMs'}
               </button>
             ))}
           </div>
           <p className="text-[11px] text-ink-faint mb-5 -mt-2">
             {llmMode === 'local'
-              ? 'Best for privacy — runs entirely on your machine, no internet required.'
-              : 'Best for accuracy — uses a cloud AI provider with your API key.'}
+              ? 'Best for privacy — runs Ollama entirely on your machine, no internet required.'
+              : 'Best for accuracy — uses a hosted cloud model (Gemini, OpenAI, etc.) with your API key.'}
           </p>
 
           {/* LOCAL panel */}
