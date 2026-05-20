@@ -21,42 +21,106 @@ const NODE_ICONS: Record<string, React.ElementType> = {
   queue: Radio,
 };
 
+const STATUS_ORDER = ['critical', 'degraded', 'healthy', 'offline'] as const;
+
+function FilterRow({
+  label, values, counts, selected, onToggle, onClear,
+}: {
+  label: string;
+  values: string[];
+  counts: Record<string, number>;
+  selected: Set<string>;
+  onToggle: (v: string) => void;
+  onClear: () => void;
+}) {
+  if (values.length === 0) return null;
+  const pill = (active: boolean) =>
+    `px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${active
+      ? 'bg-accent text-white'
+      : 'bg-black/5 text-ink-mute hover:bg-black/10'}`;
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="text-[11px] font-medium text-ink-faint w-14 shrink-0">{label}</span>
+      <button onClick={onClear} className={pill(selected.size === 0)}>All</button>
+      {values.map((v) => (
+        <button key={v} onClick={() => onToggle(v)} className={pill(selected.has(v))}>
+          {v} {counts[v] > 0 ? `(${counts[v]})` : ''}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Infrastructure() {
   const { data: nodes, loading } = usePolling<InfraNode[]>(api.getNodes, 10000);
   const [selectedNode, setSelectedNode] = useState<InfraNode | null>(null);
-  const [filter, setFilter] = useState<'all' | 'critical' | 'degraded' | 'healthy' | 'offline'>('all');
+  const [statusSel, setStatusSel] = useState<Set<string>>(new Set());
+  const [typeSel, setTypeSel] = useState<Set<string>>(new Set());
+  const [sourceSel, setSourceSel] = useState<Set<string>>(new Set());
 
   if (loading && !nodes) return <Loader text="Loading infrastructure..." />;
 
-  const filtered = (nodes ?? []).filter((n) => filter === 'all' || n.status === filter);
+  const all = nodes ?? [];
 
-  const counts = {
-    all: (nodes ?? []).length,
-    critical: (nodes ?? []).filter((n) => n.status === 'critical').length,
-    degraded: (nodes ?? []).filter((n) => n.status === 'degraded').length,
-    healthy: (nodes ?? []).filter((n) => n.status === 'healthy').length,
-    offline: (nodes ?? []).filter((n) => n.status === 'offline').length,
+  // Filter values are derived from the data present, so empty dimensions
+  // (e.g. no Azure nodes) never render a dead pill.
+  const statusValues = STATUS_ORDER.filter((s) => all.some((n) => n.status === s));
+  const typeValues = [...new Set(all.map((n) => n.node_type))].sort();
+  const sourceValues = [...new Set(all.map((n) => n.provider))].sort();
+
+  const countBy = (key: 'status' | 'node_type' | 'provider') =>
+    all.reduce<Record<string, number>>((acc, n) => {
+      acc[n[key]] = (acc[n[key]] ?? 0) + 1;
+      return acc;
+    }, {});
+  const statusCounts = countBy('status');
+  const typeCounts = countBy('node_type');
+  const sourceCounts = countBy('provider');
+
+  // OR within a dimension (empty set = unconstrained), AND across dimensions.
+  const filtered = all.filter((n) =>
+    (statusSel.size === 0 || statusSel.has(n.status)) &&
+    (typeSel.size === 0 || typeSel.has(n.node_type)) &&
+    (sourceSel.size === 0 || sourceSel.has(n.provider))
+  );
+
+  const anyActive = statusSel.size + typeSel.size + sourceSel.size > 0;
+
+  const toggle = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => (v: string) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v); else next.add(v);
+      return next;
+    });
+
+  const clearAll = () => {
+    setStatusSel(new Set());
+    setTypeSel(new Set());
+    setSourceSel(new Set());
   };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3 sm:gap-4">
-        <div>
-          <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Infrastructure</h1>
-          <p className="text-xs sm:text-sm text-ink-mute mt-1">Monitored nodes and their metric histories</p>
+      <div className="space-y-4">
+        <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3 sm:gap-4">
+          <div>
+            <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Infrastructure</h1>
+            <p className="text-xs sm:text-sm text-ink-mute mt-1">Monitored nodes and their metric histories</p>
+          </div>
+          <div className="text-xs text-ink-faint">
+            {filtered.length === all.length ? `${all.length} nodes` : `${filtered.length} of ${all.length} nodes`}
+            {anyActive && (
+              <button onClick={clearAll} className="ml-3 text-accent hover:underline">Clear filters</button>
+            )}
+          </div>
         </div>
-        {/* Filter pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {(['all', 'critical', 'degraded', 'healthy', 'offline'] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f
-                ? 'bg-accent text-white'
-                : 'bg-black/5 text-ink-mute hover:bg-black/10'
-                }`}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)} {counts[f] > 0 ? `(${counts[f]})` : ''}
-            </button>
-          ))}
+        <div className="glass-sm p-3 space-y-2">
+          <FilterRow label="Status" values={statusValues as unknown as string[]} counts={statusCounts}
+            selected={statusSel} onToggle={toggle(setStatusSel)} onClear={() => setStatusSel(new Set())} />
+          <FilterRow label="Type" values={typeValues} counts={typeCounts}
+            selected={typeSel} onToggle={toggle(setTypeSel)} onClear={() => setTypeSel(new Set())} />
+          <FilterRow label="Source" values={sourceValues} counts={sourceCounts}
+            selected={sourceSel} onToggle={toggle(setSourceSel)} onClear={() => setSourceSel(new Set())} />
         </div>
       </div>
 
@@ -106,7 +170,7 @@ export default function Infrastructure() {
         {filtered.length === 0 && (
           <div className="col-span-full text-center py-16 text-ink-faint">
             <Server size={32} className="mx-auto mb-3 opacity-30" />
-            <p>{filter === 'all' ? 'No nodes registered yet.' : `No ${filter} nodes.`}</p>
+            <p>{all.length === 0 ? 'No nodes registered yet.' : 'No nodes match the active filters.'}</p>
           </div>
         )}
       </div>
