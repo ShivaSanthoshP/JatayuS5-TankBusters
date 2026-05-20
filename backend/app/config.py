@@ -32,6 +32,8 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 # Gemini provider (optional — only used when llm_provider=="gemini")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# Backup key rotated to automatically when primary hits 429/503
+GEMINI_API_KEY_BACKUP = os.getenv("GEMINI_API_KEY_BACKUP", "")
 
 # Embedding provider — "google" uses Gemini embedding API, "ollama" uses local Ollama
 EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "google")

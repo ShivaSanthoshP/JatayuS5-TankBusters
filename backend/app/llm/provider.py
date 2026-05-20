@@ -16,6 +16,8 @@ import logging
 import re
 from typing import Any
 
+from app import config as _config
+
 logger = logging.getLogger("itops.llm.provider")
 
 PROVIDERS = ("ollama", "openai", "gemini")
@@ -103,6 +105,41 @@ def _call_gemini(prompt: str, model: str, temperature: float, *, api_key: str) -
     return parse_json_tolerant(text)
 
 
+# ── Gemini key-rotation fallback ────────────────────────────────────
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    """Return True for 429 / 503 / quota-exceeded errors from Gemini."""
+    msg = str(exc).lower()
+    for marker in ("429", "503", "quota", "resource exhausted", "rate limit", "service unavailable"):
+        if marker in msg:
+            return True
+    try:
+        from google.api_core.exceptions import ResourceExhausted, ServiceUnavailable
+        if isinstance(exc, (ResourceExhausted, ServiceUnavailable)):
+            return True
+    except ImportError:
+        pass
+    return False
+
+
+def _call_gemini_with_fallback(prompt: str, model: str, temperature: float, *, primary_key: str) -> dict | None:
+    """Try primary Gemini key; on 429/503 rotate to backup key from config."""
+    keys = [k for k in [primary_key, _config.GEMINI_API_KEY_BACKUP] if k]
+    last_exc: Exception | None = None
+    for i, key in enumerate(keys):
+        try:
+            return _call_gemini(prompt, model, temperature, api_key=key)
+        except Exception as exc:
+            last_exc = exc
+            if i < len(keys) - 1 and _is_rate_limit_error(exc):
+                logger.warning("Gemini primary key rate-limited (%s), rotating to backup key", exc)
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+    return None
+
+
 # ── Public API ──────────────────────────────────────────────────────
 
 
@@ -162,7 +199,7 @@ def chat_json(prompt: str, *, temperature: float = 0.1) -> dict | None:
             if not cfg.get("api_key"):
                 logger.warning("Gemini selected but no API key configured")
                 return None
-            return _call_gemini(prompt, model, temperature, api_key=cfg["api_key"])
+            return _call_gemini_with_fallback(prompt, model, temperature, primary_key=cfg["api_key"])
     except Exception as exc:
         logger.warning("%s call failed: %s", provider, exc)
         return None

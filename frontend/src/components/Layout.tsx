@@ -107,7 +107,7 @@ export default function Layout() {
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
             onClick={() => setMobileOpen((v) => !v)}
-            className="lg:hidden icon-btn"
+            className="lg:hidden icon-btn relative z-50"
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
