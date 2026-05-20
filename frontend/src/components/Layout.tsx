@@ -79,15 +79,11 @@ export default function Layout() {
             <Server size={16} className="text-[var(--color-surface)]" />
           </div>
           <div className="flex flex-col leading-tight min-w-0">
-            <span className="font-display text-[17px] sm:text-[19px] text-[var(--color-ink)] leading-none">
-              IT<span className="text-[var(--color-accent)] italic">ops</span>
+            <span className="font-display text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+              Dynamic <span className="text-[var(--color-accent)] italic">IT</span>
             </span>
-            <span
-              className="hidden sm:inline label-eyebrow !text-[8.5px] mt-1 leading-none whitespace-nowrap"
-              style={{ letterSpacing: '0.14em' }}
-              title="Dynamic IT Operations Orchestrator"
-            >
-              Dynamic IT Operations Orchestrator
+            <span className="font-display text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+              Operations Orchestrator
             </span>
           </div>
         </div>
