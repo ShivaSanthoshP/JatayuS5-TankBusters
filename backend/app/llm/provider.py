@@ -123,8 +123,14 @@ def _is_rate_limit_error(exc: Exception) -> bool:
 
 
 def _call_gemini_with_fallback(prompt: str, model: str, temperature: float, *, primary_key: str) -> dict | None:
-    """Try primary Gemini key; on 429/503 rotate to backup key from config."""
-    keys = [k for k in [primary_key, _config.GEMINI_API_KEY_BACKUP] if k]
+    """Try primary Gemini key; on 429/503 rotate to stored fallback key."""
+    try:
+        from app.services.settings_service import settings as _settings
+        stored_fallback = _settings.get_secret("fallback_api_key")
+    except Exception:
+        stored_fallback = ""
+    backup = stored_fallback or _config.GEMINI_API_KEY_BACKUP
+    keys = [k for k in [primary_key, backup] if k]
     last_exc: Exception | None = None
     for i, key in enumerate(keys):
         try:
@@ -150,29 +156,30 @@ class ProviderConfigError(RuntimeError):
 def _active_provider_config() -> dict[str, Any]:
     """Snapshot the active provider's effective runtime config from settings."""
     from app.services.settings_service import settings as _settings
-    provider = (_settings.llm_provider or "ollama").lower()
-    if provider not in PROVIDERS:
-        provider = "ollama"
 
-    if provider == "ollama":
+    mode = (_settings.llm_mode or "online").lower()
+
+    if mode == "local":
         return {
             "provider": "ollama",
             "model": _settings.ollama_model or "llama3.2:3b",
             "base_url": _settings.ollama_base_url,
         }
-    if provider == "openai":
-        return {
-            "provider": "openai",
-            "model": _settings.openai_model or "gpt-4o-mini",
-            "api_key": _settings.openai_api_key or "",
-        }
-    if provider == "gemini":
+
+    # Online — detect provider from the free-text name the user entered.
+    name = (_settings.online_provider_name or "gemini").lower()
+    if "gemini" in name or "google" in name:
         return {
             "provider": "gemini",
             "model": _settings.gemini_model or "gemini-2.5-flash",
             "api_key": _settings.gemini_api_key or "",
         }
-    return {"provider": "ollama", "model": "llama3.2:3b", "base_url": _settings.ollama_base_url}
+    # Any other name → OpenAI-compatible
+    return {
+        "provider": "openai",
+        "model": _settings.openai_model or "gpt-4o-mini",
+        "api_key": _settings.openai_api_key or "",
+    }
 
 
 def chat_json(prompt: str, *, temperature: float = 0.1) -> dict | None:

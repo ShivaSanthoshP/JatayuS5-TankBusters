@@ -53,8 +53,19 @@ def _spawn_cloud_task(coro) -> asyncio.Task:
 
 
 class SettingsUpdate(BaseModel):
+    # UI mode — "local" (Ollama) or "online" (cloud provider).
+    llm_mode: str | None = None
+
     # Provider selection — exactly one of: ollama | openai | gemini.
     llm_provider: str | None = None
+
+    # Online provider (free-text name, e.g. "Gemini", "OpenAI")
+    online_provider_name: str | None = None
+
+    # Fallback LLM
+    fallback_provider_name: str | None = None
+    fallback_model: str | None = None
+    fallback_api_key: str | None = None
 
     # Ollama (local)
     ollama_model: str | None = None
@@ -97,6 +108,8 @@ class TestProviderRequest(BaseModel):
     api_key: str | None = None
     # For ollama, if base_url is omitted the stored value is used.
     base_url: str | None = None
+    # Which stored key slot to test when api_key is not provided inline.
+    key_slot: str | None = Field(None, description="gemini_api_key | fallback_api_key")
 
 
 # ── Endpoints ────────────────────────────────────────────────
@@ -125,6 +138,8 @@ def update_settings(body: SettingsUpdate) -> dict[str, Any]:
             status_code=400,
             detail=f"llm_provider must be one of {SUPPORTED_LLM_PROVIDERS}",
         )
+    if "llm_mode" in payload and payload["llm_mode"] not in ("local", "online"):
+        raise HTTPException(status_code=400, detail="llm_mode must be 'local' or 'online'")
 
     new_snapshot = settings.update(**payload)
     safe_keys = [k for k in payload.keys() if "api_key" not in k]
@@ -278,7 +293,8 @@ def test_llm_provider(body: TestProviderRequest) -> dict[str, Any]:
         model = body.model or settings.openai_model
         return _test_provider("openai", model=model, api_key=api_key)
     if provider == "gemini":
-        api_key = body.api_key or settings.get_secret("gemini_api_key")
+        slot = body.key_slot if body.key_slot in ("gemini_api_key", "fallback_api_key") else "gemini_api_key"
+        api_key = body.api_key or settings.get_secret(slot)
         model = body.model or settings.gemini_model
         return _test_provider("gemini", model=model, api_key=api_key)
 

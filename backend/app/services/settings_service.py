@@ -28,6 +28,7 @@ from app.config import (
     OPENAI_MODEL,
     GEMINI_API_KEY,
     GEMINI_MODEL,
+    GEMINI_API_KEY_BACKUP,
     EMBEDDING_PROVIDER,
     GEMINI_EMBEDDING_MODEL,
     LLM_PROVIDER,
@@ -66,6 +67,7 @@ SUPPORTED_LLM_PROVIDERS = ("ollama", "openai", "gemini")
 _SECRET_FIELDS = (
     "openai_api_key",
     "gemini_api_key",
+    "fallback_api_key",
     "cloudwatch_access_key_id",
     "cloudwatch_secret_access_key",
     "azure_client_secret",
@@ -111,11 +113,24 @@ class _Settings:
     def __init__(self):
         self._lock = threading.RLock()
 
+        # ── LLM mode (UI) ──────────────────────────────────
+        # "local" (Ollama) or "online" (any cloud provider).
+        self.llm_mode: str = "online"
+
         # ── LLM provider selection ──────────────────────────
         # Exactly one of: "ollama", "openai", "gemini".
         self.llm_provider: str = (
             LLM_PROVIDER if LLM_PROVIDER in SUPPORTED_LLM_PROVIDERS else "ollama"
         )
+
+        # ── Online provider (primary) ───────────────────────
+        # Free-text name the user typed (e.g. "Gemini", "OpenAI").
+        self.online_provider_name: str = "Gemini"
+
+        # ── Fallback LLM ────────────────────────────────────
+        self.fallback_provider_name: str = "Gemini"
+        self.fallback_model: str = GEMINI_MODEL
+        self.fallback_api_key: str = GEMINI_API_KEY_BACKUP
 
         # ── Ollama settings (local) ─────────────────────────
         self.ollama_model: str = OLLAMA_MODEL
@@ -192,7 +207,12 @@ class _Settings:
     # ── Persistence ─────────────────────────────────────────
 
     _PERSISTED_FIELDS = (
+        "llm_mode",
         "llm_provider",
+        "online_provider_name",
+        "fallback_provider_name",
+        "fallback_model",
+        "fallback_api_key",
         "ollama_model",
         "ollama_embedding_model",
         "ollama_base_url",
@@ -285,7 +305,12 @@ class _Settings:
         """
         with self._lock:
             raw: dict[str, Any] = {
+                "llm_mode": self.llm_mode,
                 "llm_provider": self.llm_provider,
+                "online_provider_name": self.online_provider_name,
+                "fallback_provider_name": self.fallback_provider_name,
+                "fallback_model": self.fallback_model,
+                "fallback_api_key": self.fallback_api_key,
                 "ollama_model": self.ollama_model,
                 "ollama_embedding_model": self.ollama_embedding_model,
                 "ollama_base_url": self.ollama_base_url,

@@ -2,31 +2,40 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Settings as SettingsIcon, Brain, Cpu, Timer, Plus, X, Check,
-  RefreshCw, ChevronDown, Loader2, Server, Cloud, Sparkles,
-  AlertCircle, KeyRound, Eye, EyeOff,
+  RefreshCw, ChevronDown, Loader2, Server, Cloud,
+  AlertCircle, KeyRound, Eye, EyeOff, ShieldAlert,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import * as api from '../services/api';
 
-type LlmProvider = 'ollama' | 'openai' | 'gemini';
+type LlmMode = 'local' | 'online';
 
 interface SettingsData {
-  llm_provider: LlmProvider;
+  // New UI mode fields
+  llm_mode: LlmMode;
+  online_provider_name: string;
+  fallback_provider_name: string;
+  fallback_model: string;
+  fallback_api_key: string;
+  fallback_api_key_set: boolean;
 
-  // Ollama
+  // Legacy (kept for backend compat)
+  llm_provider: string;
+
+  // Ollama (local)
   ollama_model: string;
   ollama_embedding_model: string;
   ollama_base_url: string;
 
-  // OpenAI
-  openai_api_key: string;        // "***" when set (redacted) or "" when unset
-  openai_api_key_set: boolean;
-  openai_model: string;
-
-  // Gemini
+  // Primary online API key (reuses gemini_api_key slot)
   gemini_api_key: string;
   gemini_api_key_set: boolean;
   gemini_model: string;
+
+  // OpenAI (kept for compat)
+  openai_api_key: string;
+  openai_api_key_set: boolean;
+  openai_model: string;
 
   // Embedding
   embedding_provider: 'google' | 'ollama';
@@ -56,16 +65,6 @@ interface OllamaModel {
   modified_at: string;
 }
 
-interface GeminiModelInfo {
-  name: string;
-  display_name: string;
-  description: string;
-  input_token_limit: number;
-  output_token_limit: number;
-  version: string;
-  deprecated: boolean;
-}
-
 const DEFAULT_OLLAMA_LLM_OPTIONS = [
   'llama3.2:3b', 'qwen2.5-coder:7b', 'mistral-nemo',
   'deepseek-coder-v2', 'codellama:7b', 'gemma2:9b', 'gemma3:4b',
@@ -75,39 +74,6 @@ const DEFAULT_EMBEDDING_OPTIONS = [
   'nomic-embed-text', 'mxbai-embed-large', 'all-minilm', 'snowflake-arctic-embed',
   'bge-large', 'bge-m3', 'e5-mistral-7b-instruct', 'nomic-embed-text:v1.5',
 ];
-
-const DEFAULT_OPENAI_MODELS = [
-  'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-4.1-mini', 'gpt-4.1', 'o3-mini',
-];
-
-const DEFAULT_GEMINI_MODELS = [
-  'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite',
-  'gemini-1.5-pro', 'gemini-1.5-flash',
-];
-
-const PROVIDER_META: Record<LlmProvider, { label: string; subtitle: string; description: string; Icon: React.ElementType; accent: string }> = {
-  ollama: { 
-    label: 'Ollama', 
-    subtitle: 'Local & Free', 
-    description: 'Run AI models locally on your machine. No API costs, full privacy.',
-    Icon: Server, 
-    accent: 'emerald' 
-  },
-  openai: { 
-    label: 'OpenAI', 
-    subtitle: 'GPT-4 & GPT-4o', 
-    description: 'Industry-leading models. Requires API key with usage-based billing.',
-    Icon: Sparkles, 
-    accent: 'indigo' 
-  },
-  gemini: { 
-    label: 'Google Gemini', 
-    subtitle: 'Gemini 2.0', 
-    description: 'Google\'s latest AI models. Requires API key from Google AI Studio.',
-    Icon: Cloud, 
-    accent: 'sky' 
-  },
-};
 
 
 type AgentTempKey =
@@ -183,9 +149,6 @@ function TempControl({
 export default function Settings() {
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [ollamaModels, setOllamaModels] = useState<OllamaModel[]>([]);
-  const [geminiModels, setGeminiModels] = useState<GeminiModelInfo[]>([]);
-  const [geminiModelsError, setGeminiModelsError] = useState<string | null>(null);
-  const [geminiModelsLoading, setGeminiModelsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -194,25 +157,28 @@ export default function Settings() {
   // Custom-model input state
   const [newOllamaModel, setNewOllamaModel] = useState('');
   const [newEmbeddingModel, setNewEmbeddingModel] = useState('');
-  const [newOpenaiModel, setNewOpenaiModel] = useState('');
-  const [newGeminiModel, setNewGeminiModel] = useState('');
+  const [newOnlineModel, setNewOnlineModel] = useState('');
 
   // Dropdown-open state
   const [openDropdown, setOpenDropdown] = useState<
-    'ollama-llm' | 'ollama-embedding' | 'openai-model' | 'gemini-model' | 'google-embedding' | null
+    'ollama-llm' | 'ollama-embedding' | 'google-embedding' | null
   >(null);
 
-  // Key-reveal state (only for unsaved edits — stored keys are never returned)
-  const [openaiKeyDraft, setOpenaiKeyDraft] = useState('');
-  const [geminiKeyDraft, setGeminiKeyDraft] = useState('');
-  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  // Primary online key draft
+  const [primaryKeyDraft, setPrimaryKeyDraft] = useState('');
+  const [showPrimaryKey, setShowPrimaryKey] = useState(false);
 
-  // Test-connection state, per provider
-  const [testing, setTesting] = useState<LlmProvider | null>(null);
-  const [testResult, setTestResult] = useState<Record<LlmProvider, { ok: boolean; message: string } | null>>({
-    ollama: null, openai: null, gemini: null,
-  });
+  // Fallback key draft
+  const [fallbackKeyDraft, setFallbackKeyDraft] = useState('');
+  const [showFallbackKey, setShowFallbackKey] = useState(false);
+
+  // Test-connection state
+  const [testingPrimary, setTestingPrimary] = useState(false);
+  const [testingFallback, setTestingFallback] = useState(false);
+  const [testPrimaryResult, setTestPrimaryResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testFallbackResult, setTestFallbackResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [testingOllama, setTestingOllama] = useState(false);
+  const [testOllamaResult, setTestOllamaResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   const fetchSettings = useCallback(async () => {
     try {
@@ -230,30 +196,7 @@ export default function Settings() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
-
-  const fetchGeminiModels = useCallback(async (draftKey?: string) => {
-    setGeminiModelsLoading(true);
-    setGeminiModelsError(null);
-    try {
-      const result = await api.getGeminiModels(draftKey?.trim() || undefined);
-      setGeminiModels(result.models || []);
-      if (result.error) setGeminiModelsError(result.error);
-    } catch (e: any) {
-      setGeminiModelsError(e.message || 'Failed to fetch models');
-      setGeminiModels([]);
-    } finally {
-      setGeminiModelsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (settings?.gemini_api_key_set && geminiModels.length === 0 && !geminiModelsLoading && !geminiModelsError) {
-      fetchGeminiModels();
-    }
-  }, [settings?.gemini_api_key_set, geminiModels.length, geminiModelsLoading, geminiModelsError, fetchGeminiModels]);
+  useEffect(() => { fetchSettings(); }, [fetchSettings]);
 
   const save = async (partial: Partial<SettingsData>) => {
     if (!settings) return;
@@ -272,43 +215,57 @@ export default function Settings() {
     }
   };
 
-  const saveProvider = (provider: LlmProvider) => save({ llm_provider: provider });
-
-  const saveOpenaiKey = async () => {
-    if (!openaiKeyDraft.trim()) return;
-    await save({ openai_api_key: openaiKeyDraft.trim() });
-    setOpenaiKeyDraft('');
-    setShowOpenaiKey(false);
+  const savePrimaryKey = async () => {
+    if (!primaryKeyDraft.trim()) return;
+    await save({ gemini_api_key: primaryKeyDraft.trim() });
+    setPrimaryKeyDraft('');
+    setShowPrimaryKey(false);
   };
 
-  const saveGeminiKey = async () => {
-    if (!geminiKeyDraft.trim()) return;
-    await save({ gemini_api_key: geminiKeyDraft.trim() });
-    setGeminiKeyDraft('');
-    setShowGeminiKey(false);
-    fetchGeminiModels();
+  const saveFallbackKey = async () => {
+    if (!fallbackKeyDraft.trim()) return;
+    await save({ fallback_api_key: fallbackKeyDraft.trim() });
+    setFallbackKeyDraft('');
+    setShowFallbackKey(false);
   };
 
-  const clearOpenaiKey = () => save({ openai_api_key: '' });
-  const clearGeminiKey = () => {
-    save({ gemini_api_key: '' });
-    setGeminiModels([]);
-    setGeminiModelsError(null);
-  };
-
-  const runTest = async (provider: LlmProvider) => {
-    setTesting(provider);
-    setTestResult((prev) => ({ ...prev, [provider]: null }));
+  const runTestPrimary = async () => {
+    setTestingPrimary(true);
+    setTestPrimaryResult(null);
     try {
-      const body: any = { provider };
-      if (provider === 'openai' && openaiKeyDraft.trim()) body.api_key = openaiKeyDraft.trim();
-      if (provider === 'gemini' && geminiKeyDraft.trim()) body.api_key = geminiKeyDraft.trim();
-      const result = await api.testLlmProvider(body);
-      setTestResult((prev) => ({ ...prev, [provider]: result }));
+      const body: any = { provider: 'gemini', key_slot: 'gemini_api_key' };
+      if (primaryKeyDraft.trim()) body.api_key = primaryKeyDraft.trim();
+      setTestPrimaryResult(await api.testLlmProvider(body));
     } catch (e: any) {
-      setTestResult((prev) => ({ ...prev, [provider]: { ok: false, message: e.message } }));
+      setTestPrimaryResult({ ok: false, message: e.message });
     } finally {
-      setTesting(null);
+      setTestingPrimary(false);
+    }
+  };
+
+  const runTestFallback = async () => {
+    setTestingFallback(true);
+    setTestFallbackResult(null);
+    try {
+      const body: any = { provider: 'gemini', key_slot: 'fallback_api_key' };
+      if (fallbackKeyDraft.trim()) body.api_key = fallbackKeyDraft.trim();
+      setTestFallbackResult(await api.testLlmProvider(body));
+    } catch (e: any) {
+      setTestFallbackResult({ ok: false, message: e.message });
+    } finally {
+      setTestingFallback(false);
+    }
+  };
+
+  const runTestOllama = async () => {
+    setTestingOllama(true);
+    setTestOllamaResult(null);
+    try {
+      setTestOllamaResult(await api.testLlmProvider({ provider: 'ollama' }));
+    } catch (e: any) {
+      setTestOllamaResult({ ok: false, message: e.message });
+    } finally {
+      setTestingOllama(false);
     }
   };
 
@@ -331,8 +288,7 @@ export default function Settings() {
     model: string,
   ) => {
     if (!settings) return;
-    const updated = settings[bucket].filter((m) => m !== model);
-    save({ [bucket]: updated } as Partial<SettingsData>);
+    save({ [bucket]: settings[bucket].filter((m) => m !== model) } as Partial<SettingsData>);
   };
 
   if (loading) {
@@ -353,10 +309,11 @@ export default function Settings() {
     );
   }
 
-  // Build dropdown options
+  const llmMode: LlmMode = (settings.llm_mode as LlmMode) || 'online';
+
   const installedOllamaNames = ollamaModels.map((m) => m.name);
   const isInstalled = (model: string) =>
-    installedOllamaNames.some((name) => name === model || name === `${model}:latest`);
+    installedOllamaNames.some((n) => n === model || n === `${model}:latest`);
 
   const ollamaLlmOptions = [...new Set([
     ...installedOllamaNames, ...DEFAULT_OLLAMA_LLM_OPTIONS,
@@ -366,25 +323,6 @@ export default function Settings() {
   const ollamaEmbeddingOptions = [...new Set([
     ...DEFAULT_EMBEDDING_OPTIONS, ...settings.custom_embedding_models, settings.ollama_embedding_model,
   ])].sort();
-
-  const openaiOptions = [...new Set([
-    ...DEFAULT_OPENAI_MODELS, ...settings.custom_openai_models, settings.openai_model,
-  ])].sort();
-
-  // Prefer the live catalog when available (preserves backend's smart sort);
-  // otherwise fall back to the static defaults. Custom + currently-selected
-  // models are always merged in so the user can still pick what they typed.
-  const geminiCatalogNames = geminiModels.map((m) => m.name);
-  const geminiExtraNames = [...settings.custom_gemini_models, settings.gemini_model]
-    .filter((n) => n && !geminiCatalogNames.includes(n));
-  const geminiOptions: string[] = geminiModels.length > 0
-    ? [...geminiCatalogNames, ...geminiExtraNames]
-    : [...new Set([
-        ...DEFAULT_GEMINI_MODELS, ...settings.custom_gemini_models, settings.gemini_model,
-      ])].sort();
-  const geminiInfoByName = new Map(geminiModels.map((m) => [m.name, m]));
-
-  const activeProvider = settings.llm_provider;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
@@ -427,13 +365,11 @@ export default function Settings() {
         </div>
       )}
 
-      {/* ── AI Brain Selector ─────────────────────────────── */}
+      {/* ── LLM Provider ─────────────────────────────────── */}
       <GlassCard hover={false} className="relative overflow-hidden">
-        {/* Background decoration */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[var(--color-accent-glow)] to-transparent rounded-bl-full pointer-events-none" />
-
         <div className="relative">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-5">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{
@@ -444,514 +380,331 @@ export default function Settings() {
               <Brain size={20} className="text-[var(--color-surface)]" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-ink">Choose Your AI Brain</h2>
-              <p className="text-xs text-ink-mute">Select which Large Language Model powers your AIOps agents</p>
+              <h2 className="text-lg font-semibold text-ink">LLM Provider</h2>
+              <p className="text-xs text-ink-mute">Configure the AI model that powers your AIOps agents</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-6">
-            {(Object.keys(PROVIDER_META) as LlmProvider[]).map((p) => {
-              const { label, subtitle, description, Icon } = PROVIDER_META[p];
-              const active = activeProvider === p;
-              return (
-                <button
-                  key={p}
-                  onClick={() => saveProvider(p)}
-                  className={`relative rounded-xl p-5 text-left transition-all duration-200 border-2 group cursor-pointer ${
-                    active
-                      ? 'border-accent bg-accent/8 shadow-sm'
-                      : 'border-hairline-strong hover:border-accent/40 bg-surface/50'
-                  }`}
-                >
-                  {active && (
-                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-accent rounded-full flex items-center justify-center shadow-md">
-                      <Check size={14} className="text-[var(--color-surface)]" />
-                    </div>
-                  )}
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition-colors ${
-                    active
-                      ? 'bg-accent text-[var(--color-surface)]'
-                      : 'bg-ink/8 text-ink-mute group-hover:bg-accent/12 group-hover:text-accent'
-                  }`}>
-                    <Icon size={20} />
-                  </div>
-                  <h3 className={`font-semibold mb-0.5 ${active ? 'text-accent' : 'text-ink-soft'}`}>
-                    {label}
-                  </h3>
-                  <p className={`text-xs font-medium mb-2 ${active ? 'text-accent-bright' : 'text-ink-mute'}`}>
-                    {subtitle}
-                  </p>
-                  <p className="text-[11px] text-ink-faint leading-relaxed">
-                    {description}
-                  </p>
-                </button>
-              );
-            })}
+          {/* Local / Online tabs */}
+          <div className="flex gap-2 mb-5">
+            {(['local', 'online'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => save({ llm_mode: mode })}
+                className={`flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer ${
+                  llmMode === mode
+                    ? 'bg-accent text-[var(--color-surface)] shadow-sm'
+                    : 'glass-sm text-ink-soft hover:bg-accent/8'
+                }`}
+              >
+                {mode === 'local' ? <Server size={15} /> : <Cloud size={15} />}
+                {mode === 'local' ? 'Local' : 'Online'}
+              </button>
+            ))}
           </div>
+          <p className="text-[11px] text-ink-faint mb-5 -mt-2">
+            {llmMode === 'local'
+              ? 'Best for privacy — runs entirely on your machine, no internet required.'
+              : 'Best for accuracy — uses a cloud AI provider with your API key.'}
+          </p>
 
-          <div className="mt-5 p-3 rounded-lg bg-warning/10 border border-warning/25 flex items-start gap-2">
-            <AlertCircle size={14} className="text-warning mt-0.5 shrink-0" />
-            <p className="text-[11px] text-warning">
-              <strong>Note:</strong> The embedding provider is independent of the chat LLM. You can use Google embeddings with any chat provider. After switching providers, re-seed runbooks so all vectors use the same model.
-            </p>
-          </div>
+          {/* LOCAL panel */}
+          {llmMode === 'local' && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-ink-mute mb-1.5 block">Model</label>
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === 'ollama-llm' ? null : 'ollama-llm')}
+                    className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
+                  >
+                    <span className="font-medium">{settings.ollama_model}</span>
+                    <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'ollama-llm' ? 'rotate-180' : ''}`} />
+                  </button>
+                  {openDropdown === 'ollama-llm' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute z-30 mt-1 w-full glass-dropdown max-h-52 overflow-y-auto"
+                    >
+                      {ollamaLlmOptions.map((model) => (
+                        <button
+                          key={model}
+                          onClick={() => { save({ ollama_model: model }); setOpenDropdown(null); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 flex items-center justify-between ${
+                            model === settings.ollama_model ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
+                          }`}
+                        >
+                          <span>{model}</span>
+                          {isInstalled(model) && (
+                            <span className="text-[10px] bg-accent/12 text-accent px-1.5 py-0.5 rounded-full">installed</span>
+                          )}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-ink-mute mb-1.5 block">Base URL</label>
+                <input
+                  type="text"
+                  value={settings.ollama_base_url}
+                  onChange={(e) => setSettings({ ...settings, ollama_base_url: e.target.value })}
+                  onBlur={(e) => save({ ollama_base_url: e.target.value.trim() })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') save({ ollama_base_url: (e.target as HTMLInputElement).value.trim() }); }}
+                  className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newOllamaModel}
+                    onChange={(e) => setNewOllamaModel(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_llm_models', newOllamaModel, () => setNewOllamaModel(''))}
+                    placeholder="e.g. phi3:mini"
+                    className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  />
+                  <button
+                    onClick={() => addCustomModel('custom_llm_models', newOllamaModel, () => setNewOllamaModel(''))}
+                    className="glass-sm rounded-lg px-3 py-2 hover:bg-accent/8"
+                  >
+                    <Plus size={16} className="text-accent" />
+                  </button>
+                </div>
+                {settings.custom_llm_models.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {settings.custom_llm_models.map((m) => (
+                      <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
+                        {m}
+                        <button onClick={() => removeCustomModel('custom_llm_models', m)} className="hover:text-critical"><X size={12} /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={runTestOllama}
+                disabled={testingOllama}
+                className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-accent hover:bg-accent/8 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {testingOllama ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Test Connection
+              </button>
+              {testOllamaResult && (
+                <p className={`text-[11px] flex items-center gap-1 ${testOllamaResult.ok ? 'text-success' : 'text-critical'}`}>
+                  {testOllamaResult.ok ? <Check size={12} /> : <X size={12} />}
+                  {testOllamaResult.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* ONLINE panel */}
+          {llmMode === 'online' && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-ink-mute mb-1.5 block">Provider Name</label>
+                <input
+                  type="text"
+                  value={settings.online_provider_name}
+                  onChange={(e) => setSettings({ ...settings, online_provider_name: e.target.value })}
+                  onBlur={(e) => save({ online_provider_name: e.target.value.trim() })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') save({ online_provider_name: (e.target as HTMLInputElement).value.trim() }); }}
+                  placeholder="e.g. Gemini, OpenAI, Anthropic"
+                  className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-ink-mute mb-1.5 block">API Key</label>
+                {settings.gemini_api_key_set && !primaryKeyDraft && (
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-ink-soft flex items-center gap-2">
+                      <KeyRound size={14} className="text-success" />
+                      ••••••••••••••••
+                      <span className="ml-auto text-[10px] text-success">saved</span>
+                    </div>
+                    <button onClick={() => setPrimaryKeyDraft(' ')} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-soft hover:bg-canvas-soft">Change</button>
+                    <button onClick={() => save({ gemini_api_key: '' })} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-critical hover:bg-critical/10">Remove</button>
+                  </div>
+                )}
+                {(!settings.gemini_api_key_set || primaryKeyDraft) && (
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <div className="relative flex-1 min-w-[180px]">
+                      <input
+                        type={showPrimaryKey ? 'text' : 'password'}
+                        value={primaryKeyDraft}
+                        onChange={(e) => setPrimaryKeyDraft(e.target.value)}
+                        placeholder="API key..."
+                        autoComplete="off"
+                        className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
+                      />
+                      <button type="button" onClick={() => setShowPrimaryKey(!showPrimaryKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-soft">
+                        {showPrimaryKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                    <button onClick={savePrimaryKey} disabled={!primaryKeyDraft.trim()} className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/8 disabled:opacity-50">Save</button>
+                    {settings.gemini_api_key_set && (
+                      <button onClick={() => setPrimaryKeyDraft('')} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-mute hover:bg-canvas-soft">Cancel</button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs text-ink-mute mb-1.5 block">Model</label>
+                <input
+                  type="text"
+                  value={settings.gemini_model}
+                  onChange={(e) => setSettings({ ...settings, gemini_model: e.target.value })}
+                  onBlur={(e) => save({ gemini_model: e.target.value.trim() })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') save({ gemini_model: (e.target as HTMLInputElement).value.trim() }); }}
+                  placeholder="e.g. gemini-2.5-flash, gpt-4o"
+                  className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newOnlineModel}
+                    onChange={(e) => setNewOnlineModel(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_gemini_models', newOnlineModel, () => setNewOnlineModel(''))}
+                    placeholder="e.g. gemini-2.5-pro"
+                    className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  />
+                  <button onClick={() => addCustomModel('custom_gemini_models', newOnlineModel, () => setNewOnlineModel(''))} className="glass-sm rounded-lg px-3 py-2 hover:bg-accent/8">
+                    <Plus size={16} className="text-accent" />
+                  </button>
+                </div>
+                {settings.custom_gemini_models.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {settings.custom_gemini_models.map((m) => (
+                      <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
+                        {m}
+                        <button onClick={() => removeCustomModel('custom_gemini_models', m)} className="hover:text-critical"><X size={12} /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={runTestPrimary}
+                disabled={testingPrimary || (!settings.gemini_api_key_set && !primaryKeyDraft.trim())}
+                className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-accent hover:bg-accent/8 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {testingPrimary ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Test Connection
+              </button>
+              {testPrimaryResult && (
+                <p className={`text-[11px] flex items-center gap-1 ${testPrimaryResult.ok ? 'text-success' : 'text-critical'}`}>
+                  {testPrimaryResult.ok ? <Check size={12} /> : <X size={12} />}
+                  {testPrimaryResult.message}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </GlassCard>
 
-      {/* ── Active provider's config ────────────────────── */}
-
-      {activeProvider === 'ollama' && (
-        <div className="grid lg:grid-cols-2 gap-6">
-          <GlassCard hover={false}>
-            <div className="flex items-center gap-2 mb-5">
-              <Server size={18} className="text-accent" />
-              <h2 className="text-sm font-semibold text-ink-soft">Ollama — Chat Model</h2>
-            </div>
-
-            <label className="text-xs text-ink-mute mb-1.5 block">Active Model</label>
-            <div className="relative mb-4">
-              <button
-                onClick={() => setOpenDropdown(openDropdown === 'ollama-llm' ? null : 'ollama-llm')}
-                className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
-              >
-                <span className="font-medium">{settings.ollama_model}</span>
-                <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'ollama-llm' ? 'rotate-180' : ''}`} />
-              </button>
-              {openDropdown === 'ollama-llm' && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="absolute z-30 mt-1 w-full glass-dropdown max-h-52 overflow-y-auto"
-                >
-                  {ollamaLlmOptions.map((model) => (
-                    <button
-                      key={model}
-                      onClick={() => { save({ ollama_model: model }); setOpenDropdown(null); }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 flex items-center justify-between ${
-                        model === settings.ollama_model ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
-                      }`}
-                    >
-                      <span>{model}</span>
-                      {isInstalled(model) && (
-                        <span className="text-[10px] bg-accent/12 text-accent px-1.5 py-0.5 rounded-full">installed</span>
-                      )}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </div>
-
-            <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newOllamaModel}
-                onChange={(e) => setNewOllamaModel(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_llm_models', newOllamaModel, () => setNewOllamaModel(''))}
-                placeholder="e.g. phi3:mini"
-                className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
-              />
-              <button
-                onClick={() => addCustomModel('custom_llm_models', newOllamaModel, () => setNewOllamaModel(''))}
-                className="glass-sm rounded-lg px-3 py-2 hover:bg-accent/8"
-              >
-                <Plus size={16} className="text-accent" />
-              </button>
-            </div>
-            {settings.custom_llm_models.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {settings.custom_llm_models.map((m) => (
-                  <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
-                    {m}
-                    <button onClick={() => removeCustomModel('custom_llm_models', m)} className="hover:text-critical">
-                      <X size={12} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </GlassCard>
-
-          <GlassCard hover={false}>
-            <div className="flex items-center gap-2 mb-5">
-              <RefreshCw size={18} className="text-accent" />
-              <h2 className="text-sm font-semibold text-ink-soft">Ollama Server + Test</h2>
-            </div>
-
-            <label className="text-xs text-ink-mute mb-1.5 block">Base URL</label>
-            <div className="flex items-center gap-2 mb-3">
-              <input
-                type="text"
-                value={settings.ollama_base_url}
-                onChange={(e) => setSettings({ ...settings, ollama_base_url: e.target.value })}
-                onBlur={(e) => save({ ollama_base_url: e.target.value.trim() })}
-                onKeyDown={(e) => { if (e.key === 'Enter') save({ ollama_base_url: (e.target as HTMLInputElement).value.trim() }); }}
-                className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
-              />
-            </div>
-            <button
-              onClick={() => runTest('ollama')}
-              disabled={testing === 'ollama'}
-              className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-accent hover:bg-accent/8 disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {testing === 'ollama' ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              Test Connection
-            </button>
-            {testResult.ollama && (
-              <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.ollama.ok ? 'text-success' : 'text-critical'}`}>
-                {testResult.ollama.ok ? <Check size={12} /> : <X size={12} />}
-                {testResult.ollama.message}
-              </p>
-            )}
-            <p className="text-[11px] text-ink-faint mt-3">
-              {ollamaModels.length > 0
-                ? `Connected — ${ollamaModels.length} model${ollamaModels.length > 1 ? 's' : ''} available`
-                : 'Unable to reach Ollama server. Make sure it is running.'}
-            </p>
-          </GlassCard>
+      {/* ── Fallback LLM ──────────────────────────────────── */}
+      <GlassCard hover={false}>
+        <div className="flex items-center gap-3 mb-2">
+          <ShieldAlert size={18} className="text-warning" />
+          <div>
+            <h2 className="text-sm font-semibold text-ink">Fallback LLM</h2>
+            <p className="text-[11px] text-ink-mute">Used automatically when primary hits rate limits (429 / 503)</p>
+          </div>
         </div>
-      )}
 
-      {activeProvider === 'openai' && (
-        <GlassCard hover={false}>
-          <div className="flex items-center gap-2 mb-5">
-            <Sparkles size={18} className="text-accent" />
-            <h2 className="text-sm font-semibold text-ink-soft">OpenAI</h2>
-          </div>
-
-          {/* API key */}
-          <label className="text-xs text-ink-mute mb-1.5 block">API Key</label>
-          {settings.openai_api_key_set && !openaiKeyDraft && (
-            <div className="flex items-center gap-2 mb-4 flex-wrap sm:flex-nowrap">
-              <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-ink-soft flex items-center gap-2">
-                <KeyRound size={14} className="text-success" />
-                ••••••••••••••••
-                <span className="ml-auto text-[10px] text-success">saved</span>
-              </div>
-              <button
-                onClick={() => setOpenaiKeyDraft(' ')}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-soft hover:bg-canvas-soft"
-              >
-                Change
-              </button>
-              <button
-                onClick={clearOpenaiKey}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-critical hover:bg-critical/10"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-          {(!settings.openai_api_key_set || openaiKeyDraft) && (
-            <div className="flex items-center gap-2 mb-4 flex-wrap sm:flex-nowrap">
-              <div className="relative flex-1 min-w-[180px]">
-                <input
-                  type={showOpenaiKey ? 'text' : 'password'}
-                  value={openaiKeyDraft.trim() === '' ? openaiKeyDraft : openaiKeyDraft}
-                  onChange={(e) => setOpenaiKeyDraft(e.target.value)}
-                  placeholder="sk-..."
-                  autoComplete="off"
-                  className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowOpenaiKey(!showOpenaiKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-soft"
-                >
-                  {showOpenaiKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-              <button
-                onClick={saveOpenaiKey}
-                disabled={!openaiKeyDraft.trim()}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/8 disabled:opacity-50"
-              >
-                Save
-              </button>
-              {settings.openai_api_key_set && (
-                <button
-                  onClick={() => setOpenaiKeyDraft('')}
-                  className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-mute hover:bg-canvas-soft"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Model */}
-          <label className="text-xs text-ink-mute mb-1.5 block">Model</label>
-          <div className="relative mb-4">
-            <button
-              onClick={() => setOpenDropdown(openDropdown === 'openai-model' ? null : 'openai-model')}
-              className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
-            >
-              <span className="font-medium">{settings.openai_model}</span>
-              <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'openai-model' ? 'rotate-180' : ''}`} />
-            </button>
-            {openDropdown === 'openai-model' && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute z-30 mt-1 w-full glass-dropdown max-h-52 overflow-y-auto"
-              >
-                {openaiOptions.map((model) => (
-                  <button
-                    key={model}
-                    onClick={() => { save({ openai_model: model }); setOpenDropdown(null); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
-                      model === settings.openai_model ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
-                    }`}
-                  >
-                    {model}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </div>
-
-          {/* Add custom OpenAI model */}
-          <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
-          <div className="flex gap-2 mb-2">
+        <div className="mt-4 space-y-4">
+          <div>
+            <label className="text-xs text-ink-mute mb-1.5 block">Provider Name</label>
             <input
               type="text"
-              value={newOpenaiModel}
-              onChange={(e) => setNewOpenaiModel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_openai_models', newOpenaiModel, () => setNewOpenaiModel(''))}
-              placeholder="e.g. gpt-4.1"
-              className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+              value={settings.fallback_provider_name}
+              onChange={(e) => setSettings({ ...settings, fallback_provider_name: e.target.value })}
+              onBlur={(e) => save({ fallback_provider_name: e.target.value.trim() })}
+              onKeyDown={(e) => { if (e.key === 'Enter') save({ fallback_provider_name: (e.target as HTMLInputElement).value.trim() }); }}
+              placeholder="e.g. Gemini, OpenAI"
+              className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
             />
-            <button
-              onClick={() => addCustomModel('custom_openai_models', newOpenaiModel, () => setNewOpenaiModel(''))}
-              className="glass-sm rounded-lg px-3 py-2 hover:bg-accent/8"
-            >
-              <Plus size={16} className="text-accent" />
-            </button>
-          </div>
-          {settings.custom_openai_models.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {settings.custom_openai_models.map((m) => (
-                <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
-                  {m}
-                  <button onClick={() => removeCustomModel('custom_openai_models', m)} className="hover:text-critical">
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Test */}
-          <button
-            onClick={() => runTest('openai')}
-            disabled={testing === 'openai' || (!settings.openai_api_key_set && !openaiKeyDraft.trim())}
-            className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-accent hover:bg-accent/8 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
-          >
-            {testing === 'openai' ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Test Connection
-          </button>
-          {testResult.openai && (
-            <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.openai.ok ? 'text-success' : 'text-critical'}`}>
-              {testResult.openai.ok ? <Check size={12} /> : <X size={12} />}
-              {testResult.openai.message}
-            </p>
-          )}
-        </GlassCard>
-      )}
-
-      {activeProvider === 'gemini' && (
-        <GlassCard hover={false}>
-          <div className="flex items-center gap-2 mb-5">
-            <Cloud size={18} className="text-info" />
-            <h2 className="text-sm font-semibold text-ink-soft">Google Gemini</h2>
           </div>
 
-          {/* API key */}
-          <label className="text-xs text-ink-mute mb-1.5 block">API Key</label>
-          {settings.gemini_api_key_set && !geminiKeyDraft && (
-            <div className="flex items-center gap-2 mb-4 flex-wrap sm:flex-nowrap">
-              <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-ink-soft flex items-center gap-2">
-                <KeyRound size={14} className="text-success" />
-                ••••••••••••••••
-                <span className="ml-auto text-[10px] text-success">saved</span>
+          <div>
+            <label className="text-xs text-ink-mute mb-1.5 block">API Key</label>
+            {settings.fallback_api_key_set && !fallbackKeyDraft && (
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-ink-soft flex items-center gap-2">
+                  <KeyRound size={14} className="text-success" />
+                  ••••••••••••••••
+                  <span className="ml-auto text-[10px] text-success">saved</span>
+                </div>
+                <button onClick={() => setFallbackKeyDraft(' ')} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-soft hover:bg-canvas-soft">Change</button>
+                <button onClick={() => save({ fallback_api_key: '' })} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-critical hover:bg-critical/10">Remove</button>
               </div>
-              <button
-                onClick={() => setGeminiKeyDraft(' ')}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-soft hover:bg-canvas-soft"
-              >
-                Change
-              </button>
-              <button
-                onClick={clearGeminiKey}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs text-critical hover:bg-critical/10"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-          {(!settings.gemini_api_key_set || geminiKeyDraft) && (
-            <div className="flex items-center gap-2 mb-4 flex-wrap sm:flex-nowrap">
-              <div className="relative flex-1 min-w-[180px]">
-                <input
-                  type={showGeminiKey ? 'text' : 'password'}
-                  value={geminiKeyDraft.trim() === '' ? geminiKeyDraft : geminiKeyDraft}
-                  onChange={(e) => setGeminiKeyDraft(e.target.value)}
-                  placeholder="AIza..."
-                  autoComplete="off"
-                  className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-info/40"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowGeminiKey(!showGeminiKey)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-soft"
-                >
-                  {showGeminiKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-              <button
-                onClick={saveGeminiKey}
-                disabled={!geminiKeyDraft.trim()}
-                className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-info hover:bg-info/10 disabled:opacity-50"
-              >
-                Save
-              </button>
-              {settings.gemini_api_key_set && (
-                <button
-                  onClick={() => setGeminiKeyDraft('')}
-                  className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-mute hover:bg-canvas-soft"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Model */}
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs text-ink-mute">Model</label>
-            {settings.gemini_api_key_set && (
-              <button
-                onClick={() => fetchGeminiModels()}
-                disabled={geminiModelsLoading}
-                title="Refresh model list from Google"
-                className="text-[11px] text-info hover:text-info flex items-center gap-1 disabled:opacity-50"
-              >
-                {geminiModelsLoading ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-                {geminiModels.length > 0
-                  ? `${geminiModels.length} models${geminiModels.some((m) => m.deprecated) ? ` · ${geminiModels.filter((m) => m.deprecated).length} deprecated` : ''}`
-                  : 'Fetch models'}
-              </button>
             )}
-          </div>
-          {geminiModelsError && (
-            <p className="text-[11px] text-warning mb-1.5 flex items-center gap-1">
-              <AlertCircle size={11} />
-              Couldn't fetch live model list — using defaults. ({geminiModelsError})
-            </p>
-          )}
-          <div className="relative mb-4">
-            <button
-              onClick={() => setOpenDropdown(openDropdown === 'gemini-model' ? null : 'gemini-model')}
-              className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-info/40"
-            >
-              <span className="font-medium flex items-center gap-2">
-                {settings.gemini_model}
-                {geminiInfoByName.get(settings.gemini_model)?.deprecated && (
-                  <span className="text-[10px] uppercase tracking-wide bg-warning/15 text-warning px-1.5 py-0.5 rounded">Deprecated</span>
+            {(!settings.fallback_api_key_set || fallbackKeyDraft) && (
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <div className="relative flex-1 min-w-[180px]">
+                  <input
+                    type={showFallbackKey ? 'text' : 'password'}
+                    value={fallbackKeyDraft}
+                    onChange={(e) => setFallbackKeyDraft(e.target.value)}
+                    placeholder="API key..."
+                    autoComplete="off"
+                    className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  />
+                  <button type="button" onClick={() => setShowFallbackKey(!showFallbackKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-soft">
+                    {showFallbackKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                <button onClick={saveFallbackKey} disabled={!fallbackKeyDraft.trim()} className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/8 disabled:opacity-50">Save</button>
+                {settings.fallback_api_key_set && (
+                  <button onClick={() => setFallbackKeyDraft('')} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-mute hover:bg-canvas-soft">Cancel</button>
                 )}
-              </span>
-              <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'gemini-model' ? 'rotate-180' : ''}`} />
-            </button>
-            {openDropdown === 'gemini-model' && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute z-30 mt-1 w-full glass-dropdown max-h-72 overflow-y-auto"
-              >
-                {geminiOptions.map((model) => {
-                  const info = geminiInfoByName.get(model);
-                  const isSelected = model === settings.gemini_model;
-                  return (
-                  <button
-                    key={model}
-                    onClick={() => { save({ gemini_model: model }); setOpenDropdown(null); }}
-                    title={info?.description || ''}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-info/10 ${
-                      isSelected ? 'bg-info/10 text-info' : 'text-ink-soft'
-                    } ${info?.deprecated ? 'opacity-60' : ''}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={`truncate ${isSelected ? 'font-medium' : ''}`}>
-                        {info?.display_name && info.display_name !== model
-                          ? <><span className="font-mono text-[12px]">{model}</span> <span className="text-ink-faint">— {info.display_name}</span></>
-                          : <span className="font-mono text-[12px]">{model}</span>}
-                      </span>
-                      {info?.deprecated ? (
-                        <span className="text-[10px] uppercase tracking-wide bg-warning/15 text-warning px-1.5 py-0.5 rounded shrink-0">Deprecated</span>
-                      ) : info ? (
-                        <span className="text-[10px] uppercase tracking-wide bg-success/15 text-success px-1.5 py-0.5 rounded shrink-0">Active</span>
-                      ) : null}
-                    </div>
-                    {info && (info.input_token_limit > 0 || info.output_token_limit > 0) && (
-                      <div className="text-[10px] text-ink-faint mt-0.5 font-mono">
-                        in {info.input_token_limit.toLocaleString()} · out {info.output_token_limit.toLocaleString()} tok
-                      </div>
-                    )}
-                  </button>
-                  );
-                })}
-              </motion.div>
+              </div>
             )}
           </div>
 
-          {/* Add custom Gemini model */}
-          <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
-          <div className="flex gap-2 mb-2">
+          <div>
+            <label className="text-xs text-ink-mute mb-1.5 block">Model</label>
             <input
               type="text"
-              value={newGeminiModel}
-              onChange={(e) => setNewGeminiModel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_gemini_models', newGeminiModel, () => setNewGeminiModel(''))}
+              value={settings.fallback_model}
+              onChange={(e) => setSettings({ ...settings, fallback_model: e.target.value })}
+              onBlur={(e) => save({ fallback_model: e.target.value.trim() })}
+              onKeyDown={(e) => { if (e.key === 'Enter') save({ fallback_model: (e.target as HTMLInputElement).value.trim() }); }}
               placeholder="e.g. gemini-2.5-flash"
-              className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-info/40"
+              className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
             />
-            <button
-              onClick={() => addCustomModel('custom_gemini_models', newGeminiModel, () => setNewGeminiModel(''))}
-              className="glass-sm rounded-lg px-3 py-2 hover:bg-info/10"
-            >
-              <Plus size={16} className="text-info" />
-            </button>
           </div>
-          {settings.custom_gemini_models.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {settings.custom_gemini_models.map((m) => (
-                <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
-                  {m}
-                  <button onClick={() => removeCustomModel('custom_gemini_models', m)} className="hover:text-critical">
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
 
-          {/* Test */}
           <button
-            onClick={() => runTest('gemini')}
-            disabled={testing === 'gemini' || (!settings.gemini_api_key_set && !geminiKeyDraft.trim())}
-            className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-info hover:bg-info/10 disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
+            onClick={runTestFallback}
+            disabled={testingFallback || (!settings.fallback_api_key_set && !fallbackKeyDraft.trim())}
+            className="w-full glass-sm rounded-lg px-3 py-2 text-sm font-medium text-accent hover:bg-accent/8 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {testing === 'gemini' ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Test Connection
+            {testingFallback ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            Test Fallback Connection
           </button>
-          {testResult.gemini && (
-            <p className={`text-[11px] mt-2 flex items-center gap-1 ${testResult.gemini.ok ? 'text-success' : 'text-critical'}`}>
-              {testResult.gemini.ok ? <Check size={12} /> : <X size={12} />}
-              {testResult.gemini.message}
+          {testFallbackResult && (
+            <p className={`text-[11px] flex items-center gap-1 ${testFallbackResult.ok ? 'text-success' : 'text-critical'}`}>
+              {testFallbackResult.ok ? <Check size={12} /> : <X size={12} />}
+              {testFallbackResult.message}
             </p>
           )}
-        </GlassCard>
-      )}
+        </div>
+      </GlassCard>
 
       {/* ── Vector Store & Embeddings ────────────────────── */}
       <GlassCard hover={false}>
@@ -964,7 +717,7 @@ export default function Settings() {
         <label className="text-xs text-ink-mute mb-2 block">Embedding Provider</label>
         <div className="flex gap-2 mb-5">
           {(['google', 'ollama'] as const).map((p) => {
-            const ProvIcon = p === 'google' ? Sparkles : Server;
+            const ProvIcon = p === 'google' ? Cloud : Server;
             return (
               <button
                 key={p}
