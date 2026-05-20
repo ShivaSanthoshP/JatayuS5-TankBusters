@@ -179,7 +179,6 @@ export default function Settings() {
   // Custom-model input state
   const [newOllamaModel, setNewOllamaModel] = useState('');
   const [newEmbeddingModel, setNewEmbeddingModel] = useState('');
-  const [newOnlineModel, setNewOnlineModel] = useState('');
 
   // Dropdown-open state
   const [openDropdown, setOpenDropdown] = useState<
