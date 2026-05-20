@@ -134,7 +134,10 @@ class CloudWatchDataSource(DataSource):
 
     def _get_stat(self, namespace: str, metric: str, dims: list[dict], period: int = 60) -> float | None:
         end = datetime.now(timezone.utc)
-        start = end - timedelta(seconds=period * 3)
+        # Standard EC2 publishes every 5 minutes; detailed monitoring every 1 minute.
+        # Use a 15-minute lookback so we don't miss the most recent datapoint
+        # when the instance is on the slower default cadence.
+        start = end - timedelta(seconds=max(period * 15, 900))
         try:
             resp = self._client.get_metric_statistics(
                 Namespace=namespace,
@@ -160,6 +163,26 @@ class CloudWatchDataSource(DataSource):
         status_fail = self._get_stat("AWS/EC2", "StatusCheckFailed", dims) or 0.0
         net_in_mbps = net_in_b * 8 / 1e6 / 60
         net_out_mbps = net_out_b * 8 / 1e6 / 60
+
+        # Memory + disk only come through if the CloudWatch Agent is installed
+        # on the host and publishing to the CWAgent namespace. Fall through to
+        # 0 cleanly if not — the frontend masks those charts for AWS nodes.
+        mem_raw = self._get_stat("CWAgent", "mem_used_percent", dims)
+        # The agent publishes disk per filesystem; the root '/' is the most
+        # universally meaningful. If the user's CWAgent config differs we'll
+        # quietly fall back to 0.
+        disk_root_dims = dims + [{"Name": "path", "Value": "/"}]
+        disk_raw = self._get_stat("CWAgent", "disk_used_percent", disk_root_dims)
+
+        # List the metrics this source genuinely measures so the UI knows
+        # which charts to render — keeps misleading "0% Error Rate" lines off
+        # the EC2 detail view.
+        measured = ["cpu_percent", "network_in_mbps", "network_out_mbps"]
+        if mem_raw is not None:
+            measured.append("memory_percent")
+        if disk_raw is not None:
+            measured.append("disk_percent")
+
         return MetricEvent(
             node_name=instance_id,
             node_type="server",
@@ -167,18 +190,24 @@ class CloudWatchDataSource(DataSource):
             region=self._region,
             ip_address="",
             cpu_percent=round(cpu, 2),
-            memory_percent=0.0,
-            disk_percent=0.0,
+            memory_percent=round(mem_raw, 2) if mem_raw is not None else 0.0,
+            disk_percent=round(disk_raw, 2) if disk_raw is not None else 0.0,
             network_in_mbps=round(net_in_mbps, 2),
             network_out_mbps=round(net_out_mbps, 2),
             request_rate=0.0,
             error_rate=100.0 if status_fail >= 1.0 else 0.0,
             latency_ms=0.0,
-            metadata={"data_source": "aws", "cloudwatch": {
-                "NetworkIn_bytes": net_in_b,
-                "NetworkOut_bytes": net_out_b,
-                "StatusCheckFailed": status_fail,
-            }},
+            metadata={
+                "data_source": "aws",
+                "measured_metrics": measured,
+                "cloudwatch": {
+                    "NetworkIn_bytes": net_in_b,
+                    "NetworkOut_bytes": net_out_b,
+                    "StatusCheckFailed": status_fail,
+                    "mem_used_percent": mem_raw,
+                    "disk_used_percent": disk_raw,
+                },
+            },
         )
 
     def _rds_event(self, db_id: str) -> MetricEvent | None:

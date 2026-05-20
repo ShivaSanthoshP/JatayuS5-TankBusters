@@ -299,13 +299,21 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
     lat: m.latency_ms,
   })) || [];
 
-  const CHARTS = [
-    { key: 'cpu',  label: 'CPU %',        color: '#244745' }, // accent (deep teal)
-    { key: 'mem',  label: 'Memory %',     color: '#3a6f6a' }, // accent-bright
-    { key: 'disk', label: 'Disk %',       color: '#3a5a7d' }, // info (calm blue)
-    { key: 'err',  label: 'Error Rate %', color: '#c08a3e' }, // warning (amber)
-    { key: 'lat',  label: 'Latency ms',   color: '#15191a' }, // ink (charcoal)
+  // Map metric snapshot fields to the metadata.measured_metrics names the
+  // adapter reports. When the source genuinely measures a metric we render
+  // its chart; otherwise we skip it instead of plotting a misleading flat
+  // line at 0 (e.g. EC2 has no app-level latency/error rate).
+  const ALL_CHARTS: Array<{ key: 'cpu' | 'mem' | 'disk' | 'err' | 'lat'; label: string; color: string; field: string }> = [
+    { key: 'cpu',  label: 'CPU %',        color: '#244745', field: 'cpu_percent' },
+    { key: 'mem',  label: 'Memory %',     color: '#3a6f6a', field: 'memory_percent' },
+    { key: 'disk', label: 'Disk %',       color: '#3a5a7d', field: 'disk_percent' },
+    { key: 'err',  label: 'Error Rate %', color: '#c08a3e', field: 'error_rate' },
+    { key: 'lat',  label: 'Latency ms',   color: '#15191a', field: 'latency_ms' },
   ];
+  const measured = (node.metadata_?.measured_metrics as string[] | undefined);
+  const CHARTS = measured && measured.length > 0
+    ? ALL_CHARTS.filter((c) => measured.includes(c.field))
+    : ALL_CHARTS;
 
   return (
     <Portal>

@@ -29,6 +29,12 @@ class InfraService:
             .first()
         )
         data_source = (event.metadata or {}).get("data_source")
+        measured = (event.metadata or {}).get("measured_metrics")
+        seed_meta: dict = {}
+        if data_source:
+            seed_meta["data_source"] = data_source
+        if measured:
+            seed_meta["measured_metrics"] = list(measured)
         if not node:
             node = InfrastructureNode(
                 node_name=event.node_name,
@@ -37,16 +43,26 @@ class InfraService:
                 region=event.region,
                 ip_address=event.ip_address,
                 status="healthy",
-                metadata_={"data_source": data_source} if data_source else {},
+                metadata_=seed_meta,
             )
             self.db.add(node)
             self.db.flush()
-        elif data_source and (node.metadata_ or {}).get("data_source") != data_source:
-            # Re-tag existing rows on first event from the canonical adapter.
-            meta = dict(node.metadata_ or {})
-            meta["data_source"] = data_source
-            node.metadata_ = meta
-            self.db.flush()
+        else:
+            # Re-tag existing rows when the canonical adapter reports new
+            # source info — e.g. after a backend upgrade that added
+            # measured_metrics to the event.
+            existing = node.metadata_ or {}
+            new_meta = dict(existing)
+            changed = False
+            if data_source and existing.get("data_source") != data_source:
+                new_meta["data_source"] = data_source
+                changed = True
+            if measured and existing.get("measured_metrics") != list(measured):
+                new_meta["measured_metrics"] = list(measured)
+                changed = True
+            if changed:
+                node.metadata_ = new_meta
+                self.db.flush()
         return node
 
     def store_metric(
