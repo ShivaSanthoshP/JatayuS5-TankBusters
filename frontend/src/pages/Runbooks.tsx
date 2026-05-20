@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Search, Hash, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  X, Wrench, Shield, FileText,
+  X, Wrench, Shield, FileText, Copy, Check, ExternalLink,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import Loader from '../components/ui/Loader';
@@ -21,8 +21,6 @@ interface SearchResult {
 
 /* ── helpers ─────────────────────────────────────────────────── */
 
-// Backend returns distance = 1 - keyword_overlap (lower = better, range 0..1).
-// Convert to a 0–100 % match for human-friendly display.
 function relevancePct(distance: number | undefined): number {
   if (distance == null || !Number.isFinite(distance)) return 0;
   const v = Math.max(0, Math.min(1, distance));
@@ -35,56 +33,121 @@ function relevanceLabel(pct: number): { label: string; color: string } {
   return { label: 'Possible match', color: '#9aa19a' };
 }
 
-// Take first non-empty line of vector text — treat it as a "title".
-function summarizeDoc(doc: string | undefined): { head: string; rest: string } {
-  if (!doc) return { head: '(no preview)', rest: '' };
-  const lines = doc.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-  if (lines.length === 0) return { head: '(empty)', rest: '' };
-  return { head: lines[0], rest: lines.slice(1).join('\n') };
+/* ── copy-to-clipboard hook ──────────────────────────────────── */
+function useCopy(timeoutMs = 1500) {
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback((text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), timeoutMs);
+    });
+  }, [timeoutMs]);
+  return { copied, copy };
+}
+
+/* ── effectiveness bar ───────────────────────────────────────── */
+function EffectivenessBar({ score }: { score: number }) {
+  const pct = Math.min(100, Math.max(0, (score / 10) * 100));
+  const color = pct >= 70 ? '#3d7d65' : pct >= 40 ? '#c08a3e' : '#c5524d';
+  return (
+    <div
+      className="flex items-center gap-1.5"
+      title={`Effectiveness: ${score.toFixed(1)} / 10 — how well this runbook has resolved past incidents`}
+    >
+      <div className="w-14 h-1.5 rounded-full bg-ink/10 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, background: color }}
+        />
+      </div>
+      <span className="text-xs font-mono text-ink-soft">{score.toFixed(1)}</span>
+    </div>
+  );
 }
 
 /* ── search result card ──────────────────────────────────────── */
-function SearchResultCard({ result, index }: { result: SearchResult; index: number }) {
+function SearchResultCard({
+  result,
+  index,
+  onJump,
+}: {
+  result: SearchResult;
+  index: number;
+  onJump?: (runbookId: number) => void;
+}) {
   const pct = relevancePct(result.distance);
   const { label, color } = relevanceLabel(pct);
-  const { head, rest } = summarizeDoc(result.document);
+
+  // Prefer structured title from metadata over raw text parsing
+  const title = result.metadata?.title
+    ? String(result.metadata.title)
+    : (result.document?.split(/\r?\n/).find(l => l.trim()) ?? '(no preview)');
+
+  const runbookId = result.metadata?.runbook_id != null
+    ? Number(result.metadata.runbook_id)
+    : null;
+
+  const canJump = runbookId != null && onJump != null;
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.04 }}
-      className="glass-sm p-3.5 space-y-2"
+      className={`glass-sm p-3.5 space-y-1.5 ${canJump ? 'cursor-pointer hover-row' : ''}`}
+      onClick={canJump ? () => onJump!(runbookId!) : undefined}
+      title={canJump ? 'Click to jump to this runbook' : undefined}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <div
             className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
             style={{ background: `${color}1a`, color }}
-            title="Saved runbook"
           >
             <BookOpen size={12} />
           </div>
-          <span className="text-xs font-medium text-ink-soft truncate">{head}</span>
+          <span className="text-xs font-medium text-ink-soft truncate">{title}</span>
+          {canJump && (
+            <ExternalLink size={10} className="text-ink-faint shrink-0" />
+          )}
         </div>
         <span
           className="text-[10px] font-mono px-2 py-0.5 rounded-full shrink-0"
           style={{ background: `${color}15`, color, border: `1px solid ${color}33` }}
-          title={`Computed from keyword overlap with your query — ${label.toLowerCase()}`}
+          title={`Computed from semantic similarity with your query — ${label.toLowerCase()}`}
         >
           {pct}% · {label}
         </span>
       </div>
-      {rest && (
-        <p className="text-[11.5px] text-ink-mute whitespace-pre-wrap leading-relaxed pl-8">
-          {rest}
-        </p>
-      )}
     </motion.div>
   );
 }
 
+/* ── copy button ─────────────────────────────────────────────── */
+function CopyButton({ text, label = 'Copy steps' }: { text: string; label?: string }) {
+  const { copied, copy } = useCopy();
+  return (
+    <button
+      onClick={() => copy(text)}
+      title={label}
+      className="flex items-center gap-1 text-[10px] text-ink-faint hover:text-ink-soft transition-colors px-1.5 py-0.5 rounded hover:bg-ink/5"
+    >
+      {copied ? <Check size={10} className="text-success" /> : <Copy size={10} />}
+      {copied ? 'Copied!' : label}
+    </button>
+  );
+}
+
 /* ── runbook card ────────────────────────────────────────────── */
-function RunbookCard({ rb, isOpen, onToggle }: { rb: RunbookEntry; isOpen: boolean; onToggle: () => void }) {
+function RunbookCard({
+  rb,
+  isOpen,
+  onToggle,
+}: {
+  rb: RunbookEntry;
+  isOpen: boolean;
+  onToggle: () => void;
+}) {
   const remediationSteps = (rb.remediation_steps ?? []) as Array<Record<string, unknown>>;
   const recommendedActions = (rb.recommended_actions ?? []) as Array<Record<string, unknown>>;
   const blastSeverityColor =
@@ -93,12 +156,20 @@ function RunbookCard({ rb, isOpen, onToggle }: { rb: RunbookEntry; isOpen: boole
     rb.blast_radius_severity === 'medium'   ? '#c08a3e' :
     '#3d7d65';
 
+  // Build plain-text copy payload for fix steps
+  const fixStepsText = remediationSteps.length > 0
+    ? remediationSteps.map((s, i) =>
+        `${i + 1}. ${s['action'] ?? ''}${s['description'] ? '\n   ' + s['description'] : ''}`
+      ).join('\n')
+    : rb.solution_steps ?? '';
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="glass overflow-hidden"
+      id={`runbook-${rb.id}`}
     >
       {/* Header row */}
       <div
@@ -148,12 +219,9 @@ function RunbookCard({ rb, isOpen, onToggle }: { rb: RunbookEntry; isOpen: boole
               <Hash size={10} />{rb.source_incident_id}
             </span>
           )}
-          <span
-            className="text-xs font-mono text-ink-soft"
-            title="Effectiveness score — how well this runbook has resolved past incidents (higher is better)"
-          >
-            {rb.effectiveness_score.toFixed(1)} <span className="text-ink-faint hidden sm:inline">eff</span>
-          </span>
+          <div className="hidden sm:block">
+            <EffectivenessBar score={rb.effectiveness_score} />
+          </div>
           <span
             className="hidden sm:inline text-xs text-ink-mute"
             title="How many times this runbook has been retrieved or applied"
@@ -292,7 +360,10 @@ function RunbookCard({ rb, isOpen, onToggle }: { rb: RunbookEntry; isOpen: boole
               {/* Remediation steps */}
               {remediationSteps.length > 0 && (
                 <div>
-                  <span className="text-xs font-semibold text-ink-soft block mb-1.5">Fix steps</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-ink-soft">Fix steps</span>
+                    {fixStepsText && <CopyButton text={fixStepsText} label="Copy steps" />}
+                  </div>
                   <ol className="space-y-1.5">
                     {remediationSteps.map((step, i) => {
                       const action = String(step['action'] ?? `Step ${i + 1}`);
@@ -318,9 +389,12 @@ function RunbookCard({ rb, isOpen, onToggle }: { rb: RunbookEntry; isOpen: boole
               {/* Fallback raw solution_steps — only when structured fields are empty */}
               {!rb.remediation_summary && remediationSteps.length === 0 && rb.solution_steps && (
                 <div>
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <FileText size={12} className="text-ink-mute" />
-                    <span className="text-xs font-semibold text-ink-soft">Solution</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <FileText size={12} className="text-ink-mute" />
+                      <span className="text-xs font-semibold text-ink-soft">Solution</span>
+                    </div>
+                    <CopyButton text={rb.solution_steps} label="Copy" />
                   </div>
                   <pre className="text-xs text-ink-mute bg-canvas-soft p-3 rounded-lg whitespace-pre-wrap font-sans leading-relaxed">
                     {rb.solution_steps}
@@ -388,8 +462,8 @@ export default function Runbooks() {
     return filteredSorted.slice(start, start + PAGE_SIZE);
   }, [filteredSorted, rbPage]);
 
-  // Reset page when filters change or data shrinks
-  useMemo(() => {
+  // Reset page when filters change or list shrinks — useEffect, not useMemo
+  useEffect(() => {
     if (rbPage > totalPages) setRbPage(1);
   }, [totalPages, rbPage]);
 
@@ -399,12 +473,34 @@ export default function Runbooks() {
     auto:   allRunbooks.filter(rb => !rb.is_seeded).length,
   };
 
+  // Jump from a search result to the actual runbook card
+  const jumpToRunbook = useCallback((runbookId: number) => {
+    // Find where in filteredSorted this runbook lives
+    const idx = filteredSorted.findIndex(rb => rb.id === runbookId);
+    if (idx === -1) {
+      // It exists but may be filtered out — reset filters and try again on next render
+      setSeedFilter('all');
+      setTitleFilter('');
+      setExpandedId(runbookId);
+      return;
+    }
+    const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
+    setRbPage(targetPage);
+    setExpandedId(runbookId);
+    // Scroll after state update
+    setTimeout(() => {
+      document.getElementById(`runbook-${runbookId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 120);
+  }, [filteredSorted, PAGE_SIZE]);
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setSearching(true);
     try {
       const res = await api.searchMemory(searchQuery, 'runbooks');
-      // Sort by relevance (lower distance = better) before display
       const list = (res.results || []) as SearchResult[];
       list.sort((a, b) => (a.distance ?? 1) - (b.distance ?? 1));
       setSearchResults(list);
@@ -438,7 +534,7 @@ export default function Runbooks() {
           <div>
             <h2 className="text-sm font-semibold text-ink-soft">Find a fix</h2>
             <p className="text-[11px] text-ink-faint mt-0.5">
-              Describe what you're seeing — the system will search memory for the closest match.
+              Describe what you're seeing — the system searches memory for the closest match. Click a result to jump to that runbook.
             </p>
           </div>
         </div>
@@ -493,10 +589,15 @@ export default function Runbooks() {
               ) : (
                 <>
                   <p className="text-[11px] text-ink-faint px-1">
-                    {searchResults.length} match{searchResults.length === 1 ? '' : 'es'} — sorted by relevance
+                    {searchResults.length} match{searchResults.length === 1 ? '' : 'es'} — sorted by relevance · click to jump
                   </p>
                   {searchResults.map((r, i) => (
-                    <SearchResultCard key={i} result={r} index={i} />
+                    <SearchResultCard
+                      key={i}
+                      result={r}
+                      index={i}
+                      onJump={jumpToRunbook}
+                    />
                   ))}
                 </>
               )}
@@ -521,8 +622,8 @@ export default function Runbooks() {
             {/* Seed filter pills */}
             <div className="flex items-center gap-1 bg-black/5 rounded-lg p-1">
               {([
-                { key: 'all',    label: 'All',           hint: 'Show all runbooks' },
-                { key: 'seeded', label: 'Seeded',  hint: 'Only canonical runbooks shipped with the system' },
+                { key: 'all',    label: 'All',    hint: 'Show all runbooks' },
+                { key: 'seeded', label: 'Seeded', hint: 'Only canonical runbooks shipped with the system' },
                 { key: 'auto',   label: 'Learned', hint: 'Only runbooks created from real resolved incidents' },
               ] as const).map(({ key, label, hint }) => (
                 <button

@@ -60,8 +60,8 @@ export const runPipeline = (body: any) =>
 export const runPipelineAll = () =>
   requestWithTimeout<any>('/agents/pipeline/run-all', 120000, { method: 'POST' });
 export const getRunbooks = () => request<any[]>('/agents/runbooks');
-export const searchMemory = (query: string, collection = 'incidents') =>
-  request<any>(`/agents/memory/search?query=${encodeURIComponent(query)}&collection=${collection}`);
+export const searchMemory = (query: string, collection = 'incidents', n = 10) =>
+  request<any>(`/agents/memory/search?query=${encodeURIComponent(query)}&collection=${collection}&n=${n}`);
 
 /* ── Data Sources ───────────────────────────────────────── */
 export const getDataSources = () => request<any>('/datasources/');
