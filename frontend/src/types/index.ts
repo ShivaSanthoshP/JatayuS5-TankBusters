@@ -211,6 +211,8 @@ export interface ConfiguredSource {
   status: string;
   config: Record<string, string>;
   created_at: string;
+  summary?: string;
+  error?: string | null;
 }
 
 export interface WsMetricEvent {

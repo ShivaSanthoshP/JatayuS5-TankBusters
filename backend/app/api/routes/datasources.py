@@ -85,11 +85,81 @@ def _public_source(source: dict) -> dict:
     }
 
 
+def _key_tail(value: str | None) -> str:
+    """Return the trailing 4 chars of a secret for identification (e.g. 'XRFP')."""
+    if not value:
+        return ""
+    return value[-4:] if len(value) > 4 else value
+
+
+def _aws_source_from_settings() -> dict | None:
+    """Synthesize an AWS source record from persisted settings, if creds exist."""
+    from app.services.settings_service import settings as _s
+    if not _s.cloudwatch_access_key_id and _s.cloudwatch_status != "connected":
+        return None
+    region = _s.cloudwatch_region or ""
+    instance_ids = list(_s.cloudwatch_instance_ids or [])
+    log_groups = list(_s.cloudwatch_log_groups or [])
+    tail = _key_tail(_s.cloudwatch_access_key_id)
+    summary_bits = []
+    if region:
+        summary_bits.append(region)
+    if tail:
+        summary_bits.append(f"AKIA…{tail}")
+    if instance_ids:
+        summary_bits.append(f"{len(instance_ids)} instance{'s' if len(instance_ids) != 1 else ''}")
+    return {
+        "id": "aws-cloudwatch",
+        "provider": "aws",
+        "name": "AWS CloudWatch",
+        "enabled": True,
+        "status": _s.cloudwatch_status or "configured",
+        "error": _s.cloudwatch_error,
+        "summary": " · ".join(summary_bits) or "configured",
+        "config": {
+            "aws_access_key_id": _REDACTED if _s.cloudwatch_access_key_id else "",
+            "aws_secret_access_key": _REDACTED if _s.cloudwatch_secret_access_key else "",
+            "aws_access_key_tail": tail,
+            "region": region,
+            "instance_ids": ", ".join(instance_ids),
+            "log_groups": ", ".join(log_groups),
+        },
+        "created_at": utc_now().isoformat(),
+    }
+
+
+def _live_sources() -> list[dict]:
+    """Build the live sources list. Simulator is always on; AWS is derived
+    from settings so it survives restarts and stays in sync with the live
+    adapter — not just the in-memory POST-config list."""
+    out: list[dict] = []
+    # Simulator is always active in this build.
+    out.append({
+        "id": "sim-default",
+        "provider": "simulated",
+        "name": "Built-in Simulator",
+        "enabled": True,
+        "status": "connected",
+        "summary": "Fleet metrics + anomaly injection",
+        "config": {},
+        "created_at": utc_now().isoformat(),
+    })
+    aws = _aws_source_from_settings()
+    if aws:
+        out.append(aws)
+    # Pick up any other providers stored in the in-memory list (azure/gcp/etc).
+    for s in _configured_sources:
+        if s["provider"] in ("simulated", "aws"):
+            continue
+        out.append(_public_source(s))
+    return out
+
+
 @router.get("/")
 def list_datasources():
     """List all configured data sources."""
     return {
-        "sources": [_public_source(s) for s in _configured_sources],
+        "sources": _live_sources(),
         "available_providers": [
             {
                 "id": "simulated",
@@ -266,13 +336,42 @@ async def configure_datasource(body: DataSourceConfig):
 @router.post("/test")
 def test_connection(body: ConnectionTestRequest):
     """Test connection to a data source."""
-    # Simulated connection test
+    import time
     if body.provider == "simulated":
         return {"success": True, "message": "Simulator is always available", "latency_ms": 1}
-    elif body.provider == "custom":
+    if body.provider == "custom":
         return {"success": True, "message": "Custom API push is ready — use POST /api/datasources/ingest", "latency_ms": 0}
-    elif body.provider in ("aws", "azure", "gcp", "prometheus", "docker", "logfile"):
-        # In production, actually test the connection here
+
+    if body.provider == "aws":
+        # Use stored creds when the form sent the redaction placeholder (or nothing),
+        # so the user can re-test an already-configured source without re-entering secrets.
+        from app.services.settings_service import settings as _s
+        cfg = dict(body.config or {})
+        ak = cfg.get("aws_access_key_id")
+        sk = cfg.get("aws_secret_access_key")
+        if not ak or ak == _REDACTED:
+            ak = _s.cloudwatch_access_key_id
+        if not sk or sk == _REDACTED:
+            sk = _s.cloudwatch_secret_access_key
+        region = cfg.get("region") or _s.cloudwatch_region or "us-east-1"
+        if not ak or not sk:
+            return {"success": False, "message": "Missing AWS credentials"}
+        try:
+            import boto3
+            t0 = time.time()
+            client = boto3.client(
+                "cloudwatch", aws_access_key_id=ak, aws_secret_access_key=sk, region_name=region,
+            )
+            client.list_metrics(Namespace="AWS/EC2", RecentlyActive="PT3H")
+            return {
+                "success": True,
+                "message": f"CloudWatch reachable in {region}",
+                "latency_ms": int((time.time() - t0) * 1000),
+            }
+        except Exception as exc:
+            return {"success": False, "message": f"CloudWatch test failed: {str(exc)[:300]}"}
+
+    if body.provider in ("azure", "gcp", "prometheus", "docker", "logfile"):
         missing = [f["key"] for f in _get_required_fields(body.provider) if f["key"] not in body.config]
         if missing:
             return {"success": False, "message": f"Missing required fields: {', '.join(missing)}"}
@@ -290,6 +389,18 @@ def remove_datasource(provider: str):
     global _configured_sources
     if provider == "simulated":
         raise HTTPException(400, "Cannot remove the built-in simulator")
+    if provider == "aws":
+        # Clear the persisted CloudWatch settings so it doesn't auto-reconnect
+        # on next restart. The running adapter is dropped from the registry.
+        from app.services.settings_service import settings as _s
+        from app.data_sources.base import registry
+        _s.update(
+            cloudwatch_access_key_id="",
+            cloudwatch_secret_access_key="",
+            cloudwatch_status="disconnected",
+            cloudwatch_error=None,
+        )
+        registry._sources.pop("aws", None)
     _configured_sources = [s for s in _configured_sources if s["provider"] != provider]
     return {"message": f"Removed {provider}"}
 

@@ -134,14 +134,20 @@ export default function DataSources() {
                   style={{ boxShadow: c.glow }}
                 >
                   <Icon size={16} style={{ color: c.accent }} />
-                  <div>
-                    <span className="text-sm font-medium text-ink">{src.name || src.provider}</span>
-                    <StatusBadge status={src.status} />
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-ink">{src.name || src.provider}</span>
+                      <StatusBadge status={src.status} />
+                    </div>
+                    {src.summary && (
+                      <p className="text-[10px] text-ink-faint mt-0.5 truncate max-w-[260px]">{src.summary}</p>
+                    )}
                   </div>
                   {src.provider !== 'simulated' && (
                     <button
                       onClick={() => handleRemove(src.provider)}
                       className="ml-2 p-1 hover:bg-critical/15 rounded transition-colors"
+                      title="Disconnect"
                     >
                       <Trash2 size={12} className="text-critical" />
                     </button>
@@ -172,8 +178,9 @@ export default function DataSources() {
                 onClick={() => {
                   if (prov.id === 'custom') { setShowIngest(true); return; }
                   if (prov.config_fields.length === 0 && prov.id === 'simulated') return;
+                  const existing = sources.find(s => s.provider === prov.id);
                   setConfiguring(prov);
-                  setFormData({});
+                  setFormData(existing?.config ? { ...existing.config } : {});
                   setTestResult(null);
                 }}
                 className={`glass p-5 cursor-pointer bg-gradient-to-b ${c.bg} space-y-3 transition-all`}
@@ -216,14 +223,36 @@ export default function DataSources() {
               onClick={e => e.stopPropagation()}
               className="glass-modal w-full max-w-lg p-6 space-y-5"
             >
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-ink">Configure {configuring.name}</h2>
-                <button onClick={() => setConfiguring(null)} className="p-2 hover:bg-black/8 rounded-lg">
-                  <X size={18} className="text-ink-mute" />
-                </button>
-              </div>
-
-              <p className="text-xs text-ink-mute">{configuring.description}</p>
+              {(() => {
+                const existing = sources.find(s => s.provider === configuring.id);
+                const isReview = !!existing;
+                return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-ink">
+                        {isReview ? `${configuring.name} — Connected` : `Configure ${configuring.name}`}
+                      </h2>
+                      <button onClick={() => setConfiguring(null)} className="p-2 hover:bg-black/8 rounded-lg">
+                        <X size={18} className="text-ink-mute" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-ink-mute">{configuring.description}</p>
+                    {isReview && existing?.summary && (
+                      <div className="text-[11px] text-ink-soft bg-success/8 border border-success/20 rounded-lg px-3 py-2">
+                        <span className="font-medium text-success">Active:</span>{' '}{existing.summary}
+                        {existing.error && (
+                          <div className="text-critical mt-1">Last error: {existing.error}</div>
+                        )}
+                      </div>
+                    )}
+                    {isReview && (
+                      <p className="text-[11px] text-ink-faint italic">
+                        Credentials are stored securely. Leave the masked fields untouched to keep them, or type new values to replace them.
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Config fields */}
               <div className="space-y-3">
@@ -300,7 +329,7 @@ export default function DataSources() {
                   className="flex items-center gap-2 px-5 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40"
                 >
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                  Save & Connect
+                  {sources.some(s => s.provider === configuring.id) ? 'Update' : 'Save & Connect'}
                 </button>
               </div>
             </motion.div>
