@@ -139,7 +139,7 @@ class CloudWatchDataSource(DataSource):
             request_rate=0.0,
             error_rate=100.0 if status_fail >= 1.0 else 0.0,
             latency_ms=0.0,
-            metadata={"cloudwatch": {
+            metadata={"data_source": "aws", "cloudwatch": {
                 "NetworkIn_bytes": net_in_b,
                 "NetworkOut_bytes": net_out_b,
                 "StatusCheckFailed": status_fail,
@@ -172,7 +172,7 @@ class CloudWatchDataSource(DataSource):
             request_rate=round(db_conns, 2),
             error_rate=0.0,
             latency_ms=round(read_lat * 1000, 2),
-            metadata={"cloudwatch": {
+            metadata={"data_source": "aws", "cloudwatch": {
                 "DatabaseConnections": db_conns,
                 "FreeStorageSpace": free_storage,
                 "ReadLatency_s": read_lat,
@@ -201,7 +201,7 @@ class CloudWatchDataSource(DataSource):
             request_rate=round(req_count, 2),
             error_rate=round(error_rate, 2),
             latency_ms=round((resp_time or 0.0) * 1000, 2),
-            metadata={"cloudwatch": {
+            metadata={"data_source": "aws", "cloudwatch": {
                 "RequestCount": req_count,
                 "TargetResponseTime_s": resp_time,
                 "HTTPCode_Target_5XX_Count": err_5xx,

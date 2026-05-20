@@ -74,24 +74,28 @@ export default function Infrastructure() {
 
   // Filter values are derived from the data present, so empty dimensions
   // (e.g. no Azure nodes) never render a dead pill.
+  const sourceOf = (n: InfraNode): string =>
+    (n.metadata_?.data_source as string | undefined) ?? n.provider;
+
   const statusValues = STATUS_ORDER.filter((s) => all.some((n) => n.status === s));
   const typeValues = [...new Set(all.map((n) => n.node_type))].sort();
-  const sourceValues = [...new Set(all.map((n) => n.provider))].sort();
+  const sourceValues = [...new Set(all.map(sourceOf))].sort();
 
-  const countBy = (key: 'status' | 'node_type' | 'provider') =>
+  const countBy = (pick: (n: InfraNode) => string) =>
     all.reduce<Record<string, number>>((acc, n) => {
-      acc[n[key]] = (acc[n[key]] ?? 0) + 1;
+      const k = pick(n);
+      acc[k] = (acc[k] ?? 0) + 1;
       return acc;
     }, {});
-  const statusCounts = countBy('status');
-  const typeCounts = countBy('node_type');
-  const sourceCounts = countBy('provider');
+  const statusCounts = countBy((n) => n.status);
+  const typeCounts = countBy((n) => n.node_type);
+  const sourceCounts = countBy(sourceOf);
 
   // OR within a dimension (empty set = unconstrained), AND across dimensions.
   const filtered = all.filter((n) =>
     (statusSel.size === 0 || statusSel.has(n.status)) &&
     (typeSel.size === 0 || typeSel.has(n.node_type)) &&
-    (sourceSel.size === 0 || sourceSel.has(n.provider))
+    (sourceSel.size === 0 || sourceSel.has(sourceOf(n)))
   );
 
   const anyActive = statusSel.size + typeSel.size + sourceSel.size > 0;
@@ -171,9 +175,11 @@ export default function Infrastructure() {
                 </div>
                 <StatusBadge status={node.status} pulse={node.status !== 'healthy'} />
               </div>
-              <div className="flex items-center gap-4 text-xs text-ink-faint">
-                <span>{node.provider}</span>
-                <span>{node.ip_address}</span>
+              <div className="flex items-center gap-2 text-xs text-ink-faint flex-wrap">
+                <span className="px-1.5 py-0.5 rounded-md bg-black/5 text-ink-mute text-[10px] font-medium">
+                  {SOURCE_LABELS[sourceOf(node)] ?? sourceOf(node)}
+                </span>
+                {node.ip_address && <span>{node.ip_address}</span>}
               </div>
             </motion.div>
           );
@@ -237,7 +243,7 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-base sm:text-lg font-bold text-ink truncate">{node.node_name}</h2>
-            <p className="text-[11px] sm:text-xs text-ink-mute break-words">{node.node_type} &middot; {node.provider} &middot; {node.region} &middot; {node.ip_address}</p>
+            <p className="text-[11px] sm:text-xs text-ink-mute break-words">{node.node_type} &middot; {SOURCE_LABELS[(node.metadata_?.data_source as string) ?? node.provider] ?? node.provider} &middot; {node.region} &middot; {node.ip_address}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-black/8 rounded-lg transition-colors">
             <X size={18} className="text-ink-mute" />

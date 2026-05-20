@@ -285,7 +285,7 @@ class SimulatorDataSource(DataSource):
         for node in self._fleet:
             metrics = self._base_metrics(node)
             metrics, anomaly = self._maybe_inject_anomaly(node["name"], metrics)
-            meta = {}
+            meta = {"data_source": "simulated"}
             if anomaly:
                 meta["anomaly_scenario"] = anomaly["name"]
                 meta["anomaly_description"] = anomaly["description"]

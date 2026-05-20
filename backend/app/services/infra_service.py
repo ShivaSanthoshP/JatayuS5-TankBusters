@@ -28,6 +28,7 @@ class InfraService:
             .filter(InfrastructureNode.node_name == event.node_name)
             .first()
         )
+        data_source = (event.metadata or {}).get("data_source")
         if not node:
             node = InfrastructureNode(
                 node_name=event.node_name,
@@ -36,8 +37,15 @@ class InfraService:
                 region=event.region,
                 ip_address=event.ip_address,
                 status="healthy",
+                metadata_={"data_source": data_source} if data_source else {},
             )
             self.db.add(node)
+            self.db.flush()
+        elif data_source and (node.metadata_ or {}).get("data_source") != data_source:
+            # Re-tag existing rows on first event from the canonical adapter.
+            meta = dict(node.metadata_ or {})
+            meta["data_source"] = data_source
+            node.metadata_ = meta
             self.db.flush()
         return node
 
