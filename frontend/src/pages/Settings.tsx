@@ -81,10 +81,10 @@ const DEFAULT_EMBEDDING_OPTIONS = [
 // in the backend right now — the others use static model lists and would
 // need a real adapter before they can actually serve traffic.
 const ONLINE_PROVIDERS = [
-  { id: 'gemini',  label: 'Gemini' },
+  { id: 'gemini',  label: 'Google Gemini' },
   { id: 'openai',  label: 'OpenAI' },
-  { id: 'grok',    label: 'Grok' },
-  { id: 'mistral', label: 'Mistral' },
+  { id: 'grok',    label: 'xAI Grok' },
+  { id: 'mistral', label: 'Mistral AI' },
 ] as const;
 type ProviderId = typeof ONLINE_PROVIDERS[number]['id'];
 
@@ -590,7 +590,7 @@ export default function Settings() {
                             normalizeProvider(settings.online_provider_name) === p.id ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
                           }`}
                         >
-                          {p.label}{p.id !== 'gemini' && <span className="ml-2 text-[10px] text-ink-faint">(catalog only)</span>}
+                          {p.label}
                         </button>
                       ))}
                     </motion.div>
@@ -669,9 +669,7 @@ export default function Settings() {
                   )}
                 </div>
                 <p className="text-[11px] text-ink-faint mt-1.5">
-                  {normalizeProvider(settings.online_provider_name) === 'gemini'
-                    ? 'Fetched live from your Gemini API key.'
-                    : 'Static catalog — backend currently routes only Gemini.'}
+                  Models available for your selected provider.
                 </p>
               </div>
 
