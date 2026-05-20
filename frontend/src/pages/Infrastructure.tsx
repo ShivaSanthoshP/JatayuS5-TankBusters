@@ -23,8 +23,17 @@ const NODE_ICONS: Record<string, React.ElementType> = {
 
 const STATUS_ORDER = ['critical', 'degraded', 'healthy', 'offline'] as const;
 
+const SOURCE_LABELS: Record<string, string> = {
+  simulated: 'Simulator',
+  aws: 'AWS CloudWatch',
+  azure: 'Azure Monitor',
+  gcp: 'GCP Monitoring',
+  datadog: 'Datadog',
+  prometheus: 'Prometheus',
+};
+
 function FilterRow({
-  label, values, counts, selected, onToggle, onClear,
+  label, values, counts, selected, onToggle, onClear, labelFor,
 }: {
   label: string;
   values: string[];
@@ -32,6 +41,7 @@ function FilterRow({
   selected: Set<string>;
   onToggle: (v: string) => void;
   onClear: () => void;
+  labelFor?: (v: string) => string;
 }) {
   if (values.length === 0) return null;
   const pill = (active: boolean) =>
@@ -44,7 +54,7 @@ function FilterRow({
       <button onClick={onClear} className={pill(selected.size === 0)}>All</button>
       {values.map((v) => (
         <button key={v} onClick={() => onToggle(v)} className={pill(selected.has(v))}>
-          {v} {counts[v] > 0 ? `(${counts[v]})` : ''}
+          {labelFor ? labelFor(v) : v} {counts[v] > 0 ? `(${counts[v]})` : ''}
         </button>
       ))}
     </div>
@@ -120,7 +130,8 @@ export default function Infrastructure() {
           <FilterRow label="Type" values={typeValues} counts={typeCounts}
             selected={typeSel} onToggle={toggle(setTypeSel)} onClear={() => setTypeSel(new Set())} />
           <FilterRow label="Source" values={sourceValues} counts={sourceCounts}
-            selected={sourceSel} onToggle={toggle(setSourceSel)} onClear={() => setSourceSel(new Set())} />
+            selected={sourceSel} onToggle={toggle(setSourceSel)} onClear={() => setSourceSel(new Set())}
+            labelFor={(v) => SOURCE_LABELS[v] ?? v} />
         </div>
       </div>
 
