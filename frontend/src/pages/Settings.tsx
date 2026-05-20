@@ -97,6 +97,34 @@ function normalizeProvider(name: string | undefined): ProviderId {
   return 'gemini'; // default + catches "Gemini", "Lanja", anything else
 }
 
+interface OnlineModelInfo {
+  name: string;
+  display_name: string;
+  description: string;
+  input_token_limit: number;
+  output_token_limit: number;
+  version: string;
+  deprecated: boolean;
+}
+
+// Infer capability badges from a model's name + description.
+// Returns a small set of human-readable tags (Text, Image, TTS, etc.).
+function modelCapabilities(m: OnlineModelInfo): string[] {
+  const n = `${m.name} ${m.description}`.toLowerCase();
+  const tags: string[] = [];
+  if (n.includes('embed')) tags.push('Embed');
+  if (n.includes('tts')) tags.push('TTS');
+  if (n.includes('image') || n.includes('vision') || n.includes('banana')) tags.push('Image');
+  if (n.includes('video') || n.includes('veo') || n.includes('lyria')) tags.push('Video');
+  if (n.includes('computer-use') || n.includes('tools')) tags.push('Tools');
+  if (n.includes('research')) tags.push('Research');
+  if (n.includes('robotics')) tags.push('Robotics');
+  if (n.includes('live')) tags.push('Live');
+  // Default chip when nothing else fired — most chat models are text-first.
+  if (tags.length === 0) tags.push('Text');
+  return tags;
+}
+
 
 type AgentTempKey =
   | 'monitoring_temperature'
@@ -191,9 +219,9 @@ export default function Settings() {
   // Live model lists for the online & fallback dropdowns. Reload whenever
   // the user picks a different provider so the dropdown matches what that
   // vendor actually exposes.
-  const [onlineModels, setOnlineModels] = useState<string[]>([]);
+  const [onlineModels, setOnlineModels] = useState<OnlineModelInfo[]>([]);
   const [onlineModelsLoading, setOnlineModelsLoading] = useState(false);
-  const [fallbackModels, setFallbackModels] = useState<string[]>([]);
+  const [fallbackModels, setFallbackModels] = useState<OnlineModelInfo[]>([]);
   const [fallbackModelsLoading, setFallbackModelsLoading] = useState(false);
 
   // Optional embedding-only API key draft (separate from the primary key).
@@ -241,7 +269,7 @@ export default function Settings() {
     const provider = normalizeProvider(settings.online_provider_name);
     setOnlineModelsLoading(true);
     api.getLlmModels(provider).then((res) => {
-      setOnlineModels((res.models || []).filter((m) => !m.deprecated).map((m) => m.name));
+      setOnlineModels((res.models || []).filter((m) => !m.deprecated));
     }).catch(() => {
       setOnlineModels([]);
     }).finally(() => setOnlineModelsLoading(false));
@@ -252,7 +280,7 @@ export default function Settings() {
     const provider = normalizeProvider(settings.fallback_provider_name);
     setFallbackModelsLoading(true);
     api.getLlmModels(provider).then((res) => {
-      setFallbackModels((res.models || []).filter((m) => !m.deprecated).map((m) => m.name));
+      setFallbackModels((res.models || []).filter((m) => !m.deprecated));
     }).catch(() => {
       setFallbackModels([]);
     }).finally(() => setFallbackModelsLoading(false));
@@ -644,27 +672,48 @@ export default function Settings() {
                     onClick={() => setOpenDropdown(openDropdown === 'online-model' ? null : 'online-model')}
                     className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
                   >
-                    <span className="font-medium">{settings.gemini_model || (onlineModels[0] ?? 'select model')}</span>
+                    <span className="font-mono text-[12px] font-medium">{settings.gemini_model || (onlineModels[0]?.name ?? 'select model')}</span>
                     <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'online-model' ? 'rotate-180' : ''}`} />
                   </button>
                   {openDropdown === 'online-model' && (
-                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="absolute z-30 mt-1 w-full glass-dropdown max-h-72 overflow-y-auto">
+                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="absolute z-30 mt-1 w-full glass-dropdown max-h-80 overflow-y-auto">
                       {onlineModels.length === 0 && (
                         <div className="px-3 py-2 text-xs text-ink-faint">
                           {onlineModelsLoading ? 'Fetching…' : 'No models available — add an API key first'}
                         </div>
                       )}
-                      {onlineModels.map((m) => (
-                        <button
-                          key={m}
-                          onClick={() => { save({ gemini_model: m }); setOpenDropdown(null); }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
-                            settings.gemini_model === m ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
-                          }`}
-                        >
-                          {m}
-                        </button>
-                      ))}
+                      {onlineModels.map((m) => {
+                        const tags = modelCapabilities(m);
+                        const isSelected = settings.gemini_model === m.name;
+                        const showDisplayName = m.display_name && m.display_name !== m.name;
+                        return (
+                          <button
+                            key={m.name}
+                            onClick={() => { save({ gemini_model: m.name }); setOpenDropdown(null); }}
+                            title={m.description || ''}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
+                              isSelected ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate flex-1 min-w-0">
+                                <span className="font-mono text-[12px]">{m.name}</span>
+                                {showDisplayName && <span className="text-ink-faint"> — {m.display_name}</span>}
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {tags.map((t) => (
+                                  <span key={t} className="text-[9px] uppercase tracking-wide bg-accent/10 text-accent px-1.5 py-0.5 rounded">{t}</span>
+                                ))}
+                              </div>
+                            </div>
+                            {(m.input_token_limit > 0 || m.output_token_limit > 0) && (
+                              <div className="text-[10px] text-ink-faint mt-0.5 font-mono">
+                                in {m.input_token_limit.toLocaleString()} · out {m.output_token_limit.toLocaleString()} tok
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
                     </motion.div>
                   )}
                 </div>
@@ -779,27 +828,48 @@ export default function Settings() {
                 onClick={() => setOpenDropdown(openDropdown === 'fallback-model' ? null : 'fallback-model')}
                 className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
               >
-                <span className="font-medium">{settings.fallback_model || (fallbackModels[0] ?? 'select model')}</span>
+                <span className="font-mono text-[12px] font-medium">{settings.fallback_model || (fallbackModels[0]?.name ?? 'select model')}</span>
                 <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'fallback-model' ? 'rotate-180' : ''}`} />
               </button>
               {openDropdown === 'fallback-model' && (
-                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="absolute z-30 mt-1 w-full glass-dropdown max-h-72 overflow-y-auto">
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="absolute z-30 mt-1 w-full glass-dropdown max-h-80 overflow-y-auto">
                   {fallbackModels.length === 0 && (
                     <div className="px-3 py-2 text-xs text-ink-faint">
                       {fallbackModelsLoading ? 'Fetching…' : 'No models available'}
                     </div>
                   )}
-                  {fallbackModels.map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => { save({ fallback_model: m }); setOpenDropdown(null); }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
-                        settings.fallback_model === m ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
-                      }`}
-                    >
-                      {m}
-                    </button>
-                  ))}
+                  {fallbackModels.map((m) => {
+                    const tags = modelCapabilities(m);
+                    const isSelected = settings.fallback_model === m.name;
+                    const showDisplayName = m.display_name && m.display_name !== m.name;
+                    return (
+                      <button
+                        key={m.name}
+                        onClick={() => { save({ fallback_model: m.name }); setOpenDropdown(null); }}
+                        title={m.description || ''}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
+                          isSelected ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate flex-1 min-w-0">
+                            <span className="font-mono text-[12px]">{m.name}</span>
+                            {showDisplayName && <span className="text-ink-faint"> — {m.display_name}</span>}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {tags.map((t) => (
+                              <span key={t} className="text-[9px] uppercase tracking-wide bg-accent/10 text-accent px-1.5 py-0.5 rounded">{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                        {(m.input_token_limit > 0 || m.output_token_limit > 0) && (
+                          <div className="text-[10px] text-ink-faint mt-0.5 font-mono">
+                            in {m.input_token_limit.toLocaleString()} · out {m.output_token_limit.toLocaleString()} tok
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </motion.div>
               )}
             </div>
