@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Server, Database, Globe, HardDrive, Radio, X,
+  Server, Database, Globe, HardDrive, Radio, X, Terminal, Loader2,
 } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -64,6 +64,7 @@ function FilterRow({
 export default function Infrastructure() {
   const { data: nodes, loading } = usePolling<InfraNode[]>(api.getNodes, 10000);
   const [selectedNode, setSelectedNode] = useState<InfraNode | null>(null);
+  const [logsNode, setLogsNode] = useState<InfraNode | null>(null);
   const [statusSel, setStatusSel] = useState<Set<string>>(new Set());
   const [typeSel, setTypeSel] = useState<Set<string>>(new Set());
   const [sourceSel, setSourceSel] = useState<Set<string>>(new Set());
@@ -175,11 +176,21 @@ export default function Infrastructure() {
                 </div>
                 <StatusBadge status={node.status} pulse={node.status !== 'healthy'} />
               </div>
-              <div className="flex items-center gap-2 text-xs text-ink-faint flex-wrap">
-                <span className="px-1.5 py-0.5 rounded-md bg-black/5 text-ink-mute text-[10px] font-medium">
-                  {SOURCE_LABELS[sourceOf(node)] ?? sourceOf(node)}
-                </span>
-                {node.ip_address && <span>{node.ip_address}</span>}
+              <div className="flex items-center justify-between gap-2 text-xs text-ink-faint flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                  <span className="px-1.5 py-0.5 rounded-md bg-black/5 text-ink-mute text-[10px] font-medium">
+                    {SOURCE_LABELS[sourceOf(node)] ?? sourceOf(node)}
+                  </span>
+                  {node.ip_address && <span className="truncate">{node.ip_address}</span>}
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setLogsNode(node); }}
+                  title="View recent log entries for this node"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#13171a] text-[#7fb3a3] hover:bg-[#0e1112] hover:text-[#9fcab9] ring-1 ring-white/10 hover:ring-[#7fb3a3]/40 text-[10px] font-mono font-medium transition-all shrink-0"
+                >
+                  <Terminal size={11} />
+                  <span>View Logs</span>
+                </button>
               </div>
             </motion.div>
           );
@@ -197,8 +208,80 @@ export default function Infrastructure() {
         {selectedNode && (
           <NodeDetail node={selectedNode} onClose={() => setSelectedNode(null)} />
         )}
+        {logsNode && (
+          <NodeLogsModal node={logsNode} onClose={() => setLogsNode(null)} />
+        )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+const LOG_LEVEL_COLORS: Record<string, string> = {
+  CRITICAL: 'text-[#e0726c]',
+  ERROR:    'text-[#e0726c]',
+  WARN:     'text-[#dba94f]',
+  WARNING:  'text-[#dba94f]',
+  INFO:     'text-[#7fb3a3]',
+  DEBUG:    'text-[#7fa3c4]',
+};
+
+function NodeLogsModal({ node, onClose }: { node: InfraNode; onClose: () => void }) {
+  const { data: logs, loading } = useApi<Array<{
+    id: number; timestamp: string | null; level: string; source: string; message: string;
+  }>>(() => api.getNodeLogs(node.id, 200), [node.id]);
+
+  return (
+    <Portal>
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="sheet-backdrop flex items-center justify-center px-3 sm:px-4"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+          className="glass-modal w-full max-w-5xl flex flex-col overflow-hidden h-[88vh] sm:h-[76vh]"
+        >
+          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 border-b border-hairline-strong/60 shrink-0 flex-wrap">
+            <Terminal size={15} className="text-ink-faint shrink-0" />
+            <span className="font-semibold text-ink text-sm truncate">{node.node_name}</span>
+            <span className="text-[10px] text-ink-faint uppercase tracking-wide">logs</span>
+            <span className="ml-auto text-[11px] text-ink-faint">
+              {loading ? 'loading…' : `${logs?.length ?? 0} lines`}
+            </span>
+            <button onClick={onClose} className="p-2 hover:bg-black/8 rounded-lg">
+              <X size={18} className="text-ink-mute" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto bg-[#0e1112] font-mono text-[11px] leading-relaxed p-3 sm:p-4">
+            {loading && (
+              <div className="flex items-center gap-2 text-[#7fb3a3]">
+                <Loader2 size={12} className="animate-spin" /> Fetching logs…
+              </div>
+            )}
+            {!loading && (logs?.length ?? 0) === 0 && (
+              <div className="text-[#7fa3c4]/60 italic">
+                No stored logs for this node yet.
+                {' '}This view shows lines captured by the data-source adapter (e.g. CloudWatch).
+                {' '}Simulator nodes stream live and don't persist into this store.
+              </div>
+            )}
+            {(logs ?? []).slice().reverse().map((l) => {
+              const ts = l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : '--:--:--';
+              const color = LOG_LEVEL_COLORS[l.level?.toUpperCase()] || 'text-[#9aa6ab]';
+              return (
+                <div key={l.id} className="whitespace-pre-wrap break-words">
+                  <span className="text-[#5b6770]">{ts}</span>{' '}
+                  <span className={`${color} font-semibold`}>[{l.level}]</span>{' '}
+                  <span className="text-[#7fa3c4]">{l.source}</span>{' '}
+                  <span className="text-[#cfd6da]">{l.message}</span>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      </motion.div>
+    </Portal>
   );
 }
 

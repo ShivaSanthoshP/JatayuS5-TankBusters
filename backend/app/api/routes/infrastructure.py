@@ -51,6 +51,31 @@ def get_node(node_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/nodes/{node_id}/logs")
+def get_node_logs(node_id: int, limit: int = 200, db: Session = Depends(get_db)):
+    """Return recent log entries stored for a node.
+
+    Populated for nodes that flow through an adapter calling
+    `store_logs_batch` (e.g. the CloudWatch poller). Simulator metrics nodes
+    don't persist into LogEntry, so this returns empty for them.
+    """
+    svc = InfraService(db)
+    node = svc.get_node(node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    logs = svc.get_recent_logs(node_id, limit)
+    return [
+        {
+            "id": log.id,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "level": log.level,
+            "source": log.source,
+            "message": log.message,
+        }
+        for log in logs
+    ]
+
+
 @router.get("/nodes/{node_id}/metrics", response_model=list[MetricSnapshotOut])
 def get_node_metrics(node_id: int, limit: int = 50, db: Session = Depends(get_db)):
     svc = InfraService(db)

@@ -36,6 +36,14 @@ export const getNodes = () => request<any[]>('/infrastructure/nodes');
 export const getNode = (id: number) => request<any>(`/infrastructure/nodes/${id}`);
 export const getNodeMetrics = (id: number, limit = 50) =>
   request<any[]>(`/infrastructure/nodes/${id}/metrics?limit=${limit}`);
+export const getNodeLogs = (id: number, limit = 200) =>
+  request<Array<{
+    id: number;
+    timestamp: string | null;
+    level: string;
+    source: string;
+    message: string;
+  }>>(`/infrastructure/nodes/${id}/logs?limit=${limit}`);
 export const getMetricsHistory = (points = 32) =>
   request<{ time: string; cpu: number; mem: number; err: number; lat: number }[]>(
     `/infrastructure/metrics/history?points=${points}`,

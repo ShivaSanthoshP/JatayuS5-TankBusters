@@ -517,9 +517,10 @@ function SimulatorCard({
           <button
             onClick={() => onViewLogs(sim)}
             title="Open live log terminal"
-            className="group relative p-1.5 rounded-lg bg-[#13171a] hover:bg-[#0e1112] text-[#7fb3a3] hover:text-[#9fcab9] ring-1 ring-white/10 hover:ring-[#7fb3a3]/40 transition-all shadow-sm"
+            className="group relative inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#13171a] hover:bg-[#0e1112] text-[#7fb3a3] hover:text-[#9fcab9] ring-1 ring-white/10 hover:ring-[#7fb3a3]/40 transition-all shadow-sm text-[11px] font-mono font-medium"
           >
-            <Terminal size={13} />
+            <Terminal size={12} />
+            <span>View Logs</span>
             {sim.status === 'running' && (
               <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
