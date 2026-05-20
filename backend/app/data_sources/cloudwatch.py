@@ -8,6 +8,7 @@ MetricEvent shape. Provider-native datapoints are carried in metadata["cloudwatc
 
 import asyncio
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
 
@@ -16,16 +17,50 @@ from app.data_sources.base import DataSource, LogEvent, MetricEvent
 logger = logging.getLogger("itops.cloudwatch")
 
 
+_LEVEL_PATTERNS = (
+    # (regex, level) — first match wins. The severity word must be either
+    # bracket-wrapped (`[CRITICAL]`) or followed by a `:` / `-` separator,
+    # so a casual mention like "Anomaly (critical) detected" inside an INFO
+    # message body doesn't escalate the whole record.
+    (re.compile(r"(?i)(?:^|\s)(?:\[(?:CRITICAL|EMERG|FATAL|PANIC)\]|(?:CRITICAL|EMERG|FATAL|PANIC)\s*[:\-])"), "CRITICAL"),
+    (re.compile(r"(?i)(?:^|\s)(?:\[(?:ERROR|ERR)\]|(?:ERROR|ERR)\s*[:\-])"), "ERROR"),
+    (re.compile(r"(?i)(?:^|\s)(?:\[(?:WARN(?:ING)?)\]|(?:WARN(?:ING)?)\s*[:\-])"), "WARN"),
+    # Linux syslog priority prefix like "<3>" (0-3 = err/crit/alert/emerg).
+    (re.compile(r"^<[0-3]>"), "CRITICAL"),
+    (re.compile(r"^<4>"), "WARN"),
+)
+
+
 def _detect_log_level(message: str) -> str:
-    """Heuristic level detection from a raw syslog line."""
-    upper = message.upper()
-    if "CRITICAL" in upper or "EMERG" in upper or "FATAL" in upper or "PANIC" in upper:
-        return "CRITICAL"
-    if "ERROR" in upper or " ERR " in upper or "FAILED" in upper or "FAILURE" in upper:
-        return "ERROR"
-    if "WARN" in upper:
-        return "WARN"
+    """Detect a log line's severity from anchored severity tokens.
+
+    Crucially this does NOT escalate on a bare substring match — so an INFO
+    line that *describes* a critical event (e.g. "Anomaly on prod-x (critical)
+    detected, automation off") stays INFO instead of being mis-classified.
+    """
+    for pattern, level in _LEVEL_PATTERNS:
+        if pattern.search(message):
+            return level
     return "INFO"
+
+
+# Substrings that mark a line as self-emitted by the iTOps backend. We skip
+# these entirely to prevent the system from reacting to its own log output —
+# which previously caused a feedback loop where the simulator's INFO lines
+# about fake anomalies got re-classified as real critical events on the host.
+_SELF_LOG_MARKERS = (
+    "itops-backend",
+    "[itops]",
+    "itops.cloudwatch",
+    "itops.simulator",
+    "itops.pipeline",
+    "uvicorn",
+)
+
+
+def _is_self_emitted(message: str) -> bool:
+    lower = message.lower()
+    return any(marker in lower for marker in _SELF_LOG_MARKERS)
 
 
 def _source_from_log_group(log_group: str) -> str:
@@ -296,6 +331,13 @@ class CloudWatchDataSource(DataSource):
                 msg = (evt.get("message") or "").rstrip("\n")[:2000]
                 if not msg:
                     continue
+                # Always advance the tail marker so we don't keep
+                # re-fetching the same self-emitted lines next cycle.
+                if ts_ms > max_seen_ms:
+                    max_seen_ms = ts_ms
+                # Skip iTOps' own log output to break the feedback loop.
+                if _is_self_emitted(msg):
+                    continue
                 events.append(LogEvent(
                     node_name=instance_id,
                     timestamp=datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc),
@@ -303,8 +345,6 @@ class CloudWatchDataSource(DataSource):
                     source=source,
                     message=msg,
                 ))
-                if ts_ms > max_seen_ms:
-                    max_seen_ms = ts_ms
 
         self._last_log_fetch_ms[instance_id] = max_seen_ms
         events.sort(key=lambda e: e.timestamp)

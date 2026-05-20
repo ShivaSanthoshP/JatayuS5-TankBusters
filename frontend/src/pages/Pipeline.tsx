@@ -71,6 +71,7 @@ export default function Pipeline() {
   const [selectedNode, setSelectedNode] = useState<string>(saved.current?.selectedNode || '');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<PipelineResult | null>(saved.current?.result || null);
   const [error, setError] = useState<string | null>(saved.current?.error || null);
@@ -145,14 +146,26 @@ export default function Pipeline() {
     return ['all', ...Array.from(types)];
   }, [nodeList]);
 
-  // Filter nodes based on status and type filters
+  // Source = the data adapter feeding the node (simulator vs aws cloudwatch, etc).
+  // Matches the same field used on the Infrastructure page so the two filters
+  // stay in sync; falls back to provider when older nodes haven't been re-tagged.
+  const sourceOf = (n: typeof nodeList[number]) =>
+    (n.metadata_?.data_source as string | undefined) ?? n.provider;
+
+  const nodeSources = useMemo(() => {
+    const sources = new Set(nodeList.map(sourceOf));
+    return ['all', ...Array.from(sources)];
+  }, [nodeList]);
+
+  // Filter nodes based on status, type, and source filters
   const filteredNodes = useMemo(() => {
     return nodeList.filter(n => {
       if (statusFilter !== 'all' && n.status !== statusFilter) return false;
       if (typeFilter !== 'all' && n.node_type !== typeFilter) return false;
+      if (sourceFilter !== 'all' && sourceOf(n) !== sourceFilter) return false;
       return true;
     });
-  }, [nodeList, statusFilter, typeFilter]);
+  }, [nodeList, statusFilter, typeFilter, sourceFilter]);
 
   // Selected node object
   const selectedNodeObj = useMemo(
@@ -359,6 +372,26 @@ export default function Pipeline() {
                     {t === 'all' ? 'All Types' : t.replace(/_/g, ' ')}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Source filter — matches the Source dimension on Infrastructure */}
+            <div>
+              <label className="text-xs text-ink-mute block mb-1.5 font-medium">Source</label>
+              <select
+                value={sourceFilter}
+                onChange={e => setSourceFilter(e.target.value)}
+                className="w-full bg-black/5 border border-glass-border rounded-lg px-3 py-2 text-sm text-ink-soft focus:outline-none focus:border-accent/50"
+              >
+                {nodeSources.map(s => {
+                  const label = s === 'all' ? 'All Sources'
+                    : s === 'simulated' ? 'Simulator'
+                    : s === 'aws' ? 'AWS CloudWatch'
+                    : s === 'azure' ? 'Azure Monitor'
+                    : s === 'gcp' ? 'GCP Monitoring'
+                    : s;
+                  return <option key={s} value={s}>{label}</option>;
+                })}
               </select>
             </div>
 
