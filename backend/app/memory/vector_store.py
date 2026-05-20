@@ -79,7 +79,10 @@ class _DynamicEmbedFn(chromadb.EmbeddingFunction):
     def _google(self, input: chromadb.Documents) -> chromadb.Embeddings:
         global _EMBED_DIM
         from google import genai
-        client = genai.Client(api_key=_settings.get_secret("gemini_api_key"))
+        # Embedding-specific key overrides the primary Gemini key when set;
+        # otherwise share the primary key (most users won't need a separate one).
+        key = _settings.get_secret("gemini_embedding_api_key") or _settings.get_secret("gemini_api_key")
+        client = genai.Client(api_key=key)
         model = _settings.gemini_embedding_model or "models/text-embedding-004"
         results: chromadb.Embeddings = []
         for text in input:

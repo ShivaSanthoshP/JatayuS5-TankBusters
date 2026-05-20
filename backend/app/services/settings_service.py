@@ -67,6 +67,7 @@ SUPPORTED_LLM_PROVIDERS = ("ollama", "openai", "gemini")
 _SECRET_FIELDS = (
     "openai_api_key",
     "gemini_api_key",
+    "gemini_embedding_api_key",
     "fallback_api_key",
     "cloudwatch_access_key_id",
     "cloudwatch_secret_access_key",
@@ -148,6 +149,8 @@ class _Settings:
         # ── Embedding settings ───────────────────────────────
         self.embedding_provider: str = EMBEDDING_PROVIDER  # "google" | "ollama"
         self.gemini_embedding_model: str = GEMINI_EMBEDDING_MODEL
+        # Optional override key for embeddings. Empty → reuse gemini_api_key.
+        self.gemini_embedding_api_key: str = ""
 
         # ── Shared agent settings ───────────────────────────
         self.agent_temperature: float = AGENT_TEMPERATURE
@@ -222,6 +225,7 @@ class _Settings:
         "gemini_model",
         "embedding_provider",
         "gemini_embedding_model",
+        "gemini_embedding_api_key",
         "agent_temperature",
         "monitoring_temperature",
         "predictive_temperature",
@@ -320,6 +324,7 @@ class _Settings:
                 "gemini_model": self.gemini_model,
                 "embedding_provider": self.embedding_provider,
                 "gemini_embedding_model": self.gemini_embedding_model,
+                "gemini_embedding_api_key": self.gemini_embedding_api_key,
                 "agent_temperature": self.agent_temperature,
                 "monitoring_temperature": self.monitoring_temperature,
                 "predictive_temperature": self.predictive_temperature,

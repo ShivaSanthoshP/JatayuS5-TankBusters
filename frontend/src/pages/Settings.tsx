@@ -40,6 +40,8 @@ interface SettingsData {
   // Embedding
   embedding_provider: 'google' | 'ollama';
   gemini_embedding_model: string;
+  gemini_embedding_api_key: string;
+  gemini_embedding_api_key_set: boolean;
 
   // Shared
   agent_temperature: number;
@@ -74,6 +76,26 @@ const DEFAULT_EMBEDDING_OPTIONS = [
   'nomic-embed-text', 'mxbai-embed-large', 'all-minilm', 'snowflake-arctic-embed',
   'bge-large', 'bge-m3', 'e5-mistral-7b-instruct', 'nomic-embed-text:v1.5',
 ];
+
+// Cloud LLM providers shown in the dropdown. Only Gemini is fully wired
+// in the backend right now — the others use static model lists and would
+// need a real adapter before they can actually serve traffic.
+const ONLINE_PROVIDERS = [
+  { id: 'gemini',  label: 'Gemini' },
+  { id: 'openai',  label: 'OpenAI' },
+  { id: 'grok',    label: 'Grok' },
+  { id: 'mistral', label: 'Mistral' },
+] as const;
+type ProviderId = typeof ONLINE_PROVIDERS[number]['id'];
+
+// Map any legacy free-text provider name (e.g. "Lanja") to a real provider.
+function normalizeProvider(name: string | undefined): ProviderId {
+  const n = (name || '').toLowerCase();
+  if (n.includes('openai') || n.includes('gpt')) return 'openai';
+  if (n.includes('grok') || n.includes('xai')) return 'grok';
+  if (n.includes('mistral') || n.includes('mixtral')) return 'mistral';
+  return 'gemini'; // default + catches "Gemini", "Lanja", anything else
+}
 
 
 type AgentTempKey =
@@ -161,8 +183,23 @@ export default function Settings() {
 
   // Dropdown-open state
   const [openDropdown, setOpenDropdown] = useState<
-    'ollama-llm' | 'ollama-embedding' | 'google-embedding' | null
+    | 'ollama-llm' | 'ollama-embedding' | 'google-embedding'
+    | 'online-provider' | 'online-model'
+    | 'fallback-provider' | 'fallback-model'
+    | null
   >(null);
+
+  // Live model lists for the online & fallback dropdowns. Reload whenever
+  // the user picks a different provider so the dropdown matches what that
+  // vendor actually exposes.
+  const [onlineModels, setOnlineModels] = useState<string[]>([]);
+  const [onlineModelsLoading, setOnlineModelsLoading] = useState(false);
+  const [fallbackModels, setFallbackModels] = useState<string[]>([]);
+  const [fallbackModelsLoading, setFallbackModelsLoading] = useState(false);
+
+  // Optional embedding-only API key draft (separate from the primary key).
+  const [embeddingKeyDraft, setEmbeddingKeyDraft] = useState('');
+  const [showEmbeddingKey, setShowEmbeddingKey] = useState(false);
 
   // Primary online key draft
   const [primaryKeyDraft, setPrimaryKeyDraft] = useState('');
@@ -197,6 +234,30 @@ export default function Settings() {
   }, []);
 
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
+
+  // Fetch the live model list for the active primary online provider.
+  // Only Gemini calls a live API; the others get a curated static list.
+  useEffect(() => {
+    if (!settings) return;
+    const provider = normalizeProvider(settings.online_provider_name);
+    setOnlineModelsLoading(true);
+    api.getLlmModels(provider).then((res) => {
+      setOnlineModels((res.models || []).filter((m) => !m.deprecated).map((m) => m.name));
+    }).catch(() => {
+      setOnlineModels([]);
+    }).finally(() => setOnlineModelsLoading(false));
+  }, [settings?.online_provider_name, settings?.gemini_api_key_set]);
+
+  useEffect(() => {
+    if (!settings) return;
+    const provider = normalizeProvider(settings.fallback_provider_name);
+    setFallbackModelsLoading(true);
+    api.getLlmModels(provider).then((res) => {
+      setFallbackModels((res.models || []).filter((m) => !m.deprecated).map((m) => m.name));
+    }).catch(() => {
+      setFallbackModels([]);
+    }).finally(() => setFallbackModelsLoading(false));
+  }, [settings?.fallback_provider_name, settings?.fallback_api_key_set]);
 
   const save = async (partial: Partial<SettingsData>) => {
     if (!settings) return;
@@ -509,16 +570,33 @@ export default function Settings() {
           {llmMode === 'online' && (
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-ink-mute mb-1.5 block">Provider Name</label>
-                <input
-                  type="text"
-                  value={settings.online_provider_name}
-                  onChange={(e) => setSettings({ ...settings, online_provider_name: e.target.value })}
-                  onBlur={(e) => save({ online_provider_name: e.target.value.trim() })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') save({ online_provider_name: (e.target as HTMLInputElement).value.trim() }); }}
-                  placeholder="e.g. Gemini, OpenAI, Anthropic"
-                  className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
-                />
+                <label className="text-xs text-ink-mute mb-1.5 block">Provider</label>
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === 'online-provider' ? null : 'online-provider')}
+                    className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
+                  >
+                    <span className="font-medium">
+                      {ONLINE_PROVIDERS.find((p) => p.id === normalizeProvider(settings.online_provider_name))?.label || 'Gemini'}
+                    </span>
+                    <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'online-provider' ? 'rotate-180' : ''}`} />
+                  </button>
+                  {openDropdown === 'online-provider' && (
+                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="absolute z-30 mt-1 w-full glass-dropdown">
+                      {ONLINE_PROVIDERS.map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => { save({ online_provider_name: p.label }); setOpenDropdown(null); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
+                            normalizeProvider(settings.online_provider_name) === p.id ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
+                          }`}
+                        >
+                          {p.label}{p.id !== 'gemini' && <span className="ml-2 text-[10px] text-ink-faint">(catalog only)</span>}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -558,43 +636,44 @@ export default function Settings() {
               </div>
 
               <div>
-                <label className="text-xs text-ink-mute mb-1.5 block">Model</label>
-                <input
-                  type="text"
-                  value={settings.gemini_model}
-                  onChange={(e) => setSettings({ ...settings, gemini_model: e.target.value })}
-                  onBlur={(e) => save({ gemini_model: e.target.value.trim() })}
-                  onKeyDown={(e) => { if (e.key === 'Enter') save({ gemini_model: (e.target as HTMLInputElement).value.trim() }); }}
-                  placeholder="e.g. gemini-2.5-flash, gpt-4o"
-                  className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-ink-mute mb-1.5 block">Add Custom Model</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newOnlineModel}
-                    onChange={(e) => setNewOnlineModel(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addCustomModel('custom_gemini_models', newOnlineModel, () => setNewOnlineModel(''))}
-                    placeholder="e.g. gemini-2.5-pro"
-                    className="flex-1 glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
-                  />
-                  <button onClick={() => addCustomModel('custom_gemini_models', newOnlineModel, () => setNewOnlineModel(''))} className="glass-sm rounded-lg px-3 py-2 hover:bg-accent/8">
-                    <Plus size={16} className="text-accent" />
+                <label className="text-xs text-ink-mute mb-1.5 block flex items-center gap-2">
+                  Model
+                  {onlineModelsLoading && <Loader2 size={11} className="animate-spin text-ink-faint" />}
+                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === 'online-model' ? null : 'online-model')}
+                    className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
+                  >
+                    <span className="font-medium">{settings.gemini_model || (onlineModels[0] ?? 'select model')}</span>
+                    <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'online-model' ? 'rotate-180' : ''}`} />
                   </button>
+                  {openDropdown === 'online-model' && (
+                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="absolute z-30 mt-1 w-full glass-dropdown max-h-72 overflow-y-auto">
+                      {onlineModels.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-ink-faint">
+                          {onlineModelsLoading ? 'Fetching…' : 'No models available — add an API key first'}
+                        </div>
+                      )}
+                      {onlineModels.map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => { save({ gemini_model: m }); setOpenDropdown(null); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
+                            settings.gemini_model === m ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
                 </div>
-                {settings.custom_gemini_models.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {settings.custom_gemini_models.map((m) => (
-                      <span key={m} className="inline-flex items-center gap-1 text-xs bg-ink/8 text-ink-soft px-2 py-1 rounded-full">
-                        {m}
-                        <button onClick={() => removeCustomModel('custom_gemini_models', m)} className="hover:text-critical"><X size={12} /></button>
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <p className="text-[11px] text-ink-faint mt-1.5">
+                  {normalizeProvider(settings.online_provider_name) === 'gemini'
+                    ? 'Fetched live from your Gemini API key.'
+                    : 'Static catalog — backend currently routes only Gemini.'}
+                </p>
               </div>
 
               <button
@@ -628,16 +707,33 @@ export default function Settings() {
 
         <div className="mt-4 space-y-4">
           <div>
-            <label className="text-xs text-ink-mute mb-1.5 block">Provider Name</label>
-            <input
-              type="text"
-              value={settings.fallback_provider_name}
-              onChange={(e) => setSettings({ ...settings, fallback_provider_name: e.target.value })}
-              onBlur={(e) => save({ fallback_provider_name: e.target.value.trim() })}
-              onKeyDown={(e) => { if (e.key === 'Enter') save({ fallback_provider_name: (e.target as HTMLInputElement).value.trim() }); }}
-              placeholder="e.g. Gemini, OpenAI"
-              className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
-            />
+            <label className="text-xs text-ink-mute mb-1.5 block">Provider</label>
+            <div className="relative">
+              <button
+                onClick={() => setOpenDropdown(openDropdown === 'fallback-provider' ? null : 'fallback-provider')}
+                className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
+              >
+                <span className="font-medium">
+                  {ONLINE_PROVIDERS.find((p) => p.id === normalizeProvider(settings.fallback_provider_name))?.label || 'Gemini'}
+                </span>
+                <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'fallback-provider' ? 'rotate-180' : ''}`} />
+              </button>
+              {openDropdown === 'fallback-provider' && (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="absolute z-30 mt-1 w-full glass-dropdown">
+                  {ONLINE_PROVIDERS.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => { save({ fallback_provider_name: p.label }); setOpenDropdown(null); }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
+                        normalizeProvider(settings.fallback_provider_name) === p.id ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
+                      }`}
+                    >
+                      {p.label}{p.id !== 'gemini' && <span className="ml-2 text-[10px] text-ink-faint">(catalog only)</span>}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -677,16 +773,39 @@ export default function Settings() {
           </div>
 
           <div>
-            <label className="text-xs text-ink-mute mb-1.5 block">Model</label>
-            <input
-              type="text"
-              value={settings.fallback_model}
-              onChange={(e) => setSettings({ ...settings, fallback_model: e.target.value })}
-              onBlur={(e) => save({ fallback_model: e.target.value.trim() })}
-              onKeyDown={(e) => { if (e.key === 'Enter') save({ fallback_model: (e.target as HTMLInputElement).value.trim() }); }}
-              placeholder="e.g. gemini-2.5-flash"
-              className="w-full glass-sm rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/40"
-            />
+            <label className="text-xs text-ink-mute mb-1.5 block flex items-center gap-2">
+              Model
+              {fallbackModelsLoading && <Loader2 size={11} className="animate-spin text-ink-faint" />}
+            </label>
+            <div className="relative">
+              <button
+                onClick={() => setOpenDropdown(openDropdown === 'fallback-model' ? null : 'fallback-model')}
+                className="w-full flex items-center justify-between glass-sm rounded-lg px-3 py-2.5 text-sm text-ink hover:ring-2 hover:ring-accent/40"
+              >
+                <span className="font-medium">{settings.fallback_model || (fallbackModels[0] ?? 'select model')}</span>
+                <ChevronDown size={14} className={`text-ink-faint transition-transform ${openDropdown === 'fallback-model' ? 'rotate-180' : ''}`} />
+              </button>
+              {openDropdown === 'fallback-model' && (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="absolute z-30 mt-1 w-full glass-dropdown max-h-72 overflow-y-auto">
+                  {fallbackModels.length === 0 && (
+                    <div className="px-3 py-2 text-xs text-ink-faint">
+                      {fallbackModelsLoading ? 'Fetching…' : 'No models available'}
+                    </div>
+                  )}
+                  {fallbackModels.map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => { save({ fallback_model: m }); setOpenDropdown(null); }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-accent/8 ${
+                        settings.fallback_model === m ? 'bg-accent/10 text-accent font-medium' : 'text-ink-soft'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </div>
           </div>
 
           <button
@@ -768,7 +887,54 @@ export default function Settings() {
                 </motion.div>
               )}
             </div>
-            <p className="text-[11px] text-ink-faint mt-2">Uses your Gemini API key. Free within Google AI quota — no model download required.</p>
+            <p className="text-[11px] text-ink-faint mt-2">Free within Google AI quota — no model download required.</p>
+
+            {/* Optional embedding-specific API key. Empty → reuse primary Gemini key. */}
+            <div className="mt-4">
+              <label className="text-xs text-ink-mute mb-1.5 block">Embedding API Key (optional)</label>
+              {settings.gemini_embedding_api_key_set && !embeddingKeyDraft && (
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="flex-1 min-w-[180px] glass-sm rounded-lg px-3 py-2.5 text-sm font-mono text-ink-soft flex items-center gap-2">
+                    <KeyRound size={14} className="text-success" />
+                    ••••••••••••••••
+                    <span className="ml-auto text-[10px] text-success">override active</span>
+                  </div>
+                  <button onClick={() => setEmbeddingKeyDraft(' ')} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-soft hover:bg-canvas-soft">Change</button>
+                  <button onClick={() => save({ gemini_embedding_api_key: '' })} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-critical hover:bg-critical/10">Remove</button>
+                </div>
+              )}
+              {(!settings.gemini_embedding_api_key_set || embeddingKeyDraft) && (
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <div className="relative flex-1 min-w-[180px]">
+                    <input
+                      type={showEmbeddingKey ? 'text' : 'password'}
+                      value={embeddingKeyDraft}
+                      onChange={(e) => setEmbeddingKeyDraft(e.target.value)}
+                      placeholder="Leave empty to reuse the primary Gemini key"
+                      autoComplete="off"
+                      className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
+                    />
+                    <button type="button" onClick={() => setShowEmbeddingKey(!showEmbeddingKey)} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-soft">
+                      {showEmbeddingKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      await save({ gemini_embedding_api_key: embeddingKeyDraft.trim() });
+                      setEmbeddingKeyDraft('');
+                    }}
+                    disabled={!embeddingKeyDraft.trim()}
+                    className="glass-sm rounded-lg px-3 py-2.5 text-xs font-medium text-accent hover:bg-accent/8 disabled:opacity-50"
+                  >Save</button>
+                  {settings.gemini_embedding_api_key_set && (
+                    <button onClick={() => setEmbeddingKeyDraft('')} className="glass-sm rounded-lg px-3 py-2.5 text-xs text-ink-mute hover:bg-canvas-soft">Cancel</button>
+                  )}
+                </div>
+              )}
+              <p className="text-[11px] text-ink-faint mt-1.5">
+                Falls back to your primary Gemini key when empty. Set this only if you want embeddings on a separate quota.
+              </p>
+            </div>
           </div>
         )}
 

@@ -83,6 +83,7 @@ class SettingsUpdate(BaseModel):
     # Embedding
     embedding_provider: str | None = None
     gemini_embedding_model: str | None = None
+    gemini_embedding_api_key: str | None = None
 
     # Shared
     agent_temperature: float | None = None
@@ -271,6 +272,41 @@ async def list_gemini_models(api_key: str | None = None) -> dict[str, Any]:
     """Fetch the live Gemini model catalog from Google's ListModels API."""
     key = (api_key or settings.get_secret("gemini_api_key") or "").strip()
     return await asyncio.to_thread(_fetch_gemini_models_sync, key)
+
+
+# Hardcoded model lists for providers we surface in the UI but don't (yet)
+# wire end-to-end. Gemini routes through the live API call above; everything
+# else returns a curated list so the dropdown looks complete and the
+# user can pick something without the form feeling broken.
+_STATIC_PROVIDER_MODELS: dict[str, list[str]] = {
+    "openai": ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "o1-mini", "o1"],
+    "grok": ["grok-2-latest", "grok-2-mini", "grok-beta"],
+    "mistral": ["mistral-large-latest", "mistral-small-latest", "mistral-medium-latest",
+                "open-mistral-7b", "open-mixtral-8x7b", "open-mixtral-8x22b"],
+}
+
+
+@router.get("/llm-models")
+async def list_llm_models(provider: str, api_key: str | None = None) -> dict[str, Any]:
+    """Return the model list for the requested LLM provider.
+
+    For Gemini, fetches live from Google's ListModels API using the supplied
+    or stored key. For other providers we return a curated static list so the
+    UI dropdown is populated even before the backend grows live support.
+    """
+    prov = (provider or "").lower().strip()
+    if prov == "gemini":
+        key = (api_key or settings.get_secret("gemini_api_key") or "").strip()
+        return await asyncio.to_thread(_fetch_gemini_models_sync, key)
+    if prov in _STATIC_PROVIDER_MODELS:
+        return {
+            "models": [{"name": m, "display_name": m, "description": "",
+                        "input_token_limit": 0, "output_token_limit": 0,
+                        "version": "", "deprecated": False}
+                       for m in _STATIC_PROVIDER_MODELS[prov]],
+            "static": True,
+        }
+    return {"models": [], "error": f"Unknown provider '{provider}'"}
 
 
 @router.post("/test-provider")

@@ -111,6 +111,23 @@ export const getGeminiModels = (apiKey?: string) => {
     error?: string;
   }>(`/settings/gemini-models${qs}`, 15000);
 };
+export const getLlmModels = (provider: string, apiKey?: string) => {
+  const params = new URLSearchParams({ provider });
+  if (apiKey) params.set('api_key', apiKey);
+  return requestWithTimeout<{
+    models: Array<{
+      name: string;
+      display_name: string;
+      description: string;
+      input_token_limit: number;
+      output_token_limit: number;
+      version: string;
+      deprecated: boolean;
+    }>;
+    error?: string;
+    static?: boolean;
+  }>(`/settings/llm-models?${params.toString()}`, 15000);
+};
 export const testLlmProvider = (body: {
   provider: 'ollama' | 'openai' | 'gemini';
   model?: string;
