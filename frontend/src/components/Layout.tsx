@@ -3,7 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, AlertTriangle, Server, Database, BookOpen, Cpu, Play, Settings,
-  Menu, X,
 } from 'lucide-react';
 import GlassNavbar from './common/GlassNavbar';
 import GlassTab from './common/GlassTab';
@@ -67,8 +66,33 @@ export default function Layout() {
       <ParticleBackground />
 
       <GlassNavbar condense={condense} className="liquid-glass">
-        {/* Left Branding */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
+        {/* Left Branding — clickable on mobile to toggle menu */}
+        <button
+          type="button"
+          onClick={() => setMobileOpen((v) => !v)}
+          className="lg:hidden flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+        >
+          <div
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center gpu shrink-0"
+            style={{
+              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dim) 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 6px 16px -6px var(--color-accent-glow)',
+            }}
+          >
+            <Server size={16} className="text-[var(--color-surface)]" />
+          </div>
+          <div className="flex flex-col leading-tight min-w-0">
+            <span className="font-display text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+              Dynamic <span className="text-[var(--color-accent)] italic">IT</span>
+            </span>
+            <span className="font-display text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+              Operations Orchestrator
+            </span>
+          </div>
+        </button>
+
+        {/* Desktop branding — non-clickable */}
+        <div className="hidden lg:flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           <div
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center gpu shrink-0"
             style={{
@@ -100,18 +124,6 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-3 shrink-0">
-          {/* Mobile hamburger */}
-          <button
-            type="button"
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((v) => !v)}
-            className="lg:hidden icon-btn relative z-50"
-          >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-        </div>
       </GlassNavbar>
 
       {/* ── Mobile slide-down menu ─────────────────────────────── */}
