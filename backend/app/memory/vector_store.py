@@ -108,7 +108,17 @@ class InstitutionalMemory:
 
     def __init__(self) -> None:
         persist_dir = Path(CHROMA_PERSIST_DIR)
-        persist_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            persist_dir.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            # S3 Files mount may not be ready at boot — degrade to local path
+            logger.warning(
+                "Cannot create ChromaDB dir %s (S3 mount may not be ready yet). "
+                "Falling back to local chroma_db/.",
+                persist_dir,
+            )
+            persist_dir = Path(__file__).resolve().parent.parent.parent / "chroma_db"
+            persist_dir.mkdir(parents=True, exist_ok=True)
 
         self._embed_fn = _DynamicEmbedFn()
         self._db = chromadb.PersistentClient(

@@ -156,8 +156,67 @@ fi
 PUBLIC_IP=$(aws ec2 describe-addresses --allocation-ids "$ALLOC_ID" \
     --query 'Addresses[0].PublicIp' --output text)
 
-# ── 7. Budget alert ─────────────────────────────────────────────────
-step "7. Budget alert ($BUDGET_USD/mo at $EMAIL_FOR_BUDGET)"
+# ── 7. S3 bucket + IAM role for ChromaDB ───────────────────────────
+step "7. S3 bucket + IAM role for ChromaDB (S3 Files)"
+CHROMA_BUCKET="${CHROMA_BUCKET:-itops-chromadb-storage}"
+
+# Create bucket (idempotent)
+if aws s3api head-bucket --bucket "$CHROMA_BUCKET" 2>/dev/null; then
+    echo "Bucket s3://$CHROMA_BUCKET already exists — skipping."
+else
+    aws s3 mb "s3://$CHROMA_BUCKET" --region "$AWS_REGION"
+    echo "Created bucket: s3://$CHROMA_BUCKET"
+fi
+
+# IAM role for EC2 → S3 Files access (idempotent)
+ROLE_NAME="itops-ec2-role"
+PROFILE_NAME="itops-ec2-profile"
+
+if ! aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
+    aws iam create-role --role-name "$ROLE_NAME" \
+        --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}' \
+        --description "ITOps EC2 role for S3 Files / ChromaDB access" > /dev/null
+    echo "Created IAM role: $ROLE_NAME"
+else
+    echo "IAM role $ROLE_NAME already exists — skipping."
+fi
+
+aws iam put-role-policy --role-name "$ROLE_NAME" \
+    --policy-name "S3ChromaDBAccess" \
+    --policy-document "{
+      \"Version\":\"2012-10-17\",
+      \"Statement\":[{
+        \"Effect\":\"Allow\",
+        \"Action\":[\"s3:GetObject\",\"s3:PutObject\",\"s3:DeleteObject\",\"s3:ListBucket\"],
+        \"Resource\":[
+          \"arn:aws:s3:::${CHROMA_BUCKET}\",
+          \"arn:aws:s3:::${CHROMA_BUCKET}/*\"
+        ]
+      }]
+    }"
+echo "S3 policy attached to role."
+
+if ! aws iam get-instance-profile --instance-profile-name "$PROFILE_NAME" >/dev/null 2>&1; then
+    aws iam create-instance-profile --instance-profile-name "$PROFILE_NAME" > /dev/null
+    aws iam add-role-to-instance-profile --instance-profile-name "$PROFILE_NAME" --role-name "$ROLE_NAME"
+    echo "Created instance profile: $PROFILE_NAME"
+else
+    echo "Instance profile $PROFILE_NAME already exists — skipping."
+fi
+
+# Attach profile to EC2 instance (idempotent)
+CURRENT_PROFILE=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+    --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn' --output text 2>/dev/null || true)
+if [ -z "$CURRENT_PROFILE" ] || [ "$CURRENT_PROFILE" = "None" ]; then
+    aws ec2 associate-iam-instance-profile --instance-id "$INSTANCE_ID" \
+        --iam-instance-profile Name="$PROFILE_NAME"
+    echo "IAM profile attached to instance $INSTANCE_ID."
+else
+    echo "Instance already has an IAM profile — skipping association."
+fi
+
+# ── 8. Budget alert ─────────────────────────────────────────────────
+step "8. Budget alert ($BUDGET_USD/mo at $EMAIL_FOR_BUDGET)"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 if aws budgets describe-budget --account-id "$ACCOUNT_ID" \
         --budget-name "${APP_NAME}-monthly" >/dev/null 2>&1; then
@@ -213,7 +272,9 @@ NEXT STEPS (do these on your LAPTOP, not in CloudShell):
        sudo dnf install -y git
        git clone https://github.com/<YOUR-USER>/itops.git ~/itops
        bash ~/itops/deployment/setup-ec2.sh
-       sudo nano /opt/itops/backend/.env   # set GEMINI_API_KEY + CORS_ALLOW_ORIGINS
+       sudo nano /opt/itops/backend/.env   # set GEMINI_API_KEY, CORS_ALLOW_ORIGINS
+       # S3 Files for ChromaDB is mounted automatically by setup-ec2.sh
+       # Bucket: s3://$CHROMA_BUCKET  Mount: /mnt/s3/itops
 
   3. Update GitHub repo secrets (Settings → Secrets → Actions):
        EC2_HOST            = $PUBLIC_IP

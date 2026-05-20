@@ -2,6 +2,7 @@
 Description=ITOps Backend (FastAPI / Uvicorn)
 After=network.target postgresql.service
 Wants=postgresql.service
+RequiresMountsFor=/mnt/s3/itops
 
 [Service]
 Type=simple

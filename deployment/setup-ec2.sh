@@ -79,8 +79,46 @@ else
     echo "      Role '${DB_USER}' already exists — leaving password unchanged."
 fi
 
-# ── 5. Nginx ───────────────────────────────────────────────────────
-echo "[5/7] Configuring nginx..."
+# ── 5. S3 Files mount for ChromaDB ────────────────────────────────
+echo "[5/8] Mounting S3 bucket for ChromaDB storage (S3 Files)..."
+CHROMA_S3_BUCKET="${CHROMA_S3_BUCKET:-itops-chromadb-storage}"
+CHROMA_S3_REGION="${CHROMA_S3_REGION:-ap-south-1}"
+CHROMA_MOUNT="/mnt/s3/itops"
+
+# Install the S3 Files mount helper (Amazon Linux 2023)
+sudo dnf install -y -q amazon-s3-files 2>/dev/null || \
+    echo "      WARNING: amazon-s3-files package not found — S3 mount skipped. Using local EBS."
+
+if command -v mount.amazon-s3 &>/dev/null || grep -q amazon-s3 /proc/filesystems 2>/dev/null; then
+    sudo mkdir -p "$CHROMA_MOUNT"
+
+    if ! mountpoint -q "$CHROMA_MOUNT"; then
+        sudo mount -t amazon-s3 "$CHROMA_S3_BUCKET" "$CHROMA_MOUNT" \
+            -o "region=$CHROMA_S3_REGION" 2>/dev/null && \
+            echo "      Mounted s3://$CHROMA_S3_BUCKET → $CHROMA_MOUNT" || \
+            echo "      WARNING: S3 mount failed. Ensure the EC2 IAM role has s3:GetObject/PutObject on $CHROMA_S3_BUCKET. ChromaDB will fall back to local disk."
+    else
+        echo "      $CHROMA_MOUNT already mounted."
+    fi
+
+    # Persist across reboots
+    if ! grep -q "$CHROMA_S3_BUCKET" /etc/fstab; then
+        echo "$CHROMA_S3_BUCKET $CHROMA_MOUNT amazon-s3 _netdev,region=$CHROMA_S3_REGION 0 0" | \
+            sudo tee -a /etc/fstab > /dev/null
+        echo "      Added fstab entry for persistent mount."
+    fi
+
+    # Inject CHROMA_PERSIST_DIR into the app .env (idempotent)
+    APP_ENV="$APP_DIR/backend/.env"
+    CHROMA_DIR="$CHROMA_MOUNT/chroma_db"
+    if [ -f "$APP_ENV" ] && ! grep -q "CHROMA_PERSIST_DIR" "$APP_ENV"; then
+        echo "CHROMA_PERSIST_DIR=$CHROMA_DIR" >> "$APP_ENV"
+        echo "      Set CHROMA_PERSIST_DIR=$CHROMA_DIR in .env"
+    fi
+fi
+
+# ── 6. Nginx ───────────────────────────────────────────────────────
+echo "[6/8] Configuring nginx..."
 
 # Remove the default server block that ships with nginx on AL2023
 sudo rm -f /etc/nginx/conf.d/default.conf
@@ -136,7 +174,7 @@ sudo systemctl restart nginx
 echo "      Nginx configured and started."
 
 # ── 6. systemd service ─────────────────────────────────────────────
-echo "[6/7] Creating systemd service (itops-backend)..."
+echo "[7/8] Creating systemd service (itops-backend)..."
 
 # The heredoc delimiter is unquoted so $APP_DIR/$VENV_DIR/$EC2_USER expand.
 # Two EnvironmentFile lines: the second (DB creds) is required, but we mark
@@ -147,6 +185,7 @@ sudo tee /etc/systemd/system/itops-backend.service > /dev/null << SVCEOF
 Description=ITOps Backend (FastAPI / Uvicorn)
 After=network.target postgresql.service
 Wants=postgresql.service
+RequiresMountsFor=/mnt/s3/itops
 
 [Service]
 Type=simple
@@ -178,7 +217,7 @@ echo "      Service registered. Will start after first deploy."
 
 # ── 7. Sudoers — allow ec2-user to restart services without password
 # GitHub Actions SSHs in as ec2-user and needs to restart services.
-echo "[7/7] Configuring passwordless sudo for service management..."
+echo "[8/8] Configuring passwordless sudo for service management..."
 sudo tee /etc/sudoers.d/itops > /dev/null << SUDOEOF
 $EC2_USER ALL=(ALL) NOPASSWD: \
   /usr/bin/systemctl restart itops-backend, \
