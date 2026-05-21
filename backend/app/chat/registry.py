@@ -1,0 +1,133 @@
+from __future__ import annotations
+"""Tool registry: validates args, enforces timeout, writes audit log,
+honours idempotency on (session_id, tool_name, tool_args)."""
+
+import time
+import logging
+import concurrent.futures
+from typing import Any
+
+from pydantic import ValidationError
+from sqlalchemy.orm import Session
+
+from app.chat.schemas import Tool, ToolOutput
+from app.database.models import ChatAction
+
+logger = logging.getLogger("itops.chat.registry")
+
+TOOL_TIMEOUT_SECONDS = 20
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+
+
+class ToolExecutionError(Exception):
+    """Raised when a tool can't be dispatched cleanly. Always carries a
+    user-safe message; the orchestrator feeds that back to the LLM."""
+    def __init__(self, message: str, *, kind: str = "error"):
+        super().__init__(message)
+        self.kind = kind  # error | timeout | not_found | invalid_args
+
+
+class ToolRegistry:
+    def __init__(self):
+        self._tools: dict[str, Tool] = {}
+
+    def register(self, tool: Tool) -> None:
+        self._tools[tool.name] = tool
+
+    def get(self, name: str) -> Tool | None:
+        return self._tools.get(name)
+
+    def all(self) -> list[Tool]:
+        return list(self._tools.values())
+
+    def dispatch(
+        self,
+        name: str,
+        raw_args: dict[str, Any],
+        *,
+        db: Session,
+        session_id: str,
+        conversation_id: str,
+        was_confirmed: bool,
+        idempotency_key: str,
+    ) -> ToolOutput:
+        tool = self._tools.get(name)
+        if tool is None:
+            self._write_audit(db, session_id, conversation_id, name, raw_args,
+                              status="error", was_confirmed=was_confirmed,
+                              latency_ms=0, error="unknown tool", result=None)
+            raise ToolExecutionError(f"Unknown tool: {name}", kind="not_found")
+
+        # Idempotency: replay a prior successful row with the same
+        # (session_id, tool_name, tool_args). Guards against retries
+        # double-firing a mutating tool.
+        prior = (
+            db.query(ChatAction)
+            .filter(
+                ChatAction.session_id == session_id,
+                ChatAction.tool_name == name,
+                ChatAction.tool_args == raw_args,
+                ChatAction.status == "ok",
+            )
+            .order_by(ChatAction.id.desc())
+            .first()
+        )
+        if prior and prior.tool_result is not None:
+            logger.info("Idempotent replay for %s (key=%s)", name, idempotency_key)
+            return tool.output_model.model_validate(prior.tool_result)
+
+        try:
+            args = tool.input_model.model_validate(raw_args)
+        except ValidationError as ve:
+            self._write_audit(db, session_id, conversation_id, name, raw_args,
+                              status="error", was_confirmed=was_confirmed,
+                              latency_ms=0, error=str(ve)[:500], result=None)
+            raise ToolExecutionError(
+                f"Invalid args for {name}: {ve.errors()[0]['msg']}", kind="invalid_args")
+
+        t0 = time.time()
+        try:
+            future = _executor.submit(tool.execute, args, db=db, idempotency_key=idempotency_key)
+            result = future.result(timeout=TOOL_TIMEOUT_SECONDS)
+        except concurrent.futures.TimeoutError:
+            elapsed = int((time.time() - t0) * 1000)
+            self._write_audit(db, session_id, conversation_id, name, raw_args,
+                              status="timeout", was_confirmed=was_confirmed,
+                              latency_ms=elapsed, error="tool exceeded 20s", result=None)
+            raise ToolExecutionError(f"{name} timed out", kind="timeout")
+        except Exception as exc:
+            elapsed = int((time.time() - t0) * 1000)
+            self._write_audit(db, session_id, conversation_id, name, raw_args,
+                              status="error", was_confirmed=was_confirmed,
+                              latency_ms=elapsed, error=str(exc)[:500], result=None)
+            raise ToolExecutionError(f"{name} failed: {exc}", kind="error")
+
+        elapsed = int((time.time() - t0) * 1000)
+        if not isinstance(result, ToolOutput):
+            self._write_audit(db, session_id, conversation_id, name, raw_args,
+                              status="error", was_confirmed=was_confirmed,
+                              latency_ms=elapsed, error="tool returned non-ToolOutput",
+                              result=None)
+            raise ToolExecutionError(f"{name} returned an invalid result", kind="error")
+
+        self._write_audit(db, session_id, conversation_id, name, raw_args,
+                          status="ok", was_confirmed=was_confirmed,
+                          latency_ms=elapsed, error=None, result=result.model_dump())
+        return result
+
+    @staticmethod
+    def _write_audit(
+        db: Session, session_id: str, conversation_id: str, tool_name: str,
+        tool_args: dict, *, status: str, was_confirmed: bool, latency_ms: int,
+        error: str | None, result: dict | None,
+    ) -> None:
+        db.add(ChatAction(
+            session_id=session_id, conversation_id=conversation_id,
+            tool_name=tool_name, tool_args=tool_args, tool_result=result or {},
+            status=status, was_confirmed=was_confirmed,
+            latency_ms=latency_ms, error_message=error,
+        ))
+        db.commit()
+
+
+registry = ToolRegistry()
