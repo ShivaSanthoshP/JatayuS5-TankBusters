@@ -245,3 +245,23 @@ class Simulator(Base):
 
     def __repr__(self):
         return f"<Simulator {self.name} ({self.simulator_type.value}) - {self.status.value}>"
+
+
+class ChatAction(Base):
+    """Audit log: one row per tool execution initiated by the SRE Copilot chat."""
+    __tablename__ = "chat_actions"
+
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String(64), nullable=False, index=True)
+    conversation_id = Column(String(64), nullable=False, index=True)
+    tool_name = Column(String(64), nullable=False, index=True)
+    tool_args = Column(JSON, default=dict)
+    tool_result = Column(JSON, default=dict)
+    status = Column(String(16), nullable=False)  # ok | error | cancelled | timeout
+    was_confirmed = Column(Boolean, default=False, nullable=False)
+    latency_ms = Column(Integer, default=0, nullable=False)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False, index=True)
+
+    def __repr__(self):
+        return f"<ChatAction {self.tool_name} [{self.status}] sess={self.session_id}>"
