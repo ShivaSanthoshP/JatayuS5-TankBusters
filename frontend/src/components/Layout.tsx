@@ -2,13 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  LayoutDashboard, AlertTriangle, Server, Database, BookOpen, Cpu, Play, Settings,
+  LayoutDashboard, AlertTriangle, Server, Database, BookOpen, Cpu, Play, Settings, Wand2,
 } from 'lucide-react';
 import GlassNavbar from './common/GlassNavbar';
 import GlassTab from './common/GlassTab';
 import PageTransition from './common/PageTransition';
 import ParticleBackground from './ui/ParticleBackground';
-import ChatBubble from './chat/ChatBubble';
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -18,6 +17,7 @@ const NAV = [
   { to: '/datasources', icon: Database, label: 'Data Sources' },
   { to: '/simulators', icon: Cpu, label: 'Simulators' },
   { to: '/runbooks', icon: BookOpen, label: 'Runbooks' },
+  { to: '/copilot', icon: Wand2, label: 'Copilot' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -178,8 +178,6 @@ export default function Layout() {
           </AnimatePresence>
         </div>
       </main>
-
-      <ChatBubble />
     </div>
   );
 }
