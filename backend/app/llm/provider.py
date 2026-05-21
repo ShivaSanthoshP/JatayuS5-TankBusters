@@ -263,6 +263,9 @@ class ToolDecl:
 class ToolCall:
     name: str
     args: dict
+    # Opaque signature Gemini 2.5+ attaches to a functionCall part; must be
+    # echoed back when the call is replayed in history (see _build_contents).
+    thought_signature: bytes | None = None
 
 
 @dataclass
@@ -271,6 +274,53 @@ class ChatWithToolsResponse:
     orchestrator iterates until the model stops requesting tools."""
     text: str = ""
     tool_calls: list[ToolCall] = field(default_factory=list)
+
+
+def _build_contents(messages: list[dict], tool_results: list[dict] | None) -> list:
+    """Assemble the Gemini ``contents`` list for one function-calling turn.
+
+    Gemini 2.5+ attaches an opaque ``thought_signature`` to every functionCall
+    part it returns and rejects the next request (400 INVALID_ARGUMENT) unless
+    that signature is echoed back when the call is replayed in history. Because
+    we reconstruct the call from plain name/args, we must restore the captured
+    signature onto the rebuilt part here.
+    """
+    from google.genai import types as gt
+
+    contents: list = []
+    for m in messages:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append(gt.Content(role=role, parts=[gt.Part.from_text(text=m["content"])]))
+    for tr in (tool_results or []):
+        call_part = gt.Part.from_function_call(name=tr["name"], args=tr["args"])
+        sig = tr.get("thought_signature")
+        if sig:
+            call_part.thought_signature = sig
+        contents.append(gt.Content(role="model", parts=[call_part]))
+        contents.append(gt.Content(role="user", parts=[
+            gt.Part.from_function_response(name=tr["name"], response=tr["result"]),
+        ]))
+    return contents
+
+
+def _parse_response(response) -> ChatWithToolsResponse:
+    """Extract text + tool calls from a Gemini response, capturing each
+    functionCall's ``thought_signature`` so it survives into the next turn."""
+    out = ChatWithToolsResponse()
+    for cand in (response.candidates or []):
+        content = getattr(cand, "content", None)
+        if content is None:
+            continue
+        for part in (content.parts or []):
+            fn = getattr(part, "function_call", None)
+            if fn is not None and getattr(fn, "name", None):
+                out.tool_calls.append(ToolCall(
+                    name=fn.name, args=dict(fn.args or {}),
+                    thought_signature=getattr(part, "thought_signature", None),
+                ))
+            elif getattr(part, "text", None):
+                out.text += part.text
+    return out
 
 
 def chat_with_tools(
@@ -306,31 +356,16 @@ def chat_with_tools(
     if system_instruction:
         config_kwargs["system_instruction"] = system_instruction
 
-    # Gemini 2.5 thinking models attach an opaque `thought_signature` to each
-    # functionCall part and *require* it echoed back when that call is replayed
-    # in the conversation history. Our function-calling loop rebuilds history
-    # from plain name/args and can't carry the signature, so the follow-up turn
-    # 400s with "Function call is missing a thought_signature". For parallel
-    # calls only the first part even gets a signature, so threading them through
-    # is fragile. Disabling thinking stops the model emitting signatures, which
-    # makes the multi-turn tool loop correct and deterministic. Supported on
-    # 2.5 Flash / Flash-Lite (Pro cannot fully disable thinking).
+    # On Gemini 2.5 Flash we disable thinking to cut latency and keep the tool
+    # loop deterministic. This does NOT remove the thought_signature requirement
+    # on replayed functionCall parts — that is handled by capturing and restoring
+    # the signature (see _parse_response / _build_contents), which is what makes
+    # the multi-turn tool loop correct regardless of the thinking setting.
     _ml = model.lower()
     if "2.5" in _ml and "flash" in _ml:
         config_kwargs["thinking_config"] = gt.ThinkingConfig(thinking_budget=0)
 
-    contents: list = []
-    for m in messages:
-        role = "user" if m["role"] == "user" else "model"
-        contents.append(gt.Content(role=role, parts=[gt.Part.from_text(text=m["content"])]))
-    if tool_results:
-        for tr in tool_results:
-            contents.append(gt.Content(role="model", parts=[
-                gt.Part.from_function_call(name=tr["name"], args=tr["args"]),
-            ]))
-            contents.append(gt.Content(role="user", parts=[
-                gt.Part.from_function_response(name=tr["name"], response=tr["result"]),
-            ]))
+    contents = _build_contents(messages, tool_results)
 
     response = client.models.generate_content(
         model=model,
@@ -338,15 +373,4 @@ def chat_with_tools(
         config=gt.GenerateContentConfig(**config_kwargs),
     )
 
-    out = ChatWithToolsResponse()
-    for cand in (response.candidates or []):
-        content = getattr(cand, "content", None)
-        if content is None:
-            continue
-        for part in (content.parts or []):
-            fn = getattr(part, "function_call", None)
-            if fn is not None and getattr(fn, "name", None):
-                out.tool_calls.append(ToolCall(name=fn.name, args=dict(fn.args or {})))
-            elif getattr(part, "text", None):
-                out.text += part.text
-    return out
+    return _parse_response(response)

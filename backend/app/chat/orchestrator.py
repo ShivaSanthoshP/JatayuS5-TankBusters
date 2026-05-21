@@ -96,6 +96,7 @@ def run_turn(
             invocations.append(inv)
             tool_results.append({
                 "name": call.name, "args": call.args,
+                "thought_signature": call.thought_signature,
                 "result": inv.result if inv.status == "ok"
                           else {"error": inv.error, "kind": inv.status},
             })
@@ -194,6 +195,7 @@ async def run_turn_streaming(
                        "data": {"tool_call_id": tool_call_id, "status": "not_found",
                                 "error": f"Unknown tool: {call.name}"}}
                 tool_results.append({"name": call.name, "args": call.args,
+                                     "thought_signature": call.thought_signature,
                                      "result": {"error": "unknown tool"}})
                 continue
 
@@ -215,6 +217,7 @@ async def run_turn_streaming(
                            "data": {"tool_call_id": tool_call_id, "status": decision.value,
                                     "error": f"User {decision.value}"}}
                     tool_results.append({"name": call.name, "args": call.args,
+                                         "thought_signature": call.thought_signature,
                                          "result": {"declined": decision.value}})
                     continue
                 was_confirmed = True
@@ -233,12 +236,15 @@ async def run_turn_streaming(
                 yield {"event": "tool_result",
                        "data": {"tool_call_id": tool_call_id, "status": "ok",
                                 "result": inv_result}}
-                tool_results.append({"name": call.name, "args": call.args, "result": inv_result})
+                tool_results.append({"name": call.name, "args": call.args,
+                                     "thought_signature": call.thought_signature,
+                                     "result": inv_result})
             except ToolExecutionError as exc:
                 yield {"event": "tool_result",
                        "data": {"tool_call_id": tool_call_id, "status": exc.kind,
                                 "error": str(exc)}}
                 tool_results.append({"name": call.name, "args": call.args,
+                                     "thought_signature": call.thought_signature,
                                      "result": {"error": str(exc)}})
 
     yield {"event": "token", "data": {"text": "Reached tool-call limit; stopping here."}}
