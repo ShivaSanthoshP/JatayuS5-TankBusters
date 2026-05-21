@@ -14,6 +14,7 @@ from typing import AsyncIterator, Callable
 from sqlalchemy.orm import Session
 
 from app.chat.confirm_store import ConfirmStore, PendingDecision
+from app.chat.prompt import SRE_COPILOT_SYSTEM_PROMPT
 from app.chat.registry import ToolRegistry, ToolExecutionError
 from app.chat.schemas import SafetyLevel
 from app.llm.provider import ChatWithToolsResponse, ToolCall, ToolDecl, chat_with_tools
@@ -71,6 +72,7 @@ def run_turn(
     conversation_id: str,
     api_key: str,
     model: str | None = None,
+    system_prompt: str = SRE_COPILOT_SYSTEM_PROMPT,
 ) -> OrchestratorResult:
     """Execute one user turn (no streaming, no confirmation). Risky tools
     are refused here — the streaming path handles suspend/resume."""
@@ -84,6 +86,7 @@ def run_turn(
             messages=messages, tools=tool_decls,
             model=model, api_key=api_key, temperature=0.0,
             tool_results=tool_results,
+            system_instruction=system_prompt,
         )
         if not resp.tool_calls:
             return OrchestratorResult(text=resp.text, tool_invocations=invocations,
@@ -102,6 +105,7 @@ def run_turn(
                               "content": "Tool call limit reached. Respond with text only."}],
         tools=[], model=model, api_key=api_key, temperature=0.3,
         tool_results=tool_results,
+        system_instruction=system_prompt,
     )
     return OrchestratorResult(
         text=resp.text or "I ran out of steps mid-task.",
@@ -144,6 +148,7 @@ async def run_turn_streaming(
     api_key: str,
     confirm_store: ConfirmStore,
     model: str | None = None,
+    system_prompt: str = SRE_COPILOT_SYSTEM_PROMPT,
     gemini_caller: Callable[..., ChatWithToolsResponse] | None = None,
 ) -> AsyncIterator[dict]:
     """Async generator yielding SSE event dicts. Event shapes:
@@ -165,6 +170,7 @@ async def run_turn_streaming(
                 messages=messages, tools=tool_decls,
                 model=model, api_key=api_key, temperature=0.0,
                 tool_results=tool_results,
+                system_instruction=system_prompt,
             )
         except Exception as exc:
             logger.exception("Gemini call failed during streaming turn")
