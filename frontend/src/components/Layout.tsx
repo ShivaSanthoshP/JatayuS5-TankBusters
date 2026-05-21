@@ -23,6 +23,10 @@ const NAV = [
 
 export default function Layout() {
   const location = useLocation();
+  // The Copilot route is a full-bleed, ChatGPT-style page: it fills the
+  // viewport and scrolls under the floating navbar, so it skips the normal
+  // padded max-width container.
+  const isCopilot = location.pathname === '/copilot';
   const mainRef = useRef<HTMLElement>(null);
   const [condense, setCondense] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -168,15 +172,21 @@ export default function Layout() {
 
       <main
         ref={mainRef}
-        className="flex-1 overflow-y-auto pt-[80px] sm:pt-[100px] w-full"
+        className={isCopilot
+          ? 'flex-1 overflow-hidden w-full'
+          : 'flex-1 overflow-y-auto pt-[80px] sm:pt-[100px] w-full'}
       >
-        <div className="max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16">
-          <AnimatePresence mode="wait">
-            <PageTransition routeKey={location.pathname}>
-              <Outlet />
-            </PageTransition>
-          </AnimatePresence>
-        </div>
+        {isCopilot ? (
+          <Outlet />
+        ) : (
+          <div className="max-w-[1600px] mx-auto w-full px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16">
+            <AnimatePresence mode="wait">
+              <PageTransition routeKey={location.pathname}>
+                <Outlet />
+              </PageTransition>
+            </AnimatePresence>
+          </div>
+        )}
       </main>
     </div>
   );
