@@ -28,6 +28,9 @@ export default function Layout() {
   // viewport and scrolls under the floating navbar, so it skips the normal
   // padded max-width container.
   const isCopilot = location.pathname === '/copilot';
+  // The Dashboard has its own Copilot promo card, so the floating launcher
+  // is suppressed there to avoid a duplicate call-to-action.
+  const isDashboard = location.pathname === '/';
   const mainRef = useRef<HTMLElement>(null);
   const [condense, setCondense] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -190,8 +193,9 @@ export default function Layout() {
         )}
       </main>
 
-      {/* Floating chat-launcher — present on every page except Copilot itself */}
-      {!isCopilot && <CopilotLauncher hidden={mobileOpen} />}
+      {/* Floating chat-launcher — every page except Copilot itself and the
+          Dashboard (which carries its own Copilot promo card) */}
+      {!isCopilot && !isDashboard && <CopilotLauncher hidden={mobileOpen} />}
     </div>
   );
 }

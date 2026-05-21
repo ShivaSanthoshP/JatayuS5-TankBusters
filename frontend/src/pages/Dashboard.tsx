@@ -13,6 +13,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import Loader from '../components/ui/Loader';
 import MagneticButton from '../components/common/MagneticButton';
+import CopilotPromo from '../components/CopilotPromo';
 import { usePolling } from '../hooks/useApi';
 import { useMetricsStream } from '../hooks/useWebSocket';
 import * as api from '../services/api';
@@ -398,6 +399,9 @@ export default function Dashboard() {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* ── Copilot feature promo ─────────────────────────── */}
+      <CopilotPromo />
 
       {/* ── Pipeline + Telemetry ──────────────────────────── */}
       <div className="grid lg:grid-cols-5 gap-4 sm:gap-6">
