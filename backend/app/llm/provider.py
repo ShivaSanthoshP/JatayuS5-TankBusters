@@ -281,6 +281,7 @@ def chat_with_tools(
     api_key: str,
     temperature: float = 0.0,
     tool_results: list[dict] | None = None,  # [{"name","args","result"}]
+    system_instruction: str | None = None,
 ) -> ChatWithToolsResponse:
     """One Gemini turn with function-calling. Returns either text or tool calls.
 
@@ -302,6 +303,8 @@ def chat_with_tools(
     config_kwargs: dict = {"temperature": temperature}
     if function_decls:
         config_kwargs["tools"] = [gt.Tool(function_declarations=function_decls)]
+    if system_instruction:
+        config_kwargs["system_instruction"] = system_instruction
 
     # Gemini 2.5 thinking models attach an opaque `thought_signature` to each
     # functionCall part and *require* it echoed back when that call is replayed
