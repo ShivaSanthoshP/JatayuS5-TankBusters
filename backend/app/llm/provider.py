@@ -303,6 +303,19 @@ def chat_with_tools(
     if function_decls:
         config_kwargs["tools"] = [gt.Tool(function_declarations=function_decls)]
 
+    # Gemini 2.5 thinking models attach an opaque `thought_signature` to each
+    # functionCall part and *require* it echoed back when that call is replayed
+    # in the conversation history. Our function-calling loop rebuilds history
+    # from plain name/args and can't carry the signature, so the follow-up turn
+    # 400s with "Function call is missing a thought_signature". For parallel
+    # calls only the first part even gets a signature, so threading them through
+    # is fragile. Disabling thinking stops the model emitting signatures, which
+    # makes the multi-turn tool loop correct and deterministic. Supported on
+    # 2.5 Flash / Flash-Lite (Pro cannot fully disable thinking).
+    _ml = model.lower()
+    if "2.5" in _ml and "flash" in _ml:
+        config_kwargs["thinking_config"] = gt.ThinkingConfig(thinking_budget=0)
+
     contents: list = []
     for m in messages:
         role = "user" if m["role"] == "user" else "model"

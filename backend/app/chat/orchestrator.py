@@ -167,6 +167,7 @@ async def run_turn_streaming(
                 tool_results=tool_results,
             )
         except Exception as exc:
+            logger.exception("Gemini call failed during streaming turn")
             yield {"event": "error", "data": {"message": f"LLM call failed: {exc}"}}
             yield {"event": "done", "data": {"terminated_reason": "error"}}
             return
