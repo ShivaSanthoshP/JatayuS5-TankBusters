@@ -55,20 +55,34 @@ class ToolRegistry:
             raise ToolExecutionError(f"Unknown tool: {name}", kind="not_found")
 
         # Idempotency: replay a prior successful row with the same
-        # (session_id, tool_name, tool_args). Guards against retries
+        # (session_id, tool_name, tool_args). Guards against a retry
         # double-firing a mutating tool.
-        prior = (
+        #
+        # tool_args is a JSON column. PostgreSQL has no `=` operator for
+        # the `json` type (only `jsonb` does), so comparing it in the
+        # query — `ChatAction.tool_args == raw_args` — raises
+        # UndefinedFunction on Postgres while silently working on SQLite.
+        # We therefore filter on the indexed scalar columns in SQL and
+        # compare tool_args as dicts in Python: portable across engines
+        # and key-order independent. The limit bounds the scan to the
+        # recent window where any genuine retry would live.
+        recent_ok = (
             db.query(ChatAction)
             .filter(
                 ChatAction.session_id == session_id,
                 ChatAction.tool_name == name,
-                ChatAction.tool_args == raw_args,
                 ChatAction.status == "ok",
             )
             .order_by(ChatAction.id.desc())
-            .first()
+            .limit(50)
+            .all()
         )
-        if prior and prior.tool_result is not None:
+        prior = next(
+            (row for row in recent_ok
+             if row.tool_result is not None and row.tool_args == raw_args),
+            None,
+        )
+        if prior is not None:
             logger.info("Idempotent replay for %s (key=%s)", name, idempotency_key)
             return tool.output_model.model_validate(prior.tool_result)
 
