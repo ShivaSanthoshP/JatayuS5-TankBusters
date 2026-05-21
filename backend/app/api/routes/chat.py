@@ -27,12 +27,31 @@ def _ensure_tools_registered() -> None:
         ListNodesTool, GetNodeTool, GetNodeLogsTool, GetNodeMetricsTool,
         ListIncidentsTool, GetIncidentTool, GetDashboardOverviewTool,
     )
-    from app.chat.tools.runbooks import ListRunbooksTool, SearchRunbooksTool
-    from app.chat.tools.simulators import ListSimulatorsTool
+    from app.chat.tools.runbooks import (
+        ListRunbooksTool, SearchRunbooksTool, DeleteRunbookTool,
+    )
+    from app.chat.tools.simulators import (
+        ListSimulatorsTool, ControlSimulatorTool, DeleteSimulatorTool,
+    )
+    from app.chat.tools.pipeline import (
+        RunPipelineTool, RunPipelineBatchTool, ListRecentPipelineRunsTool,
+    )
+    from app.chat.tools.datasources import (
+        ListDataSourcesTool, DataSourceConnCheckTool,
+        ReconnectDataSourceTool, DisconnectDataSourceTool,
+    )
+    from app.chat.tools.settings import (
+        GetSettingsTool, UpdateSettingTool, PurgeSelfEmittedLogsTool,
+    )
     for cls in (
         ListNodesTool, GetNodeTool, GetNodeLogsTool, GetNodeMetricsTool,
         ListIncidentsTool, GetIncidentTool, GetDashboardOverviewTool,
-        ListRunbooksTool, SearchRunbooksTool, ListSimulatorsTool,
+        ListRunbooksTool, SearchRunbooksTool, DeleteRunbookTool,
+        ListSimulatorsTool, ControlSimulatorTool, DeleteSimulatorTool,
+        RunPipelineTool, RunPipelineBatchTool, ListRecentPipelineRunsTool,
+        ListDataSourcesTool, DataSourceConnCheckTool,
+        ReconnectDataSourceTool, DisconnectDataSourceTool,
+        GetSettingsTool, UpdateSettingTool, PurgeSelfEmittedLogsTool,
     ):
         _global_registry.register(cls())
 
