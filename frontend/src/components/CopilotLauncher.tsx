@@ -9,8 +9,8 @@ interface CopilotLauncherProps {
 }
 
 /**
- * Floating "Ask Copilot" pill, pinned bottom-right. Modern chat-launcher style:
- * always within reach on every page, routes to the full-page Copilot.
+ * Floating "Ask Argus" pill, pinned bottom-right. Modern chat-launcher style:
+ * always within reach on every page, routes to the full-page Argus chat.
  * Layout decides whether to mount it (skipped on /copilot itself).
  */
 export default function CopilotLauncher({ hidden = false }: CopilotLauncherProps) {
@@ -19,7 +19,7 @@ export default function CopilotLauncher({ hidden = false }: CopilotLauncherProps
   return (
     <motion.button
       type="button"
-      aria-label="Ask Copilot"
+      aria-label="Ask Argus"
       onClick={() => navigate('/copilot')}
       initial={{ opacity: 0, scale: 0.8, y: 12 }}
       animate={hidden
@@ -38,7 +38,7 @@ export default function CopilotLauncher({ hidden = false }: CopilotLauncherProps
       }}
     >
       <Wand2 size={16} className="shrink-0" />
-      <span className="whitespace-nowrap">Ask Copilot</span>
+      <span className="whitespace-nowrap">Ask Argus</span>
     </motion.button>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Eye } from 'lucide-react';
 import type { DisplayMessage } from '../../hooks/useChatStream';
 import ToolEvent from './ToolEvent';
 import ConfirmCard from './ConfirmCard';
@@ -45,8 +46,27 @@ export default function MessageList({
     <div className="flex-1 min-h-0 overflow-y-auto">
       <div className="mx-auto w-full max-w-3xl px-4 pt-[100px] pb-6 space-y-3">
       {messages.length === 0 && (
-        <div className="text-xs text-ink-faint italic text-center pt-8">
-          Ask me anything — try "show me critical nodes" or "what was the last incident?"
+        <div className="flex flex-col items-center text-center pt-6 pb-4 px-4">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3.5"
+            style={{
+              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dim) 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2), 0 8px 20px -8px var(--color-accent-glow)',
+            }}
+          >
+            <Eye size={22} className="text-[var(--color-surface)]" />
+          </div>
+          <h2 className="font-display text-[20px] text-ink">Hi, I'm Argus.</h2>
+          <p className="text-[13px] text-ink-mute mt-1">Nothing on your fleet goes unwatched.</p>
+          <p className="text-[12px] text-ink-faint leading-relaxed mt-3.5 max-w-md">
+            <span className="font-medium text-ink-soft">Why “Argus”?</span> In Greek myth,
+            Argus Panoptes was a giant with a hundred eyes — the all-seeing watchman who
+            never closed them all at once. Same idea here: I keep watch over every node
+            so nothing slips past you.
+          </p>
+          <p className="text-[12px] text-ink-faint italic mt-4">
+            Try “show me critical nodes” or “what was the last incident?”
+          </p>
         </div>
       )}
       {messages.map((m) => (

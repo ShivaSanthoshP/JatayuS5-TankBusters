@@ -4,9 +4,9 @@ import { Sparkles, ArrowRight } from 'lucide-react';
 import { spring, fadeUp } from '../lib/motion';
 
 /**
- * Dashboard feature-promo banner for the SRE Copilot. A deep-teal gradient
- * card — the only dark card on an otherwise cream Dashboard, so it reads as
- * an advertisement. The whole card is one Link to /copilot.
+ * Dashboard feature-promo banner for Argus, the SRE assistant. A deep-teal
+ * gradient card — the only dark card on an otherwise cream Dashboard, so it
+ * reads as an advertisement. The whole card is one Link to /copilot.
  */
 const CAPABILITIES = ['Diagnose', 'Remediate', 'Explain'];
 
@@ -15,7 +15,7 @@ export default function CopilotPromo() {
     <motion.div variants={fadeUp}>
       <Link
         to="/copilot"
-        aria-label="Open the SRE Copilot chat"
+        aria-label="Open Argus, the fleet chat assistant"
         className="group block rounded-[22px] outline-none
           focus-visible:ring-2 focus-visible:ring-[#c08a3e]
           focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-canvas)]"
@@ -63,14 +63,14 @@ export default function CopilotPromo() {
             {/* Copy */}
             <div className="flex-1 min-w-0">
               <span className="label-eyebrow !text-[9.5px]" style={{ color: 'rgba(222,182,124,0.95)' }}>
-                Agentic SRE Copilot
+                Meet Argus
               </span>
               <h2 className="font-display text-[20px] sm:text-[25px] leading-[1.16] mt-1.5 text-[#fbf8f1]">
-                Stop reading dashboards. Start asking them.
+                Stop reading dashboards. Start asking Argus.
               </h2>
               <p className="text-[12.5px] sm:text-[13px] leading-relaxed mt-2 max-w-[64ch]"
                 style={{ color: 'rgba(251,248,241,0.74)' }}>
-                Unlock the true power of agentic AI — your Copilot reads live telemetry,
+                Nothing on your fleet goes unwatched — Argus reads live telemetry,
                 runs the five-agent pipeline, and resolves incidents.
               </p>
               <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -100,7 +100,7 @@ export default function CopilotPromo() {
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.75), 0 8px 20px -8px rgba(0,0,0,0.45)',
                 }}
               >
-                Ask the Copilot
+                Ask Argus
                 <ArrowRight
                   size={15}
                   className="transition-transform duration-200 group-hover:translate-x-1"

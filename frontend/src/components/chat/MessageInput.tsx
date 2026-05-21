@@ -108,7 +108,7 @@ export default function MessageInput({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKey}
           rows={2}
-          placeholder="Ask the copilot…"
+          placeholder="Ask Argus…"
           disabled={disabled}
           role="combobox"
           aria-expanded={open}

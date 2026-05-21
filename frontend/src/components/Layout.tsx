@@ -12,7 +12,7 @@ import CopilotLauncher from './CopilotLauncher';
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/copilot', icon: Wand2, label: 'Copilot' },
+  { to: '/copilot', icon: Wand2, label: 'Argus' },
   { to: '/pipeline', icon: Play, label: 'Pipeline' },
   { to: '/incidents', icon: AlertTriangle, label: 'Incidents' },
   { to: '/infrastructure', icon: Server, label: 'Infrastructure' },
