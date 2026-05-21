@@ -7,6 +7,7 @@ are deliberately excluded so the chatbot can never set or leak an API key.
 
 from typing import Any
 
+from pydantic import Field
 from sqlalchemy.orm import Session
 
 from app.chat.schemas import SafetyLevel, ToolInput, ToolOutput
@@ -21,6 +22,24 @@ MUTABLE_KEYS = frozenset({
     "agent_temperature", "monitoring_temperature", "predictive_temperature",
     "diagnostic_temperature", "remediation_temperature", "reporting_temperature",
 })
+
+_SETTABLE = ", ".join(sorted(MUTABLE_KEYS))
+
+
+def _normalize_key(key: str) -> str:
+    """Map common LLM key guesses to the canonical setting key.
+
+    The model frequently writes an agent temperature as
+    '<agent>_agent_temperature' (e.g. 'remediation_agent_temperature') when the
+    real key is '<agent>_temperature'. Normalize that one well-known pattern;
+    anything else is returned unchanged so the allow-list still gates it.
+    """
+    if key in MUTABLE_KEYS:
+        return key
+    candidate = key.replace("_agent_temperature", "_temperature")
+    if candidate in MUTABLE_KEYS:
+        return candidate
+    return key
 
 
 class GetSettingsIn(ToolInput):
@@ -47,7 +66,10 @@ class GetSettingsTool:
 
 
 class UpdateSettingIn(ToolInput):
-    key: str
+    key: str = Field(..., description=(
+        "Exact setting key to change. One of: " + _SETTABLE + ". "
+        "Agent temperatures use '<agent>_temperature' — e.g. the remediation "
+        "agent's temperature is 'remediation_temperature'."))
     value: Any
 
 
@@ -60,26 +82,31 @@ class UpdateSettingOut(ToolOutput):
 class UpdateSettingTool:
     name = "update_setting"
     description = (
-        "Update a single setting by key. Risky. Only safe keys are accepted "
-        "(model selections, provider, temperatures, auto-run). Credentials are "
-        "never settable from chat — direct the user to the Settings page for keys."
+        "Update one platform setting from chat: model selections, providers, "
+        "agent temperatures, and auto-run. These ARE settable here — do NOT "
+        "refuse or redirect the user to the Settings page for them. Use the "
+        f"EXACT key name; settable keys: {_SETTABLE}. Agent temperatures are "
+        "'<agent>_temperature' (e.g. remediation agent -> 'remediation_temperature'). "
+        "Only credentials / API keys are not settable here. Risky."
     )
     input_model = UpdateSettingIn
     output_model = UpdateSettingOut
     safety = SafetyLevel.RISKY
 
     def preview(self, args: UpdateSettingIn) -> str:
-        return f"Set {args.key} = {args.value!r}"
+        # Show the canonical key that will actually change, not the raw guess.
+        return f"Set {_normalize_key(args.key)} = {args.value!r}"
 
     def execute(self, args: UpdateSettingIn, *, db: Session, idempotency_key: str) -> UpdateSettingOut:
-        if args.key not in MUTABLE_KEYS:
+        key = _normalize_key(args.key)
+        if key not in MUTABLE_KEYS:
             raise PermissionError(
                 f"Setting '{args.key}' cannot be changed from chat. "
-                "Allowed keys are model/provider/temperature settings only.")
+                f"Allowed keys: {_SETTABLE}.")
         from app.services.settings_service import settings
-        settings.update(**{args.key: args.value})
-        return UpdateSettingOut(key=args.key, applied=True,
-                                new_value=getattr(settings, args.key, None))
+        settings.update(**{key: args.value})
+        return UpdateSettingOut(key=key, applied=True,
+                                new_value=getattr(settings, key, None))
 
 
 class PurgeSelfEmittedLogsIn(ToolInput):

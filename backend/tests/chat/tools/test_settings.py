@@ -40,6 +40,31 @@ def test_update_setting_allows_whitelisted():
         assert out.applied is True
 
 
+def test_update_setting_normalizes_agent_temperature_alias():
+    # The model tends to write '<agent>_agent_temperature'; the canonical key
+    # is '<agent>_temperature'. The tool should normalize and apply it.
+    init_db()
+    with SessionLocal() as db:
+        out = UpdateSettingTool().execute(
+            UpdateSettingIn(key="remediation_agent_temperature", value=0.1),
+            db=db, idempotency_key="k")
+    assert out.applied is True
+    assert out.key == "remediation_temperature"
+    assert out.new_value == 0.1
+
+
+def test_update_setting_error_lists_allowed_keys():
+    # A genuinely unknown key must fail with a message that lists the real
+    # keys, so the model can self-correct on the next turn.
+    init_db()
+    with SessionLocal() as db:
+        with pytest.raises(PermissionError) as exc:
+            UpdateSettingTool().execute(
+                UpdateSettingIn(key="totally_unknown_key", value=1),
+                db=db, idempotency_key="k")
+    assert "remediation_temperature" in str(exc.value)
+
+
 def test_purge_self_emitted_logs_runs():
     init_db()
     with SessionLocal() as db:
