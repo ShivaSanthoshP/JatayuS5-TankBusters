@@ -103,3 +103,21 @@ def test_distinct_args_do_not_replay():
         assert b.model_dump() == {"doubled": 14}  # fresh run, not a replay of 10
         rows = db.query(ChatAction).filter_by(session_id="s1").order_by(ChatAction.id).all()
         assert [r.tool_args for r in rows] == [{"value": 5}, {"value": 7}]
+
+
+def test_new_conversation_runs_fresh():
+    """An identical call in a new turn (new conversation_id) must execute
+    again, not replay an earlier turn's now-stale result. Idempotency is
+    scoped to one conversation so reads never return stale snapshots across
+    turns while duplicates *within* a turn are still deduped.
+    """
+    init_db()
+    reg = _registry()
+    with SessionLocal() as db:
+        a = reg.dispatch("echo", {"value": 5}, db=db, session_id="s1",
+                         conversation_id="turn-1", was_confirmed=False, idempotency_key="k1")
+        b = reg.dispatch("echo", {"value": 5}, db=db, session_id="s1",
+                         conversation_id="turn-2", was_confirmed=False, idempotency_key="k2")
+        assert a.model_dump() == b.model_dump() == {"doubled": 10}
+        rows = db.query(ChatAction).filter_by(session_id="s1").all()
+        assert len(rows) == 2  # both executed; no cross-turn replay
