@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database.session import init_db, SessionLocal
-from app.api.routes import infrastructure, incidents, agents, ws, datasources, simulators, settings as settings_routes
+from app.api.routes import infrastructure, incidents, agents, ws, datasources, simulators, settings as settings_routes, chat as chat_routes
 from app.services.infra_service import InfraService
 from app.services.simulator_service import apply_metric_variance
 from app.agents.orchestrator import run_pipeline
@@ -741,6 +741,7 @@ app.include_router(agents.router, prefix="/api")
 app.include_router(datasources.router, prefix="/api")
 app.include_router(simulators.router, prefix="/api")
 app.include_router(settings_routes.router, prefix="/api")
+app.include_router(chat_routes.router, prefix="/api")
 app.include_router(ws.router)
 
 

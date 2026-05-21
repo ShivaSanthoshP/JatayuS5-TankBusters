@@ -4,7 +4,6 @@ honours idempotency on (session_id, tool_name, tool_args)."""
 
 import time
 import logging
-import concurrent.futures
 from typing import Any
 
 from pydantic import ValidationError
@@ -14,9 +13,6 @@ from app.chat.schemas import Tool, ToolOutput
 from app.database.models import ChatAction
 
 logger = logging.getLogger("itops.chat.registry")
-
-TOOL_TIMEOUT_SECONDS = 20
-_executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
 
 
 class ToolExecutionError(Exception):
@@ -85,16 +81,13 @@ class ToolRegistry:
             raise ToolExecutionError(
                 f"Invalid args for {name}: {ve.errors()[0]['msg']}", kind="invalid_args")
 
+        # Tools run in the calling thread: they all touch the SQLAlchemy
+        # session, which is not safe to hand to a worker thread. Tool bodies
+        # here are fast (DB queries / in-process calls), so a hard timeout
+        # isn't worth the cross-thread session hazard.
         t0 = time.time()
         try:
-            future = _executor.submit(tool.execute, args, db=db, idempotency_key=idempotency_key)
-            result = future.result(timeout=TOOL_TIMEOUT_SECONDS)
-        except concurrent.futures.TimeoutError:
-            elapsed = int((time.time() - t0) * 1000)
-            self._write_audit(db, session_id, conversation_id, name, raw_args,
-                              status="timeout", was_confirmed=was_confirmed,
-                              latency_ms=elapsed, error="tool exceeded 20s", result=None)
-            raise ToolExecutionError(f"{name} timed out", kind="timeout")
+            result = tool.execute(args, db=db, idempotency_key=idempotency_key)
         except Exception as exc:
             elapsed = int((time.time() - t0) * 1000)
             self._write_audit(db, session_id, conversation_id, name, raw_args,
