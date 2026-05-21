@@ -32,3 +32,31 @@ def test_search_runbooks_uses_memory():
             )
         assert out.total == 1
         assert out.matches[0].title == "nginx 503"
+
+
+def test_delete_runbook_blocks_seeded():
+    from app.chat.tools.runbooks import DeleteRunbookTool, DeleteRunbookIn
+    init_db()
+    with SessionLocal() as db:
+        db.add(RunbookEntry(title="seeded", problem_pattern="x",
+                            solution_steps="y", is_seeded=True))
+        db.commit()
+        rb = db.query(RunbookEntry).first()
+        out = DeleteRunbookTool().execute(
+            DeleteRunbookIn(runbook_id=rb.id), db=db, idempotency_key="k")
+        assert out.deleted is False
+        assert "seeded" in out.message.lower()
+
+
+def test_delete_runbook_succeeds_for_learned():
+    from app.chat.tools.runbooks import DeleteRunbookTool, DeleteRunbookIn
+    init_db()
+    with SessionLocal() as db:
+        db.add(RunbookEntry(title="learned", problem_pattern="x",
+                            solution_steps="y", is_seeded=False))
+        db.commit()
+        rb = db.query(RunbookEntry).first()
+        out = DeleteRunbookTool().execute(
+            DeleteRunbookIn(runbook_id=rb.id), db=db, idempotency_key="k")
+        assert out.deleted is True
+        assert db.query(RunbookEntry).filter_by(id=rb.id).first() is None

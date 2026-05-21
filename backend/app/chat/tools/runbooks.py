@@ -92,3 +92,43 @@ class SearchRunbooksTool:
                 snippet=(h.get("document") or "")[:300],
             ) for h in hits],
         )
+
+
+# ── delete_runbook (risky) ──────────────────────────────────────────
+
+class DeleteRunbookIn(ToolInput):
+    runbook_id: int
+
+
+class DeleteRunbookOut(ToolOutput):
+    runbook_id: int
+    deleted: bool
+    message: str
+
+
+class DeleteRunbookTool:
+    name = "delete_runbook"
+    description = "Delete a learned (auto-generated) runbook. Seeded runbooks cannot be deleted."
+    input_model = DeleteRunbookIn
+    output_model = DeleteRunbookOut
+    safety = SafetyLevel.RISKY
+
+    def preview(self, args: DeleteRunbookIn) -> str:
+        return f"Delete learned runbook #{args.runbook_id} (DB row + vector store entry)."
+
+    def execute(self, args: DeleteRunbookIn, *, db: Session, idempotency_key: str) -> DeleteRunbookOut:
+        rb = db.query(RunbookEntry).filter_by(id=args.runbook_id).one_or_none()
+        if rb is None:
+            return DeleteRunbookOut(runbook_id=args.runbook_id, deleted=False,
+                                    message="Runbook not found")
+        if rb.is_seeded:
+            return DeleteRunbookOut(runbook_id=args.runbook_id, deleted=False,
+                                    message="Seeded runbooks cannot be deleted")
+        db.delete(rb)
+        db.commit()
+        try:
+            get_memory().delete_runbook(args.runbook_id)
+        except Exception:  # noqa: BLE001
+            pass
+        return DeleteRunbookOut(runbook_id=args.runbook_id, deleted=True,
+                                message=f"Deleted runbook #{args.runbook_id}")
