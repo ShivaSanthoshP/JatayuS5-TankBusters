@@ -8,6 +8,7 @@ import GlassNavbar from './common/GlassNavbar';
 import GlassTab from './common/GlassTab';
 import PageTransition from './common/PageTransition';
 import ParticleBackground from './ui/ParticleBackground';
+import CopilotLauncher from './CopilotLauncher';
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -188,6 +189,9 @@ export default function Layout() {
           </div>
         )}
       </main>
+
+      {/* Floating chat-launcher — present on every page except Copilot itself */}
+      {!isCopilot && <CopilotLauncher hidden={mobileOpen} />}
     </div>
   );
 }
