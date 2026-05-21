@@ -819,6 +819,15 @@ def health():
         else:
             components[name] = {"ok": True}
 
+    # SRE Copilot chat — informational only. A broken chat must NOT flip the
+    # readiness probe to 503 and pull the instance out of rotation.
+    try:
+        from app.api.routes.chat import _ensure_tools_registered, _global_registry
+        _ensure_tools_registered()
+        components["chat"] = {"ok": True, "tools_registered": len(_global_registry.all())}
+    except Exception as e:
+        components["chat"] = {"ok": False, "error": str(e)[:200]}
+
     payload = {
         "status": "healthy" if overall_ok else "degraded",
         "components": components,
