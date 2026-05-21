@@ -11,13 +11,13 @@ import ParticleBackground from './ui/ParticleBackground';
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/copilot', icon: Wand2, label: 'Copilot' },
   { to: '/pipeline', icon: Play, label: 'Pipeline' },
   { to: '/incidents', icon: AlertTriangle, label: 'Incidents' },
   { to: '/infrastructure', icon: Server, label: 'Infrastructure' },
   { to: '/datasources', icon: Database, label: 'Data Sources' },
   { to: '/simulators', icon: Cpu, label: 'Simulators' },
   { to: '/runbooks', icon: BookOpen, label: 'Runbooks' },
-  { to: '/copilot', icon: Wand2, label: 'Copilot' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -114,7 +114,7 @@ export default function Layout() {
         </div>
 
         {/* Desktop nav tabs (visible lg+) */}
-        <nav className="hidden lg:flex items-center gap-1 mx-auto">
+        <nav className="hidden lg:flex items-center gap-0.5 mx-auto">
           {NAV.map((item) => (
             <GlassTab
               key={item.to}

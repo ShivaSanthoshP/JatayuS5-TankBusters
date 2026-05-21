@@ -42,7 +42,8 @@ export default function MessageList({
   const bottomRef = useRef<HTMLDivElement>(null);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-3xl px-4 py-4 space-y-3">
       {messages.length === 0 && (
         <div className="text-xs text-ink-faint italic text-center pt-8">
           Ask me anything — try "show me critical nodes" or "what was the last incident?"
@@ -89,6 +90,7 @@ export default function MessageList({
         </div>
       ))}
       <div ref={bottomRef} />
+      </div>
     </div>
   );
 }
