@@ -1,7 +1,37 @@
 import { useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import type { Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import type { DisplayMessage } from '../../hooks/useChatStream';
 import ToolEvent from './ToolEvent';
 import ConfirmCard from './ConfirmCard';
+
+// Markdown renderers styled for the chat bubble using itops theme tokens.
+// react-markdown does not render raw HTML by default, so model text is safe.
+const mdComponents: Components = {
+  table: ({ node, ...props }) => (
+    <table className="border-collapse w-full my-2 text-[13px]" {...props} />
+  ),
+  th: ({ node, ...props }) => (
+    <th className="border border-hairline-strong/60 px-2 py-1 bg-ink/10 font-semibold text-left" {...props} />
+  ),
+  td: ({ node, ...props }) => (
+    <td className="border border-hairline-strong/40 px-2 py-1 align-top" {...props} />
+  ),
+  ul: ({ node, ...props }) => <ul className="list-disc ml-4 my-1 space-y-0.5" {...props} />,
+  ol: ({ node, ...props }) => <ol className="list-decimal ml-4 my-1 space-y-0.5" {...props} />,
+  li: ({ node, ...props }) => <li className="leading-snug" {...props} />,
+  p: ({ node, ...props }) => <p className="my-1 leading-relaxed first:mt-0 last:mb-0" {...props} />,
+  a: ({ node, ...props }) => (
+    <a className="text-accent underline" target="_blank" rel="noopener noreferrer" {...props} />
+  ),
+  code: ({ node, ...props }) => (
+    <code className="px-1 py-0.5 rounded bg-ink/10 font-mono text-[12px]" {...props} />
+  ),
+  pre: ({ node, ...props }) => (
+    <pre className="bg-ink/10 p-2 rounded-md overflow-x-auto my-2 text-[12px]" {...props} />
+  ),
+};
 
 export default function MessageList({
   messages, onConfirm,
@@ -24,9 +54,20 @@ export default function MessageList({
             <div className={`max-w-[85%] px-3 py-2 rounded-xl text-sm ${
               m.role === 'user' ? 'bg-accent text-[var(--color-surface)]' : 'bg-ink/5 text-ink'
             }`}>
-              <pre className="whitespace-pre-wrap font-sans text-sm">
-                {m.content || (m.role === 'assistant' ? '…' : '')}
-              </pre>
+              {m.role === 'assistant' && m.content ? (
+                // Assistant answers render as markdown (tables/lists/bold).
+                <div className="text-sm leading-relaxed">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                    {m.content}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                // User messages (and the streaming "…" placeholder) stay plain text
+                // so user input is never interpreted as markdown.
+                <pre className="whitespace-pre-wrap font-sans text-sm">
+                  {m.content || (m.role === 'assistant' ? '…' : '')}
+                </pre>
+              )}
             </div>
           )}
           {m.role === 'assistant' && m.tools.length > 0 && (
