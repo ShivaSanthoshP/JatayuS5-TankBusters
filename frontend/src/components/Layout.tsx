@@ -8,6 +8,7 @@ import GlassNavbar from './common/GlassNavbar';
 import GlassTab from './common/GlassTab';
 import PageTransition from './common/PageTransition';
 import ParticleBackground from './ui/ParticleBackground';
+import ChatBubble from './chat/ChatBubble';
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -177,6 +178,8 @@ export default function Layout() {
           </AnimatePresence>
         </div>
       </main>
+
+      <ChatBubble />
     </div>
   );
 }
