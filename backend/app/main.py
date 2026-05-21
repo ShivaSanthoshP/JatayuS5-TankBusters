@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database.session import init_db, SessionLocal
-from app.api.routes import infrastructure, incidents, agents, ws, datasources, simulators, settings as settings_routes
+from app.api.routes import infrastructure, incidents, agents, ws, datasources, simulators, settings as settings_routes, chat as chat_routes
 from app.services.infra_service import InfraService
 from app.services.simulator_service import apply_metric_variance
 from app.agents.orchestrator import run_pipeline
@@ -741,6 +741,7 @@ app.include_router(agents.router, prefix="/api")
 app.include_router(datasources.router, prefix="/api")
 app.include_router(simulators.router, prefix="/api")
 app.include_router(settings_routes.router, prefix="/api")
+app.include_router(chat_routes.router, prefix="/api")
 app.include_router(ws.router)
 
 
@@ -817,6 +818,15 @@ def health():
             overall_ok = False
         else:
             components[name] = {"ok": True}
+
+    # SRE Copilot chat — informational only. A broken chat must NOT flip the
+    # readiness probe to 503 and pull the instance out of rotation.
+    try:
+        from app.api.routes.chat import _ensure_tools_registered, _global_registry
+        _ensure_tools_registered()
+        components["chat"] = {"ok": True, "tools_registered": len(_global_registry.all())}
+    except Exception as e:
+        components["chat"] = {"ok": False, "error": str(e)[:200]}
 
     payload = {
         "status": "healthy" if overall_ok else "degraded",
