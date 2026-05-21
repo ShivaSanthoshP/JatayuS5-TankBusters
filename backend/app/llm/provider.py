@@ -245,3 +245,92 @@ def test_provider(provider: str, *, model: str | None = None, api_key: str | Non
         return {"ok": False, "message": str(exc)[:300]}
 
     return {"ok": False, "message": "unreachable"}
+
+
+# ── Function-calling helpers (SRE Copilot chat) ─────────────────────
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ToolDecl:
+    name: str
+    description: str
+    parameters_schema: dict  # JSON Schema for the args
+
+
+@dataclass
+class ToolCall:
+    name: str
+    args: dict
+
+
+@dataclass
+class ChatWithToolsResponse:
+    """Single Gemini turn result. Either text or tool calls; the
+    orchestrator iterates until the model stops requesting tools."""
+    text: str = ""
+    tool_calls: list[ToolCall] = field(default_factory=list)
+
+
+def chat_with_tools(
+    *,
+    messages: list[dict],          # [{"role": "user"|"assistant", "content": "..."}]
+    tools: list[ToolDecl],
+    model: str,
+    api_key: str,
+    temperature: float = 0.0,
+    tool_results: list[dict] | None = None,  # [{"name","args","result"}]
+) -> ChatWithToolsResponse:
+    """One Gemini turn with function-calling. Returns either text or tool calls.
+
+    The caller owns the loop: execute tool calls, append results, call again.
+    """
+    from google import genai
+    from google.genai import types as gt
+
+    client = genai.Client(api_key=api_key)
+
+    function_decls = [
+        gt.FunctionDeclaration(
+            name=t.name,
+            description=t.description,
+            parameters_json_schema=t.parameters_schema,
+        )
+        for t in tools
+    ]
+    config_kwargs: dict = {"temperature": temperature}
+    if function_decls:
+        config_kwargs["tools"] = [gt.Tool(function_declarations=function_decls)]
+
+    contents: list = []
+    for m in messages:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append(gt.Content(role=role, parts=[gt.Part.from_text(text=m["content"])]))
+    if tool_results:
+        for tr in tool_results:
+            contents.append(gt.Content(role="model", parts=[
+                gt.Part.from_function_call(name=tr["name"], args=tr["args"]),
+            ]))
+            contents.append(gt.Content(role="user", parts=[
+                gt.Part.from_function_response(name=tr["name"], response=tr["result"]),
+            ]))
+
+    response = client.models.generate_content(
+        model=model,
+        contents=contents,
+        config=gt.GenerateContentConfig(**config_kwargs),
+    )
+
+    out = ChatWithToolsResponse()
+    for cand in (response.candidates or []):
+        content = getattr(cand, "content", None)
+        if content is None:
+            continue
+        for part in (content.parts or []):
+            fn = getattr(part, "function_call", None)
+            if fn is not None and getattr(fn, "name", None):
+                out.tool_calls.append(ToolCall(name=fn.name, args=dict(fn.args or {})))
+            elif getattr(part, "text", None):
+                out.text += part.text
+    return out
