@@ -20,11 +20,21 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
 def _ensure_tools_registered() -> None:
-    """Idempotent tool registration. Expanded as later phases add tools."""
+    """Idempotent registration of the full tool catalog."""
     if _global_registry.get("list_nodes"):
         return
-    from app.chat.tools.infra import ListNodesTool
-    _global_registry.register(ListNodesTool())
+    from app.chat.tools.infra import (
+        ListNodesTool, GetNodeTool, GetNodeLogsTool, GetNodeMetricsTool,
+        ListIncidentsTool, GetIncidentTool, GetDashboardOverviewTool,
+    )
+    from app.chat.tools.runbooks import ListRunbooksTool, SearchRunbooksTool
+    from app.chat.tools.simulators import ListSimulatorsTool
+    for cls in (
+        ListNodesTool, GetNodeTool, GetNodeLogsTool, GetNodeMetricsTool,
+        ListIncidentsTool, GetIncidentTool, GetDashboardOverviewTool,
+        ListRunbooksTool, SearchRunbooksTool, ListSimulatorsTool,
+    ):
+        _global_registry.register(cls())
 
 
 class ChatMessage(BaseModel):
