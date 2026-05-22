@@ -6,7 +6,7 @@ export default function Loader({ text = 'Loading' }: { text?: string }) {
       <motion.div
         className="w-8 h-8 rounded-full"
         style={{
-          border: '1.5px solid rgba(21,25,26,0.08)',
+          border: '1.5px solid rgba(20,24,32,0.08)',
           borderTopColor: 'var(--color-accent)',
         }}
         animate={{ rotate: 360 }}

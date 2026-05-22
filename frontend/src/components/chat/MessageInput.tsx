@@ -108,7 +108,7 @@ export default function MessageInput({
             borderless and transparent, so the text sits directly in the pill. */}
         <label
           className="flex items-center gap-2 rounded-full bg-surface pl-5 pr-2 py-2 cursor-text
-            ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(21,25,26,0.42)]
+            ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(20,24,32,0.42)]
             transition-shadow focus-within:ring-accent/45"
         >
           <input
