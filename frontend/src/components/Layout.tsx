@@ -145,7 +145,7 @@ export default function Layout() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="lg:hidden fixed inset-0 z-40 bg-[rgba(21,25,26,0.18)] backdrop-blur-sm"
+              className="lg:hidden fixed inset-0 z-40 bg-[rgba(20,24,32,0.18)] backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
             <motion.div

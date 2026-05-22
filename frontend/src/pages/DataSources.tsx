@@ -30,10 +30,10 @@ const PROVIDER_COLORS: Record<string, { bg: string; accent: string; glow: string
   simulated:  { bg: 'from-[rgba(61,125,101,0.10)] to-transparent',  accent: palette.success,       glow: '0 0 30px rgba(61,125,101,0.10)' },
   aws:        { bg: 'from-[rgba(192,138,62,0.12)] to-transparent',  accent: palette.warning,       glow: '0 0 30px rgba(192,138,62,0.10)' },
   azure:      { bg: 'from-[rgba(58,90,125,0.10)] to-transparent',   accent: palette.info,          glow: '0 0 30px rgba(58,90,125,0.10)' },
-  gcp:        { bg: 'from-[rgba(197,82,77,0.10)] to-transparent',   accent: palette.critical,      glow: '0 0 30px rgba(197,82,77,0.10)' },
+  gcp:        { bg: 'from-[rgba(208,82,77,0.10)] to-transparent',   accent: palette.critical,      glow: '0 0 30px rgba(208,82,77,0.10)' },
   prometheus: { bg: 'from-[rgba(192,138,62,0.10)] to-transparent',  accent: palette.warningStrong, glow: '0 0 30px rgba(176,122,46,0.10)' },
   docker:     { bg: 'from-[rgba(58,111,106,0.10)] to-transparent',  accent: palette.accentBright,  glow: '0 0 30px rgba(58,111,106,0.10)' },
-  logfile:    { bg: 'from-[rgba(36,71,69,0.08)] to-transparent',    accent: palette.accent,        glow: '0 0 30px rgba(36,71,69,0.10)' },
+  logfile:    { bg: 'from-[rgba(8,113,231,0.08)] to-transparent',    accent: palette.accent,        glow: '0 0 30px rgba(8,113,231,0.10)' },
   custom:     { bg: 'from-[rgba(102,71,116,0.10)] to-transparent',  accent: palette.plum,          glow: '0 0 30px rgba(102,71,116,0.10)' },
 };
 

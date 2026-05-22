@@ -94,7 +94,7 @@ function Gauge({ value, label, sub, accent = palette.accent, hint }: {
     <div className="flex items-center gap-4" title={hint}>
       <div className="relative w-[68px] h-[68px] shrink-0">
         <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(21,25,26,0.07)" strokeWidth="3" />
+          <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(20,24,32,0.07)" strokeWidth="3" />
           <motion.circle
             cx="32" cy="32" r={r} fill="none"
             stroke={accent} strokeWidth="3" strokeLinecap="round"
@@ -158,9 +158,9 @@ function PipelineStep({ Icon, label, sub }: {
       <div
         className="w-10 h-10 rounded-full flex items-center justify-center"
         style={{
-          background: 'rgba(255, 253, 247, 0.92)',
+          background: 'rgba(255, 255, 255, 0.92)',
           border: '1px solid var(--color-hairline-strong)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95), 0 4px 12px -6px rgba(21,25,26,0.10)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.95), 0 4px 12px -6px rgba(20,24,32,0.10)',
         }}
       >
         <Icon size={15} className="text-[var(--color-accent)]" />
@@ -414,9 +414,9 @@ export default function Dashboard() {
               <span
                 className="text-[10.5px] font-mono px-2 py-0.5 rounded-full"
                 style={{
-                  background: 'rgba(36,71,69,0.10)',
+                  background: 'rgba(8,113,231,0.10)',
                   color: 'var(--color-accent)',
-                  border: '1px solid rgba(36,71,69,0.18)',
+                  border: '1px solid rgba(8,113,231,0.18)',
                 }}
                 title="Total remediation actions executed by the agents so far"
               >
@@ -507,12 +507,12 @@ export default function Dashboard() {
                     <YAxis hide domain={['auto', 'auto']} />
                     <Tooltip
                       contentStyle={{
-                        background: 'rgba(255,253,247,0.95)',
-                        border: '1px solid rgba(21,25,26,0.10)',
+                        background: 'rgba(255,255,255,0.95)',
+                        border: '1px solid rgba(20,24,32,0.10)',
                         borderRadius: 8,
                         fontSize: 10.5,
                         fontFamily: 'JetBrains Mono, monospace',
-                        boxShadow: '0 8px 20px -8px rgba(21,25,26,0.20)',
+                        boxShadow: '0 8px 20px -8px rgba(20,24,32,0.20)',
                       }}
                       labelStyle={{ color: 'var(--color-ink-mute)' }}
                     />
@@ -589,7 +589,7 @@ export default function Dashboard() {
                       key={ev.node_name}
                       className="border-t"
                       style={{ borderColor: 'var(--color-hairline)' }}
-                      whileHover={{ backgroundColor: 'rgba(255,253,247,0.55)' }}
+                      whileHover={{ backgroundColor: 'rgba(255,255,255,0.55)' }}
                       transition={spring.smooth}
                     >
                       <td className="px-2 py-2.5">
@@ -643,9 +643,9 @@ export default function Dashboard() {
             <span
               className="text-[10.5px] font-mono px-2 py-0.5 rounded-full"
               style={{
-                background: 'rgba(197,82,77,0.10)',
+                background: 'rgba(208,82,77,0.10)',
                 color: 'var(--color-critical-ink)',
-                border: '1px solid rgba(197,82,77,0.20)',
+                border: '1px solid rgba(208,82,77,0.20)',
               }}
               title="Incidents that have not yet been resolved"
             >
