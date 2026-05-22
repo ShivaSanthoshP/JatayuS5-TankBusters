@@ -9,6 +9,7 @@ import Loader from '../components/ui/Loader';
 import { usePolling } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { RunbookEntry } from '../types';
+import { palette } from '../lib/theme';
 
 type SeedFilter = 'all' | 'seeded' | 'auto';
 type SortKey = 'effectiveness' | 'usage' | 'newest';
@@ -28,9 +29,9 @@ function relevancePct(distance: number | undefined): number {
 }
 
 function relevanceLabel(pct: number): { label: string; color: string } {
-  if (pct >= 75) return { label: 'Best match', color: '#3d7d65' };
-  if (pct >= 40) return { label: 'Strong match', color: '#c08a3e' };
-  return { label: 'Possible match', color: '#9aa19a' };
+  if (pct >= 75) return { label: 'Best match', color: palette.success };
+  if (pct >= 40) return { label: 'Strong match', color: palette.warning };
+  return { label: 'Possible match', color: palette.inkFaint };
 }
 
 /* ── copy-to-clipboard hook ──────────────────────────────────── */
@@ -48,7 +49,7 @@ function useCopy(timeoutMs = 1500) {
 /* ── effectiveness bar ───────────────────────────────────────── */
 function EffectivenessBar({ score }: { score: number }) {
   const pct = Math.min(100, Math.max(0, (score / 10) * 100));
-  const color = pct >= 70 ? '#3d7d65' : pct >= 40 ? '#c08a3e' : '#c5524d';
+  const color = pct >= 70 ? palette.success : pct >= 40 ? palette.warning : palette.critical;
   return (
     <div
       className="flex items-center gap-1.5"
@@ -56,7 +57,7 @@ function EffectivenessBar({ score }: { score: number }) {
     >
       <div className="w-14 h-1.5 rounded-full bg-ink/10 overflow-hidden">
         <div
-          className="h-full rounded-full transition-all"
+          className="h-full rounded-full transition-[width] duration-500 ease-out"
           style={{ width: `${pct}%`, background: color }}
         />
       </div>
@@ -153,10 +154,10 @@ function RunbookCard({
   const remediationSteps = (rb.remediation_steps ?? []) as Array<Record<string, unknown>>;
   const recommendedActions = (rb.recommended_actions ?? []) as Array<Record<string, unknown>>;
   const blastSeverityColor =
-    rb.blast_radius_severity === 'critical' ? '#c5524d' :
-    rb.blast_radius_severity === 'high'     ? '#c08a3e' :
-    rb.blast_radius_severity === 'medium'   ? '#c08a3e' :
-    '#3d7d65';
+    rb.blast_radius_severity === 'critical' ? palette.critical :
+    rb.blast_radius_severity === 'high'     ? palette.warning :
+    rb.blast_radius_severity === 'medium'   ? palette.warning :
+    palette.success;
 
   // Build plain-text copy payload for fix steps
   const fixStepsText = remediationSteps.length > 0
@@ -553,7 +554,7 @@ export default function Runbooks() {
     setSearchResults(null);
   };
 
-  if (loading && !runbooks) return <Loader text="Loading runbooks..." />;
+  if (loading && !runbooks) return <Loader text="Loading runbooks…" />;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -587,7 +588,7 @@ export default function Runbooks() {
           <div>
             <h2 className="text-sm font-semibold text-ink-soft">Find a fix</h2>
             <p className="text-[11px] text-ink-faint mt-0.5">
-              Describe what you're seeing — the system searches memory for the closest match. Click a result to jump to that runbook.
+              Describe what you’re seeing — the system searches memory for the closest match. Click a result to jump to that runbook.
             </p>
           </div>
         </div>
@@ -684,7 +685,7 @@ export default function Runbooks() {
                   onClick={() => { setSeedFilter(key); setRbPage(1); }}
                   title={hint}
                   className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
-                    seedFilter === key ? 'bg-white text-ink shadow-sm' : 'text-ink-mute hover:text-ink-soft'
+                    seedFilter === key ? 'bg-[var(--color-surface-strong)] text-ink shadow-sm' : 'text-ink-mute hover:text-ink-soft'
                   }`}
                 >
                   {label}
@@ -710,7 +711,7 @@ export default function Runbooks() {
               <input
                 value={titleFilter}
                 onChange={e => { setTitleFilter(e.target.value); setRbPage(1); }}
-                placeholder="Filter the list..."
+                placeholder="Filter the list…"
                 title="Filter the visible runbooks by title, issue type, or problem pattern (separate from the RAG search above)"
                 className="bg-black/5 border border-glass-border rounded-lg pl-7 pr-3 py-1.5 text-[11.5px] text-ink-soft placeholder:text-ink-faint focus:outline-none focus:border-accent/40 w-44"
               />
@@ -760,7 +761,7 @@ export default function Runbooks() {
                 <button
                   onClick={() => setRbPage(p => Math.max(1, p - 1))}
                   disabled={rbPage <= 1}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft size={14} />
                   Previous
@@ -771,7 +772,7 @@ export default function Runbooks() {
                 <button
                   onClick={() => setRbPage(p => Math.min(totalPages, p + 1))}
                   disabled={rbPage >= totalPages}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   Next
                   <ChevronRight size={14} />

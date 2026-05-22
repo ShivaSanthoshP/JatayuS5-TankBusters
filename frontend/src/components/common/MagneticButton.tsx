@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { spring } from '../../lib/motion';
 
 type Variant = 'ghost' | 'solid' | 'accent';
@@ -32,11 +32,13 @@ export default function MagneticButton({
   type = 'button',
 }: Props) {
   const ref = useRef<HTMLButtonElement>(null);
+  const reduce = useReducedMotion();
   const [pos, setPos] = useState({ x: 0, y: 0 });
 
   const handleMove = (e: React.MouseEvent) => {
     const el = ref.current;
-    if (!el) return;
+    // No magnetic pull when disabled or when the user prefers reduced motion.
+    if (!el || disabled || reduce) return;
     const rect = el.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
@@ -54,14 +56,15 @@ export default function MagneticButton({
       ref={ref}
       type={type}
       disabled={disabled}
+      aria-disabled={disabled || undefined}
       onClick={onClick}
       onMouseMove={handleMove}
       onMouseLeave={handleLeave}
       animate={pos}
-      whileTap={{ scale: 0.96 }}
+      whileTap={disabled ? undefined : { scale: 0.96 }}
       transition={spring.smooth}
       className={`${VARIANT_CLASS[variant]} ${className}`}
-      style={{ opacity: disabled ? 0.5 : 1 }}
+      style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
     >
       {children}
     </motion.button>

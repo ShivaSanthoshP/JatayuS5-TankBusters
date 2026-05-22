@@ -13,27 +13,28 @@ import { usePolling } from '../hooks/useApi';
 import { useSimulatorLogs } from '../hooks/useSimulatorLogs';
 import * as api from '../services/api';
 import type { Simulator, SimulatorMetrics } from '../types';
+import { palette } from '../lib/theme';
 
 /* ── Constants ────────────────────────────────────────────────── */
 
 const TYPE_META: Record<string, { icon: React.ElementType; label: string; gradient: string; iconColor: string }> = {
-  vm:            { icon: Server,    label: 'EC2 / VM',       gradient: 'from-[rgba(58,90,125,0.10)] to-transparent',   iconColor: '#3a5a7d' },
-  db:            { icon: Database,  label: 'Database',       gradient: 'from-[rgba(102,71,116,0.10)] to-transparent',  iconColor: '#664774' },
-  cache:         { icon: HardDrive, label: 'Cache (Redis)',  gradient: 'from-[rgba(197,82,77,0.10)] to-transparent',   iconColor: '#c5524d' },
-  load_balancer: { icon: Globe,     label: 'Load Balancer',  gradient: 'from-[rgba(192,138,62,0.10)] to-transparent',  iconColor: '#c08a3e' },
-  queue:         { icon: Radio,     label: 'Message Queue',  gradient: 'from-[rgba(61,125,101,0.10)] to-transparent',  iconColor: '#3d7d65' },
-  metrics:       { icon: BarChart2, label: 'Fleet Metrics',  gradient: 'from-[rgba(36,71,69,0.08)] to-transparent',    iconColor: '#244745' },
+  vm:            { icon: Server,    label: 'EC2 / VM',       gradient: 'from-[rgba(58,90,125,0.10)] to-transparent',   iconColor: palette.info },
+  db:            { icon: Database,  label: 'Database',       gradient: 'from-[rgba(102,71,116,0.10)] to-transparent',  iconColor: palette.plum },
+  cache:         { icon: HardDrive, label: 'Cache (Redis)',  gradient: 'from-[rgba(197,82,77,0.10)] to-transparent',   iconColor: palette.critical },
+  load_balancer: { icon: Globe,     label: 'Load Balancer',  gradient: 'from-[rgba(192,138,62,0.10)] to-transparent',  iconColor: palette.warning },
+  queue:         { icon: Radio,     label: 'Message Queue',  gradient: 'from-[rgba(61,125,101,0.10)] to-transparent',  iconColor: palette.success },
+  metrics:       { icon: BarChart2, label: 'Fleet Metrics',  gradient: 'from-[rgba(36,71,69,0.08)] to-transparent',    iconColor: palette.accent },
 };
 
 const METRIC_DEFS: { key: keyof SimulatorMetrics; label: string; unit: string; max: number; color: string }[] = [
-  { key: 'cpu_percent',      label: 'CPU',      unit: '%',     max: 100,  color: '#244745' }, // accent
-  { key: 'memory_percent',   label: 'Memory',   unit: '%',     max: 100,  color: '#3a6f6a' }, // accent-bright
-  { key: 'disk_percent',     label: 'Disk',     unit: '%',     max: 100,  color: '#3a5a7d' }, // info
-  { key: 'network_in_mbps',  label: 'Net In',   unit: 'Mbps',  max: 1000, color: '#3d7d65' }, // success
-  { key: 'network_out_mbps', label: 'Net Out',  unit: 'Mbps',  max: 1000, color: '#664774' }, // plum
-  { key: 'request_rate',     label: 'Req/s',    unit: 'req/s', max: 5000, color: '#c08a3e' }, // warning
-  { key: 'error_rate',       label: 'Errors',   unit: '%',     max: 100,  color: '#c5524d' }, // critical
-  { key: 'latency_ms',       label: 'Latency',  unit: 'ms',    max: 2000, color: '#15191a' }, // ink
+  { key: 'cpu_percent',      label: 'CPU',      unit: '%',     max: 100,  color: palette.accent }, // accent
+  { key: 'memory_percent',   label: 'Memory',   unit: '%',     max: 100,  color: palette.accentBright }, // accent-bright
+  { key: 'disk_percent',     label: 'Disk',     unit: '%',     max: 100,  color: palette.info }, // info
+  { key: 'network_in_mbps',  label: 'Net In',   unit: 'Mbps',  max: 1000, color: palette.success }, // success
+  { key: 'network_out_mbps', label: 'Net Out',  unit: 'Mbps',  max: 1000, color: palette.plum }, // plum
+  { key: 'request_rate',     label: 'Req/s',    unit: 'req/s', max: 5000, color: palette.warning }, // warning
+  { key: 'error_rate',       label: 'Errors',   unit: '%',     max: 100,  color: palette.critical }, // critical
+  { key: 'latency_ms',       label: 'Latency',  unit: 'ms',    max: 2000, color: palette.ink }, // ink
 ];
 
 const DEFAULT_METRICS: SimulatorMetrics = {
@@ -168,7 +169,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             <label className="block text-xs font-medium text-ink-mute mb-1.5">Name *</label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
               placeholder="e.g. web-server-01"
-              className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
+              className="w-full bg-[var(--color-surface-strong)] border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
             />
           </div>
 
@@ -181,7 +182,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                 const Icon = meta.icon;
                 return (
                   <button key={t} onClick={() => setType(t)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       type === t
                         ? 'bg-accent/10 text-accent ring-1 ring-accent/40'
                         : 'bg-canvas-soft text-ink-soft hover:bg-canvas'
@@ -200,7 +201,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             <div className="relative">
               <Clock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" />
               <input type="number" min="1" max="60" value={interval} onChange={(e) => setInterval(e.target.value)}
-                className="w-full bg-white border border-hairline-strong rounded-lg pl-8 pr-3 py-2 text-sm text-ink focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
+                className="w-full bg-[var(--color-surface-strong)] border border-hairline-strong rounded-lg pl-8 pr-3 py-2 text-sm text-ink focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/10"
               />
             </div>
             <p className="text-xs text-ink-faint mt-1">One log line emitted every {interval || '5'}s</p>
@@ -267,7 +268,7 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40"
           >
             {creating
-              ? <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full" />Creating...</>
+              ? <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full" />Creating…</>
               : <><Plus size={14} />Create Simulator</>
             }
           </button>
@@ -341,7 +342,7 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
           <button onClick={handleSave} disabled={saving}
             className="flex-1 px-4 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       </motion.div>
@@ -352,12 +353,12 @@ function MetricsEditModal({ simulator, onClose, onSaved }: { simulator: Simulato
 
 /* ── LogViewerModal ───────────────────────────────────────────── */
 const LEVEL_COLORS: Record<string, string> = {
-  CRITICAL: 'text-[#e0726c]',
-  ERROR:    'text-[#e0726c]',
-  WARN:     'text-[#dba94f]',
-  WARNING:  'text-[#dba94f]',
-  INFO:     'text-[#7fb3a3]',
-  DEBUG:    'text-[#7fa3c4]',
+  CRITICAL: 'text-[var(--color-term-critical)]',
+  ERROR:    'text-[var(--color-term-critical)]',
+  WARN:     'text-[var(--color-term-warn)]',
+  WARNING:  'text-[var(--color-term-warn)]',
+  INFO:     'text-[var(--color-term-info)]',
+  DEBUG:    'text-[var(--color-term-debug)]',
 };
 
 function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose: () => void }) {
@@ -441,8 +442,8 @@ function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose:
             ) : (
               logs.map((entry, i) => {
                 const colorClass = entry.level
-                  ? LEVEL_COLORS[entry.level.toUpperCase()] ?? 'text-[#7fb3a3]'
-                  : 'text-[#7fb3a3]';
+                  ? LEVEL_COLORS[entry.level.toUpperCase()] ?? 'text-[var(--color-term-info)]'
+                  : 'text-[var(--color-term-info)]';
                 return (
                   <div key={i} className="flex gap-3 py-0.5 hover:bg-white/5 px-1 rounded leading-5">
                     <span className="text-ink-soft select-none w-10 text-right shrink-0 tabular-nums">{i + 1}</span>
@@ -456,7 +457,7 @@ function LogViewerModal({ simulator, onClose }: { simulator: Simulator; onClose:
 
           {/* Live metrics panel — log-file simulators only */}
           {hasMetricsPanel && liveMetrics && (
-            <div className="hidden md:flex md:flex-col w-56 shrink-0 border-l border-white/5 bg-[#13171a] p-4 gap-3 overflow-auto">
+            <div className="hidden md:flex md:flex-col w-56 shrink-0 border-l border-white/5 bg-[var(--color-term-bg-soft)] p-4 gap-3 overflow-auto">
               <div className="flex items-center gap-1.5 mb-2">
                 <Activity size={12} className="text-accent" />
                 <span className="text-xs font-semibold text-ink-faint">Live Metrics</span>
@@ -517,7 +518,7 @@ function SimulatorCard({
           <button
             onClick={() => onViewLogs(sim)}
             title="Open live log terminal"
-            className="group relative inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#13171a] hover:bg-[#0e1112] text-[#7fb3a3] hover:text-[#9fcab9] ring-1 ring-white/10 hover:ring-[#7fb3a3]/40 transition-all shadow-sm text-[11px] font-mono font-medium"
+            className="group relative inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[var(--color-term-bg-soft)] hover:bg-[var(--color-term-bg)] text-[var(--color-term-info)] hover:text-[var(--color-term-mint)] ring-1 ring-white/10 hover:ring-[var(--color-term-info)]/40 transition-colors shadow-sm text-[11px] font-mono font-medium"
           >
             <Terminal size={12} />
             <span>View Logs</span>
@@ -645,7 +646,7 @@ export default function Simulators() {
     try { await api.deleteSimulator(id); refetch(); } catch (e) { console.error(e); }
   };
 
-  if (loading && !simulators) return <Loader text="Loading simulators..." />;
+  if (loading && !simulators) return <Loader text="Loading simulators…" />;
 
   const list     = simulators ?? [];
   const running  = list.filter((s) => s.status === 'running').length;

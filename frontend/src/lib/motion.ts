@@ -31,9 +31,9 @@ export const easing = {
    ═══════════════════════════════════════════════════════════════════ */
 
 export const fadeUp: Variants = {
-  hidden:  { opacity: 0, y: 14, filter: 'blur(4px)' },
-  visible: { opacity: 1, y: 0,  filter: 'blur(0px)', transition: spring.soft },
-  exit:    { opacity: 0, y: -10, filter: 'blur(4px)', transition: { duration: 0.20, ease: easing.inOutQuart } },
+  hidden:  { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: spring.soft },
+  exit:    { opacity: 0, y: -10, transition: { duration: 0.20, ease: easing.inOutQuart } },
 };
 
 export const fadeIn: Variants = {
@@ -48,11 +48,11 @@ export const scaleIn: Variants = {
   exit:    { opacity: 0, scale: 0.96, transition: { duration: 0.18, ease: easing.inOutQuart } },
 };
 
-/** Page-level transition: content lifts in with a hint of blur */
+/** Page-level transition: content lifts in on route change. */
 export const pageTransition: Variants = {
-  hidden:  { opacity: 0, y: 8, filter: 'blur(6px)' },
-  visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { ...spring.page, filter: { duration: 0.32 } } },
-  exit:    { opacity: 0, y: -6, filter: 'blur(6px)', transition: { duration: 0.22, ease: easing.inOutQuart } },
+  hidden:  { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: spring.page },
+  exit:    { opacity: 0, y: -6, transition: { duration: 0.22, ease: easing.inOutQuart } },
 };
 
 /** Stagger container — gives children a smooth cascade */

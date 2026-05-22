@@ -13,6 +13,7 @@ import AutoPipelinePanel from '../components/pipeline/AutoPipelinePanel';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { InfraNode, PipelineResult, RemediationArtifact, PipelineRunStatus } from '../types';
+import { palette } from '../lib/theme';
 
 const AGENT_ICONS: Record<string, React.ElementType> = {
   monitoring: Eye,
@@ -25,11 +26,11 @@ const AGENT_ICONS: Record<string, React.ElementType> = {
 // Earthy palette aligned with the warm-cream + deep-teal system. Each agent
 // keeps a distinct hue but stays within the palette family.
 const AGENT_GLOW: Record<string, string> = {
-  monitoring: '#3a5a7d',   // info — calm blue
-  predictive: '#3a6f6a',   // accent-bright — bright teal
-  diagnostic: '#664774',   // muted plum
-  remediation: '#c08a3e',  // warning — amber
-  reporting: '#3d7d65',    // success — green
+  monitoring:  palette.info,         // calm blue
+  predictive:  palette.accentBright, // bright teal
+  diagnostic:  palette.plum,         // muted plum
+  remediation: palette.warning,      // amber
+  reporting:   palette.success,      // green
 };
 
 const PIPELINE_STEPS = ['monitoring', 'predictive', 'diagnostic', 'remediation', 'reporting'];
@@ -316,7 +317,7 @@ export default function Pipeline() {
     return 'text-ink-faint bg-ink/5 border-hairline-strong';
   };
 
-  if (nodesLoading) return <Loader text="Loading infrastructure nodes..." />;
+  if (nodesLoading) return <Loader text="Loading infrastructure nodes…" />;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -349,7 +350,7 @@ export default function Pipeline() {
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${statusFilter === s
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${statusFilter === s
                       ? s === 'critical' ? 'bg-critical/15 text-critical border-critical/30'
                         : s === 'degraded' ? 'bg-warning/15 text-warning border-warning/30'
                           : s === 'healthy' ? 'bg-success/15 text-success border-success/30'
@@ -435,7 +436,7 @@ export default function Pipeline() {
                   </span>
                 </div>
               ) : (
-                <span className="text-ink-faint">Choose a node to run pipeline on...</span>
+                <span className="text-ink-faint">Choose a node to run pipeline on…</span>
               )}
               <ChevronDown size={16} className={`text-ink-faint transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -526,7 +527,7 @@ export default function Pipeline() {
               <button
                 onClick={handleSelectNewNode}
                 disabled={running}
-                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 border border-hairline-strong text-ink-mute rounded-lg text-sm font-medium hover:bg-canvas-soft hover:text-ink-soft hover:border-ink/20 transition-all disabled:opacity-40"
+                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 border border-hairline-strong text-ink-mute rounded-lg text-sm font-medium hover:bg-canvas-soft hover:text-ink-soft hover:border-ink/20 transition-colors disabled:opacity-40"
               >
                 <RotateCcw size={14} />
                 Select New Node
@@ -553,7 +554,7 @@ export default function Pipeline() {
             const isDone = completedAgents.has(step);
             const isCurrent = currentAgent === step;
             const isPending = !isDone;
-            const color = AGENT_GLOW[step] || '#16a34a';
+            const color = AGENT_GLOW[step] || palette.success;
             const Icon = AGENT_ICONS[step] || Eye;
             return (
               <div key={step} className="flex items-center gap-3 shrink-0">
@@ -561,7 +562,7 @@ export default function Pipeline() {
                   <motion.div
                     animate={running && isPending ? { opacity: [0.55, 1, 0.55] } : { opacity: 1 }}
                     transition={running && isPending ? { duration: 1.5, repeat: Infinity } : { duration: 0.3 }}
-                    className={`relative w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isDone ? 'border-success bg-success/10' : isPending ? 'border-hairline-strong bg-canvas-soft/50' : ''
+                    className={`relative w-12 h-12 rounded-full flex items-center justify-center border-2 transition-colors duration-300 ${isDone ? 'border-success bg-success/10' : isPending ? 'border-hairline-strong bg-canvas-soft/50' : ''
                       }`}
                     style={running && isPending ? {
                       borderColor: `${color}66`,
@@ -761,7 +762,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Monitoring"
                   icon={Eye}
-                  color="#3a5a7d"
+                  color={palette.info}
                   items={[
                     { label: 'Anomaly Type', value: result.monitoring_result?.anomaly_type as string },
                     { label: 'Severity', value: result.monitoring_result?.severity as string, badge: true },
@@ -774,7 +775,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Predictive"
                   icon={TrendingUp}
-                  color="#3a6f6a"
+                  color={palette.accentBright}
                   items={[
                     { label: 'Failure Probability', value: result.prediction_result?.failure_probability != null ? `${Math.round((result.prediction_result.failure_probability as number) * 100)}%` : undefined },
                     { label: 'Escalation Risk', value: result.prediction_result?.escalation_risk as string, badge: true },
@@ -787,7 +788,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Diagnostic"
                   icon={Search}
-                  color="#664774"
+                  color={palette.plum}
                   items={[
                     { label: 'Root Cause', value: result.diagnostic_result?.root_cause as string },
                     { label: 'Issue Type', value: result.diagnostic_result?.issue_type as string },
@@ -800,7 +801,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Remediation"
                   icon={Wrench}
-                  color="#c08a3e"
+                  color={palette.warning}
                   items={[
                     { label: 'Plan', value: result.remediation_result?.plan_summary as string },
                     { label: 'Service', value: result.remediation_result?.service_name as string },
@@ -814,7 +815,7 @@ export default function Pipeline() {
                 <AgentResultCard
                   agent="Reporting"
                   icon={FileText}
-                  color="#3d7d65"
+                  color={palette.success}
                   items={[
                     { label: 'Summary', value: result.reporting_result?.executive_summary as string },
                     { label: 'Runbook', value: result.reporting_result?.runbook_title as string },

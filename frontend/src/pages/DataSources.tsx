@@ -11,6 +11,7 @@ import Portal from '../components/ui/Portal';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { DataSourceProvider, ConfiguredSource } from '../types';
+import { palette } from '../lib/theme';
 
 const PROVIDER_ICONS: Record<string, React.ElementType> = {
   simulated: Server,
@@ -26,14 +27,14 @@ const PROVIDER_ICONS: Record<string, React.ElementType> = {
 // Provider accents — desaturated to fit the warm-cream system while still
 // staying brand-recognizable (amber for AWS, info-blue for Azure, etc.).
 const PROVIDER_COLORS: Record<string, { bg: string; accent: string; glow: string }> = {
-  simulated:  { bg: 'from-[rgba(61,125,101,0.10)] to-transparent',  accent: '#3d7d65', glow: '0 0 30px rgba(61,125,101,0.10)' },
-  aws:        { bg: 'from-[rgba(192,138,62,0.12)] to-transparent',  accent: '#c08a3e', glow: '0 0 30px rgba(192,138,62,0.10)' },
-  azure:      { bg: 'from-[rgba(58,90,125,0.10)] to-transparent',   accent: '#3a5a7d', glow: '0 0 30px rgba(58,90,125,0.10)' },
-  gcp:        { bg: 'from-[rgba(197,82,77,0.10)] to-transparent',   accent: '#c5524d', glow: '0 0 30px rgba(197,82,77,0.10)' },
-  prometheus: { bg: 'from-[rgba(192,138,62,0.10)] to-transparent',  accent: '#b07a2e', glow: '0 0 30px rgba(176,122,46,0.10)' },
-  docker:     { bg: 'from-[rgba(58,111,106,0.10)] to-transparent',  accent: '#3a6f6a', glow: '0 0 30px rgba(58,111,106,0.10)' },
-  logfile:    { bg: 'from-[rgba(36,71,69,0.08)] to-transparent',    accent: '#244745', glow: '0 0 30px rgba(36,71,69,0.10)' },
-  custom:     { bg: 'from-[rgba(102,71,116,0.10)] to-transparent',  accent: '#664774', glow: '0 0 30px rgba(102,71,116,0.10)' },
+  simulated:  { bg: 'from-[rgba(61,125,101,0.10)] to-transparent',  accent: palette.success,       glow: '0 0 30px rgba(61,125,101,0.10)' },
+  aws:        { bg: 'from-[rgba(192,138,62,0.12)] to-transparent',  accent: palette.warning,       glow: '0 0 30px rgba(192,138,62,0.10)' },
+  azure:      { bg: 'from-[rgba(58,90,125,0.10)] to-transparent',   accent: palette.info,          glow: '0 0 30px rgba(58,90,125,0.10)' },
+  gcp:        { bg: 'from-[rgba(197,82,77,0.10)] to-transparent',   accent: palette.critical,      glow: '0 0 30px rgba(197,82,77,0.10)' },
+  prometheus: { bg: 'from-[rgba(192,138,62,0.10)] to-transparent',  accent: palette.warningStrong, glow: '0 0 30px rgba(176,122,46,0.10)' },
+  docker:     { bg: 'from-[rgba(58,111,106,0.10)] to-transparent',  accent: palette.accentBright,  glow: '0 0 30px rgba(58,111,106,0.10)' },
+  logfile:    { bg: 'from-[rgba(36,71,69,0.08)] to-transparent',    accent: palette.accent,        glow: '0 0 30px rgba(36,71,69,0.10)' },
+  custom:     { bg: 'from-[rgba(102,71,116,0.10)] to-transparent',  accent: palette.plum,          glow: '0 0 30px rgba(102,71,116,0.10)' },
 };
 
 export default function DataSources() {
@@ -56,7 +57,7 @@ export default function DataSources() {
   });
   const [ingestMsg, setIngestMsg] = useState('');
 
-  if (loading) return <Loader text="Loading data sources..." />;
+  if (loading) return <Loader text="Loading data sources…" />;
 
   const sources = data?.sources || [];
   const providers = data?.available_providers || [];
@@ -183,7 +184,7 @@ export default function DataSources() {
                   setFormData(existing?.config ? { ...existing.config } : {});
                   setTestResult(null);
                 }}
-                className={`glass p-5 cursor-pointer bg-gradient-to-b ${c.bg} space-y-3 transition-all`}
+                className={`glass p-5 cursor-pointer bg-gradient-to-b ${c.bg} space-y-3 transition-colors`}
               >
                 <div className="flex items-center justify-between">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${c.accent}15` }}>
@@ -265,9 +266,9 @@ export default function DataSources() {
                       <select
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
-                        className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
+                        className="w-full bg-[var(--color-surface-strong)] border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                       >
-                        <option value="">Select...</option>
+                        <option value="">Select…</option>
                         {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                       </select>
                     ) : field.type === 'textarea' ? (
@@ -275,7 +276,7 @@ export default function DataSources() {
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
                         rows={4}
-                        className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 resize-none"
+                        className="w-full bg-[var(--color-surface-strong)] border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 resize-none"
                       />
                     ) : field.type === 'boolean' ? (
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -292,7 +293,7 @@ export default function DataSources() {
                         type={field.type === 'password' ? 'password' : field.type === 'number' ? 'number' : 'text'}
                         value={formData[field.key] || ''}
                         onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
-                        className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
+                        className="w-full bg-[var(--color-surface-strong)] border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                       />
                     )}
                   </div>
@@ -383,7 +384,7 @@ export default function DataSources() {
                       type={f.type || 'text'}
                       value={(ingestData as any)[f.key]}
                       onChange={e => setIngestData({ ...ingestData, [f.key]: e.target.value })}
-                      className="w-full bg-white border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
+                      className="w-full bg-[var(--color-surface-strong)] border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                     />
                   </div>
                 ))}
