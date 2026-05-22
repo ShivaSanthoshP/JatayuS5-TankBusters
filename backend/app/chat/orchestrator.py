@@ -17,7 +17,9 @@ from app.chat.confirm_store import ConfirmStore, PendingDecision
 from app.chat.prompt import SRE_COPILOT_SYSTEM_PROMPT
 from app.chat.registry import ToolRegistry, ToolExecutionError
 from app.chat.schemas import SafetyLevel
-from app.llm.provider import ChatWithToolsResponse, ToolCall, ToolDecl, chat_with_tools
+from app.llm.provider import (
+    ChatWithToolsResponse, ToolCall, ToolDecl, chat_with_tools, chat_with_tools_stream,
+)
 from app.services.settings_service import settings
 
 logger = logging.getLogger("itops.chat.orchestrator")
@@ -161,30 +163,60 @@ async def run_turn_streaming(
       {"event": "error",            "data": {"message": "..."}}
     """
     model = model or settings.gemini_model or "gemini-2.5-flash"
-    call_gemini = gemini_caller or _call_gemini
     tool_decls = _build_tool_decls(registry)
     tool_results: list[dict] = []
 
     for _ in range(MAX_TOOL_CALLS_PER_TURN):
-        try:
-            resp = call_gemini(
-                messages=messages, tools=tool_decls,
-                model=model, api_key=api_key, temperature=0.0,
-                tool_results=tool_results,
-                system_instruction=system_prompt,
-            )
-        except Exception as exc:
-            logger.exception("Gemini call failed during streaming turn")
-            yield {"event": "error", "data": {"message": f"LLM call failed: {exc}"}}
-            yield {"event": "done", "data": {"terminated_reason": "error"}}
-            return
+        # ── Get the model's response for this step ──────────────────
+        # Production streams tokens live via the async google-genai client.
+        # An injected gemini_caller (tests) takes the non-streaming path.
+        if gemini_caller is not None:
+            try:
+                resp = gemini_caller(
+                    messages=messages, tools=tool_decls,
+                    model=model, api_key=api_key, temperature=0.0,
+                    tool_results=tool_results,
+                    system_instruction=system_prompt,
+                )
+            except Exception as exc:
+                logger.exception("Gemini call failed during streaming turn")
+                yield {"event": "error", "data": {"message": f"LLM call failed: {exc}"}}
+                yield {"event": "done", "data": {"terminated_reason": "error"}}
+                return
+            if not resp.tool_calls:
+                for chunk in _chunk_text(resp.text or "", 80):
+                    yield {"event": "token", "data": {"text": chunk}}
+                yield {"event": "done", "data": {"terminated_reason": "model_text"}}
+                return
+        else:
+            resp = ChatWithToolsResponse()
+            streamed_any = False
+            try:
+                async for item in chat_with_tools_stream(
+                    messages=messages, tools=tool_decls,
+                    model=model, api_key=api_key, temperature=0.0,
+                    tool_results=tool_results,
+                    system_instruction=system_prompt,
+                ):
+                    if item["type"] == "text":
+                        streamed_any = True
+                        yield {"event": "token", "data": {"text": item["delta"]}}
+                    else:  # "final"
+                        resp = item["response"]
+            except Exception as exc:
+                logger.exception("Gemini call failed during streaming turn")
+                yield {"event": "error", "data": {"message": f"LLM call failed: {exc}"}}
+                yield {"event": "done", "data": {"terminated_reason": "error"}}
+                return
+            if not resp.tool_calls:
+                # Text already streamed live; cover the rare case where text
+                # only landed on the final response object.
+                if not streamed_any and resp.text:
+                    yield {"event": "token", "data": {"text": resp.text}}
+                yield {"event": "done", "data": {"terminated_reason": "model_text"}}
+                return
 
-        if not resp.tool_calls:
-            for chunk in _chunk_text(resp.text or "", 80):
-                yield {"event": "token", "data": {"text": chunk}}
-            yield {"event": "done", "data": {"terminated_reason": "model_text"}}
-            return
-
+        # ── Tool-calling step (shared by both paths) ─────────────────
         for call in resp.tool_calls:
             tool_call_id = str(_uuid.uuid4())
             tool = registry.get(call.name)

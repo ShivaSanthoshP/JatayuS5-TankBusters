@@ -82,6 +82,12 @@ export default function MessageList({
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
                     {m.content}
                   </ReactMarkdown>
+                  {m.streaming && (
+                    <span
+                      aria-hidden
+                      className="chat-caret -mt-1 inline-block h-[1em] w-[3px] translate-y-[3px] rounded-full bg-accent"
+                    />
+                  )}
                 </div>
               ) : m.role === 'assistant' ? (
                 // Assistant bubble with no content yet — animated thinking dots.

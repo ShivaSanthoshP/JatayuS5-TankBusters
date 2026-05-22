@@ -950,6 +950,11 @@ textarea::placeholder {
    ─────────────────────────────────────────────────────────────────── */
 .gpu { transform: translateZ(0); will-change: transform, opacity; backface-visibility: hidden; }
 
+/* Streaming caret for the Argus chat — blinks while a reply streams in.
+   (The reduced-motion block below halts it for users who opt out.) */
+@keyframes chat-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+.chat-caret { animation: chat-blink 1.05s steps(1, end) infinite; }
+
 /* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

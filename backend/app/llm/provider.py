@@ -14,7 +14,7 @@ All calls are synchronous here; callers in async code wrap them in
 import json
 import logging
 import re
-from typing import Any
+from typing import Any, AsyncIterator
 
 from app import config as _config
 
@@ -374,3 +374,71 @@ def chat_with_tools(
     )
 
     return _parse_response(response)
+
+
+async def chat_with_tools_stream(
+    *,
+    messages: list[dict],
+    tools: list[ToolDecl],
+    model: str,
+    api_key: str,
+    temperature: float = 0.0,
+    tool_results: list[dict] | None = None,
+    system_instruction: str | None = None,
+) -> AsyncIterator[dict]:
+    """Streaming variant of ``chat_with_tools``. Async generator yielding:
+
+      {"type": "text",  "delta": "<token text>"}            — as the model writes
+      {"type": "final", "response": ChatWithToolsResponse}  — exactly once, last
+
+    Uses the google-genai *async* client, so the event loop is never blocked
+    while the model generates. A pure-text turn streams token-by-token; a
+    tool-calling turn yields no text and surfaces the accumulated tool calls
+    (with their thought signatures) on the final event.
+    """
+    from google import genai
+    from google.genai import types as gt
+
+    client = genai.Client(api_key=api_key)
+
+    function_decls = [
+        gt.FunctionDeclaration(
+            name=t.name,
+            description=t.description,
+            parameters_json_schema=t.parameters_schema,
+        )
+        for t in tools
+    ]
+    config_kwargs: dict = {"temperature": temperature}
+    if function_decls:
+        config_kwargs["tools"] = [gt.Tool(function_declarations=function_decls)]
+    if system_instruction:
+        config_kwargs["system_instruction"] = system_instruction
+    _ml = model.lower()
+    if "2.5" in _ml and "flash" in _ml:
+        config_kwargs["thinking_config"] = gt.ThinkingConfig(thinking_budget=0)
+
+    contents = _build_contents(messages, tool_results)
+
+    out = ChatWithToolsResponse()
+    stream = await client.aio.models.generate_content_stream(
+        model=model,
+        contents=contents,
+        config=gt.GenerateContentConfig(**config_kwargs),
+    )
+    async for chunk in stream:
+        for cand in (chunk.candidates or []):
+            content = getattr(cand, "content", None)
+            if content is None:
+                continue
+            for part in (content.parts or []):
+                fn = getattr(part, "function_call", None)
+                if fn is not None and getattr(fn, "name", None):
+                    out.tool_calls.append(ToolCall(
+                        name=fn.name, args=dict(fn.args or {}),
+                        thought_signature=getattr(part, "thought_signature", None),
+                    ))
+                elif getattr(part, "text", None):
+                    out.text += part.text
+                    yield {"type": "text", "delta": part.text}
+    yield {"type": "final", "response": out}

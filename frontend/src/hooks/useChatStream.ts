@@ -26,6 +26,8 @@ export interface DisplayMessage {
   content: string;
   tools: ToolInvocation[];
   confirms: ConfirmPrompt[];
+  /** True while this assistant message is actively receiving streamed tokens. */
+  streaming?: boolean;
 }
 
 function newId(): string {
@@ -47,7 +49,10 @@ export function useChatStream() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.session_id) restoredSession = parsed.session_id;
-        if (Array.isArray(parsed?.messages)) setMessages(parsed.messages);
+        if (Array.isArray(parsed?.messages)) {
+          // Clear any stale streaming flag so a reload never shows a stuck caret.
+          setMessages(parsed.messages.map((m: DisplayMessage) => ({ ...m, streaming: false })));
+        }
       }
     } catch { /* ignore corrupt storage */ }
     setSessionId(restoredSession || crypto.randomUUID());
@@ -69,8 +74,8 @@ export function useChatStream() {
     setStreamError(null);
     setSending(true);
 
-    const userMsg: DisplayMessage = { id: newId(), role: 'user', content: text, tools: [], confirms: [] };
-    const assistantMsg: DisplayMessage = { id: newId(), role: 'assistant', content: '', tools: [], confirms: [] };
+    const userMsg: DisplayMessage = { id: newId(), role: 'user', content: text, tools: [], confirms: [], streaming: false };
+    const assistantMsg: DisplayMessage = { id: newId(), role: 'assistant', content: '', tools: [], confirms: [], streaming: true };
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
     const ctrl = new AbortController();
@@ -98,6 +103,10 @@ export function useChatStream() {
     } finally {
       setSending(false);
       abortRef.current = null;
+      // Streaming is over — drop the caret on this message.
+      setMessages((prev) => prev.map((m) => (
+        m.id === assistantMsg.id ? { ...m, streaming: false } : m
+      )));
     }
   }, [messages, sending, sessionId]);
 
