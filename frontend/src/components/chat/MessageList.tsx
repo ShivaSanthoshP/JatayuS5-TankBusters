@@ -6,6 +6,7 @@ import { Eye } from 'lucide-react';
 import type { DisplayMessage } from '../../hooks/useChatStream';
 import ToolEvent from './ToolEvent';
 import ConfirmCard from './ConfirmCard';
+import TypingIndicator from './TypingIndicator';
 
 // Markdown renderers styled for the chat bubble using itops theme tokens.
 // react-markdown does not render raw HTML by default, so model text is safe.
@@ -82,12 +83,12 @@ export default function MessageList({
                     {m.content}
                   </ReactMarkdown>
                 </div>
+              ) : m.role === 'assistant' ? (
+                // Assistant bubble with no content yet — animated thinking dots.
+                <TypingIndicator />
               ) : (
-                // User messages (and the streaming "…" placeholder) stay plain text
-                // so user input is never interpreted as markdown.
-                <pre className="whitespace-pre-wrap font-sans text-sm">
-                  {m.content || (m.role === 'assistant' ? '…' : '')}
-                </pre>
+                // User messages stay plain text so input is never read as markdown.
+                <pre className="whitespace-pre-wrap font-sans text-sm">{m.content}</pre>
               )}
             </div>
           )}
