@@ -12,6 +12,8 @@ interface GlassTabProps {
   onClick?: () => void;
   hideIcon?: boolean;
   fullWidth?: boolean;
+  /** Lift this tab out of the plain row — accent-tinted, ringed (used for Argus). */
+  pop?: boolean;
 }
 
 const GlassTab: React.FC<GlassTabProps> = ({
@@ -22,11 +24,14 @@ const GlassTab: React.FC<GlassTabProps> = ({
   onClick,
   hideIcon = false,
   fullWidth = false,
+  pop = false,
 }) => {
   return (
     <NavLink to={to} onClick={onClick} end={to === '/'} className={fullWidth ? 'block w-full' : undefined}>
       {({ isActive }) => (
-        <div className={`glass-nav-tab press-tactile ${fullWidth ? '!flex !w-full !justify-start !py-2.5 !text-[14px]' : ''} ${isActive ? 'glass-nav-tab-active' : ''}`}>
+        <div className={`glass-nav-tab press-tactile ${fullWidth ? '!flex !w-full !justify-start !py-2.5 !text-[14px]' : ''} ${
+          isActive ? 'glass-nav-tab-active' : pop ? 'glass-nav-tab-pop' : ''
+        }`}>
           {isActive && (
             <motion.div
               layoutId={layoutId}

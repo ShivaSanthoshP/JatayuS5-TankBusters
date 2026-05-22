@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   LayoutDashboard, AlertTriangle, Server, Database, BookOpen, Cpu, Play, Settings, Wand2,
+  type LucideIcon,
 } from 'lucide-react';
 import GlassNavbar from './common/GlassNavbar';
 import GlassTab from './common/GlassTab';
@@ -10,9 +11,10 @@ import PageTransition from './common/PageTransition';
 import ParticleBackground from './ui/ParticleBackground';
 import CopilotLauncher from './CopilotLauncher';
 
-const NAV = [
+const NAV: { to: string; icon: LucideIcon; label: string; pop?: boolean }[] = [
+  // Argus sits leftmost and is "popped" — the accent CTA of the nav.
+  { to: '/copilot', icon: Wand2, label: 'Argus', pop: true },
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/copilot', icon: Wand2, label: 'Argus' },
   { to: '/pipeline', icon: Play, label: 'Pipeline' },
   { to: '/incidents', icon: AlertTriangle, label: 'Incidents' },
   { to: '/infrastructure', icon: Server, label: 'Infrastructure' },
@@ -129,6 +131,7 @@ export default function Layout() {
               to={item.to}
               icon={item.icon}
               label={item.label}
+              pop={item.pop}
             />
           ))}
         </nav>
@@ -163,6 +166,7 @@ export default function Layout() {
                     to={item.to}
                     icon={item.icon}
                     label={item.label}
+                    pop={item.pop}
                     layoutId="activeNavPillMobile"
                     onClick={() => setMobileOpen(false)}
                     fullWidth
