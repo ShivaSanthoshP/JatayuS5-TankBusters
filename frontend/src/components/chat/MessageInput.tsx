@@ -114,10 +114,11 @@ export default function MessageInput({
           )}
         </AnimatePresence>
 
-        {/* The pill IS the textbox — a <label> so a click anywhere focuses the
-            textarea. Text on top, controls row below, ChatGPT-style. */}
+        {/* The pill IS the textbox: a <label>, so a click anywhere focuses the
+            textarea. Text on top, a controls row below — ChatGPT composer,
+            themed to the app (cream surface, teal accent). */}
         <label
-          className="flex flex-col rounded-[28px] bg-surface px-4 pt-3 pb-2.5 cursor-text
+          className="flex flex-col rounded-[28px] bg-surface p-2 cursor-text
             ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(21,25,26,0.42)]
             transition-shadow focus-within:ring-accent/45"
         >
@@ -134,13 +135,13 @@ export default function MessageInput({
             aria-controls={open ? listId : undefined}
             aria-autocomplete="list"
             aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
-            className="w-full bg-transparent text-sm leading-6 text-ink resize-none
-              focus:outline-none placeholder:text-ink-faint disabled:opacity-60
-              max-h-[200px] overflow-y-auto"
+            className="w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-6 text-ink
+              placeholder:text-ink-faint focus:outline-none disabled:opacity-60
+              min-h-[2.75rem] max-h-[200px] overflow-y-auto"
           />
 
-          {/* Controls row */}
-          <div className="flex items-center justify-end mt-1.5">
+          {/* Controls row — send button only (no attach / tools / mic). */}
+          <div className="flex items-center justify-end px-1 pb-0.5">
             {disabled ? (
               // Processing — spinning ring around a stop square; click to halt.
               <button
