@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion';
-import HeroTerminal from './HeroTerminal';
+import TypingMessages from './TypingMessages';
 import CtaButton from './CtaButton';
 
 const VIDEO_SRC =
@@ -23,14 +23,14 @@ export default function Hero() {
         aria-hidden="true"
         tabIndex={-1}
       />
-      {/* Tint — keeps text legible and fades the video into the page */}
-      <div
-        aria-hidden
-        className="absolute inset-0 z-0 bg-gradient-to-b from-[var(--lp-bg)]/88 via-[var(--lp-bg)]/55 to-[var(--lp-bg)]"
-      />
+      {/* Slight tint only — the ocean stays visible */}
+      <div aria-hidden className="absolute inset-0 z-0 bg-white/5" />
+
+      {/* Typed status lines, sitting on the phone screen in the video */}
+      <TypingMessages />
 
       {/* Copy */}
-      <div className="relative z-10 w-full max-w-3xl text-center">
+      <div className="relative z-20 w-full max-w-3xl text-center">
         <motion.h1
           initial={reduce ? false : { opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -68,16 +68,6 @@ export default function Hero() {
           </a>
         </motion.div>
       </div>
-
-      {/* Terminal centerpiece */}
-      <motion.div
-        initial={reduce ? false : { opacity: 0, y: 28 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, delay: 0.7, ease: EASE }}
-        className="relative z-10 mt-14 w-full max-w-2xl sm:mt-16"
-      >
-        <HeroTerminal />
-      </motion.div>
     </section>
   );
 }
