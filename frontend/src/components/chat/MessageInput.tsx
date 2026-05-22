@@ -1,8 +1,10 @@
-import { useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Send, Square } from 'lucide-react';
+import { ArrowUp, Square } from 'lucide-react';
 import { useQuestionSuggestions } from '../../hooks/useQuestionSuggestions';
 import SuggestionList from './SuggestionList';
+
+const MAX_TEXTAREA_HEIGHT = 200;
 
 export default function MessageInput({
   onSend, onStop, disabled,
@@ -20,6 +22,15 @@ export default function MessageInput({
 
   const suggestions = useQuestionSuggestions(draft);
   const open = !disabled && !dismissed && suggestions.length > 0;
+
+  // Auto-grow the textarea to fit its content, ChatGPT-style — one line at
+  // rest, expanding up to a cap, then scrolling.
+  useEffect(() => {
+    const ta = taRef.current;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
+  }, [draft]);
 
   const submit = () => {
     const text = draft.trim();
@@ -103,17 +114,19 @@ export default function MessageInput({
           )}
         </AnimatePresence>
 
-        {/* Floating pill — rounded, raised off the page with a soft shadow */}
-        <div
-          className="flex items-end gap-1.5 rounded-[26px] bg-surface px-2.5 py-2
-            ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(21,25,26,0.42)]"
+        {/* The pill IS the textbox — a <label> so a click anywhere focuses the
+            textarea. Text on top, controls row below, ChatGPT-style. */}
+        <label
+          className="flex flex-col rounded-[28px] bg-surface px-4 pt-3 pb-2.5 cursor-text
+            ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(21,25,26,0.42)]
+            transition-shadow focus-within:ring-accent/45"
         >
           <textarea
             ref={taRef}
             value={draft}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={onKey}
-            rows={2}
+            rows={1}
             placeholder="Ask Argus…"
             disabled={disabled}
             role="combobox"
@@ -121,41 +134,45 @@ export default function MessageInput({
             aria-controls={open ? listId : undefined}
             aria-autocomplete="list"
             aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
-            className="flex-1 bg-transparent text-sm text-ink resize-none focus:outline-none
-              placeholder:text-ink-faint disabled:opacity-60 px-2 py-1.5"
+            className="w-full bg-transparent text-sm leading-6 text-ink resize-none
+              focus:outline-none placeholder:text-ink-faint disabled:opacity-60
+              max-h-[200px] overflow-y-auto"
           />
 
-          {disabled ? (
-            // Processing — spinning ring around a stop square; click to halt.
-            <button
-              type="button"
-              onClick={onStop}
-              title="Stop generating"
-              aria-label="Stop generating"
-              className="relative shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                bg-accent/10 hover:bg-accent/15 transition-colors"
-            >
-              <span
-                aria-hidden="true"
-                className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
-              />
-              <Square size={11} className="text-accent" fill="currentColor" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!draft.trim()}
-              title="Send"
-              aria-label="Send message"
-              className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                bg-accent text-[var(--color-surface)] transition-opacity
-                disabled:opacity-35 disabled:cursor-not-allowed"
-            >
-              <Send size={15} />
-            </button>
-          )}
-        </div>
+          {/* Controls row */}
+          <div className="flex items-center justify-end mt-1.5">
+            {disabled ? (
+              // Processing — spinning ring around a stop square; click to halt.
+              <button
+                type="button"
+                onClick={onStop}
+                title="Stop generating"
+                aria-label="Stop generating"
+                className="relative shrink-0 w-8 h-8 rounded-full flex items-center justify-center
+                  bg-accent/10 hover:bg-accent/15 transition-colors"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
+                />
+                <Square size={10} className="text-accent" fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={submit}
+                disabled={!draft.trim()}
+                title="Send"
+                aria-label="Send message"
+                className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center
+                  bg-accent text-[var(--color-surface)] transition-opacity
+                  disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ArrowUp size={17} strokeWidth={2.6} />
+              </button>
+            )}
+          </div>
+        </label>
 
         {open && (
           <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
