@@ -91,7 +91,10 @@ export function useChatStream() {
         if (evt.event === 'done') break;
       }
     } catch (exc) {
-      setStreamError(exc instanceof Error ? exc.message : 'stream failed');
+      // A user-initiated stop aborts the stream — that is not an error.
+      if (!ctrl.signal.aborted) {
+        setStreamError(exc instanceof Error ? exc.message : 'stream failed');
+      }
     } finally {
       setSending(false);
       abortRef.current = null;
@@ -106,7 +109,12 @@ export function useChatStream() {
     await confirmAction({ session_id: sessionId, confirmation_id: cid, decision });
   }, [sessionId]);
 
-  return { sessionId, messages, sending, streamError, send, clear, respondToConfirm };
+  // Abort an in-flight response — keeps whatever has streamed so far.
+  const stop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  return { sessionId, messages, sending, streamError, send, stop, clear, respondToConfirm };
 }
 
 function applyEvent(

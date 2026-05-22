@@ -7,7 +7,7 @@ import MessageInput from '../components/chat/MessageInput';
 // the floating navbar (no card, no borders, no history sidebar). Messages stay
 // in a centered readable column (see MessageList); the input is pinned bottom.
 export default function Copilot() {
-  const { messages, sending, streamError, send, clear, respondToConfirm } = useChatStream();
+  const { messages, sending, streamError, send, stop, clear, respondToConfirm } = useChatStream();
   return (
     <div className="relative h-full flex flex-col">
       {/* New-chat control, floating just below the overlaying navbar */}
@@ -25,7 +25,7 @@ export default function Copilot() {
           {streamError}
         </div>
       )}
-      <MessageInput onSend={send} disabled={sending} />
+      <MessageInput onSend={send} onStop={stop} disabled={sending} />
     </div>
   );
 }

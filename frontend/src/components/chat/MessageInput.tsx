@@ -1,12 +1,12 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Send } from 'lucide-react';
+import { Send, Square } from 'lucide-react';
 import { useQuestionSuggestions } from '../../hooks/useQuestionSuggestions';
 import SuggestionList from './SuggestionList';
 
 export default function MessageInput({
-  onSend, disabled,
-}: { onSend: (text: string) => void; disabled: boolean }) {
+  onSend, onStop, disabled,
+}: { onSend: (text: string) => void; onStop: () => void; disabled: boolean }) {
   const [draft, setDraft] = useState('');
   // activeIndex -1 means no row highlighted — Enter still sends the typed text.
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -88,8 +88,8 @@ export default function MessageInput({
   };
 
   return (
-    <div className="border-t border-hairline-strong/60 bg-surface/80">
-      <div className="relative mx-auto w-full max-w-3xl p-2 flex items-end gap-2">
+    <div className="px-3 sm:px-4 pt-2 pb-3 sm:pb-4">
+      <div className="relative mx-auto w-full max-w-3xl">
         <AnimatePresence>
           {open && (
             <SuggestionList
@@ -102,35 +102,67 @@ export default function MessageInput({
             />
           )}
         </AnimatePresence>
-        <textarea
-          ref={taRef}
-          value={draft}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={onKey}
-          rows={2}
-          placeholder="Ask Argus…"
-          disabled={disabled}
-          role="combobox"
-          aria-expanded={open}
-          aria-controls={open ? listId : undefined}
-          aria-autocomplete="list"
-          aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
-          className="flex-1 bg-transparent text-sm text-ink resize-none focus:outline-none placeholder:text-ink-faint disabled:opacity-50"
-        />
-        <button
-          onClick={submit}
-          disabled={disabled || !draft.trim()}
-          className="p-2 rounded-lg bg-accent text-[var(--color-surface)] disabled:opacity-40"
-          title="Send"
+
+        {/* Floating pill — rounded, raised off the page with a soft shadow */}
+        <div
+          className="flex items-end gap-1.5 rounded-[26px] bg-surface px-2.5 py-2
+            ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(21,25,26,0.42)]"
         >
-          <Send size={14} />
-        </button>
-      </div>
-      {open && (
-        <div className="mx-auto w-full max-w-3xl px-3 pb-1 hidden sm:block text-[10px] text-ink-faint">
-          ↑↓ or Tab to move · Enter to pick · Esc to dismiss
+          <textarea
+            ref={taRef}
+            value={draft}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={onKey}
+            rows={2}
+            placeholder="Ask Argus…"
+            disabled={disabled}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={open ? listId : undefined}
+            aria-autocomplete="list"
+            aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
+            className="flex-1 bg-transparent text-sm text-ink resize-none focus:outline-none
+              placeholder:text-ink-faint disabled:opacity-60 px-2 py-1.5"
+          />
+
+          {disabled ? (
+            // Processing — spinning ring around a stop square; click to halt.
+            <button
+              type="button"
+              onClick={onStop}
+              title="Stop generating"
+              aria-label="Stop generating"
+              className="relative shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                bg-accent/10 hover:bg-accent/15 transition-colors"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
+              />
+              <Square size={11} className="text-accent" fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!draft.trim()}
+              title="Send"
+              aria-label="Send message"
+              className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                bg-accent text-[var(--color-surface)] transition-opacity
+                disabled:opacity-35 disabled:cursor-not-allowed"
+            >
+              <Send size={15} />
+            </button>
+          )}
         </div>
-      )}
+
+        {open && (
+          <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
+            ↑↓ or Tab to move · Enter to pick · Esc to dismiss
+          </div>
+        )}
+      </div>
     </div>
   );
 }
