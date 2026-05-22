@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import {
   Settings as SettingsIcon, Brain, Cpu, Timer, Plus, X, Check,
   RefreshCw, ChevronDown, Loader2, Server, Cloud,
@@ -1101,77 +1102,12 @@ export default function Settings() {
 
         <div className="border-t border-ink/8 pt-5">
           <div className="text-[11px] uppercase tracking-wide text-ink-faint mb-3">Pipeline Execution</div>
-          {/* Auto-run toggle */}
-          <div>
-            <label className="text-xs text-ink-mute mb-3 block">Automatic Pipeline Execution</label>
-            <div
-              onClick={() => save({ auto_run_pipeline: !settings.auto_run_pipeline })}
-              className="flex items-center justify-between gap-4 glass-sm rounded-xl px-4 py-3 cursor-pointer hover:bg-canvas-soft"
-            >
-              <div className="text-left flex-1 min-w-0">
-                <span className={`text-sm font-medium ${settings.auto_run_pipeline ? 'text-accent' : 'text-ink-soft'}`}>
-                  {settings.auto_run_pipeline ? 'Enabled' : 'Disabled'}
-                </span>
-                <p className="text-[11px] text-ink-faint mt-0.5">
-                  {settings.auto_run_pipeline
-                    ? `Anomalies auto-run the pipeline; full sweep every ${settings.auto_run_interval_seconds}s`
-                    : 'Monitoring only — no automatic incidents or pipelines'}
-                </p>
-              </div>
-              <span
-                role="switch"
-                aria-checked={settings.auto_run_pipeline}
-                className="toggle shrink-0"
-                data-on={settings.auto_run_pipeline}
-              >
-                <span className="sr-only">Toggle Auto-Run</span>
-                <span
-                  aria-hidden="true"
-                  className="toggle-thumb transition-transform duration-200 ease-in-out"
-                  style={{ transform: settings.auto_run_pipeline ? 'translateX(16px)' : 'translateX(0)' }}
-                />
-              </span>
-            </div>
-
-            {/* Interval */}
-            <div className="mt-3 flex items-center gap-3 flex-wrap">
-              <input
-                type="number"
-                min={5}
-                step={5}
-                value={settings.auto_run_interval_seconds}
-                onChange={(e) => {
-                  const val = Math.max(5, parseInt(e.target.value) || 5);
-                  setSettings({ ...settings, auto_run_interval_seconds: val });
-                }}
-                onBlur={(e) => save({ auto_run_interval_seconds: Math.max(5, parseInt(e.target.value) || 5) })}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') save({ auto_run_interval_seconds: Math.max(5, parseInt((e.target as HTMLInputElement).value) || 5) });
-                }}
-                disabled={!settings.auto_run_pipeline}
-                className={`w-24 glass-sm rounded-lg px-3 py-2 text-sm font-medium text-center focus:outline-none focus:ring-2 focus:ring-accent/40 ${
-                  !settings.auto_run_pipeline ? 'opacity-50 cursor-not-allowed' : 'text-ink'
-                }`}
-              />
-              <span className="text-sm text-ink-mute">seconds</span>
-              <div className="flex gap-1.5 ml-auto flex-wrap">
-                {[10, 30, 60, 120, 300].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => save({ auto_run_interval_seconds: s })}
-                    disabled={!settings.auto_run_pipeline}
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      settings.auto_run_interval_seconds === s
-                        ? 'bg-accent/12 text-accent font-medium'
-                        : 'glass-sm text-ink-mute hover:bg-ink/8'
-                    } ${!settings.auto_run_pipeline ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {s < 60 ? `${s}s` : `${s / 60}m`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          <Link
+            to="/pipeline"
+            className="inline-flex items-center gap-1.5 text-[13px] text-accent hover:underline"
+          >
+            Automatic pipeline execution now lives on the Pipeline page →
+          </Link>
         </div>
       </GlassCard>
     </motion.div>

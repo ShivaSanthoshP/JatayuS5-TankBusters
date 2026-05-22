@@ -1,9 +1,8 @@
 import { motion } from 'framer-motion';
 import { useMemo, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
   TrendingUp, Wrench, FileText,
-  Activity, Zap, Search as SearchIcon, Wifi, WifiOff,
+  Activity, Search as SearchIcon, Wifi, WifiOff,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -12,7 +11,7 @@ import GlassCard from '../components/ui/GlassCard';
 import StatusBadge from '../components/ui/StatusBadge';
 import AnimatedNumber from '../components/ui/AnimatedNumber';
 import Loader from '../components/ui/Loader';
-import MagneticButton from '../components/common/MagneticButton';
+import AutoPipelineChip from '../components/AutoPipelineChip';
 import CopilotPromo from '../components/CopilotPromo';
 import { usePolling } from '../hooks/useApi';
 import { useMetricsStream } from '../hooks/useWebSocket';
@@ -195,6 +194,7 @@ function Sparkline({ data, color = '#244745' }: { data: number[]; color?: string
 export default function Dashboard() {
   const { data: stats, loading: statsLoading, error: statsError } = usePolling<DashboardStats>(api.getDashboard, 8000);
   const { data: incidents } = usePolling<Incident[]>(() => api.getIncidents(), 8000);
+  const { data: autoSettings } = usePolling<{ auto_run_pipeline?: boolean }>(api.getSettings, 15000);
   const { data: wsEvents, connected } = useMetricsStream();
   const chartData = useChartHistory(wsEvents);
 
@@ -320,11 +320,7 @@ export default function Dashboard() {
           </h1>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Link to="/pipeline" title="Open the Pipeline page to run agents on a node">
-              <MagneticButton variant="solid">
-                <Zap size={13} /> Run pipeline
-              </MagneticButton>
-            </Link>
+            <AutoPipelineChip enabled={!!autoSettings?.auto_run_pipeline} />
             <span
               className="ml-2 flex items-center gap-1.5"
               title={connected ? 'Receiving live metrics from the backend' : 'Not receiving live metrics — backend may be down'}

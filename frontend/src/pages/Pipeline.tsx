@@ -9,6 +9,7 @@ import GlassCard from '../components/ui/GlassCard';
 import StatusBadge from '../components/ui/StatusBadge';
 import Loader from '../components/ui/Loader';
 import ArtifactViewer from '../components/remediation/ArtifactViewer';
+import AutoPipelinePanel from '../components/pipeline/AutoPipelinePanel';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { InfraNode, PipelineResult, RemediationArtifact, PipelineRunStatus } from '../types';
@@ -326,6 +327,9 @@ export default function Pipeline() {
           Select a node, review its status, and trigger the full agent pipeline
         </p>
       </div>
+
+      {/* ── Automatic execution control ───────────────────────── */}
+      <AutoPipelinePanel />
 
       {/* ── Node Selection + Filters ──────────────────────────── */}
       <div className="grid lg:grid-cols-3 gap-5">
