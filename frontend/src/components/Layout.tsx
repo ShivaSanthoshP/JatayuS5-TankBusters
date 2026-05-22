@@ -11,7 +11,7 @@ import ParticleBackground from './ui/ParticleBackground';
 import CopilotLauncher from './CopilotLauncher';
 
 const NAV = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/copilot', icon: Wand2, label: 'Argus' },
   { to: '/pipeline', icon: Play, label: 'Pipeline' },
   { to: '/incidents', icon: AlertTriangle, label: 'Incidents' },
@@ -30,7 +30,7 @@ export default function Layout() {
   const isCopilot = location.pathname === '/copilot';
   // The Dashboard has its own Copilot promo card, so the floating launcher
   // is suppressed there to avoid a duplicate call-to-action.
-  const isDashboard = location.pathname === '/dashboard';
+  const isDashboard = location.pathname === '/';
   const mainRef = useRef<HTMLElement>(null);
   const [condense, setCondense] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -145,7 +145,7 @@ export default function Layout() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="lg:hidden fixed inset-0 z-40 bg-[rgba(20,24,32,0.18)] backdrop-blur-sm"
+              className="lg:hidden fixed inset-0 z-40 bg-[rgba(21,25,26,0.18)] backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
             <motion.div

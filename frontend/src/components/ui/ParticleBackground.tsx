@@ -2,10 +2,10 @@ import { useEffect, useRef } from 'react';
 
 // Whisper-quiet warm dust — ivory & teal flecks on cream
 const COLORS = [
-    'rgba(8, 113, 231, 0.10)',    // Faint Teal
-    'rgba(100, 116, 139, 0.10)',  // Faint Amber
-    'rgba(20, 24, 32, 0.06)',    // Faint Ink
-    'rgba(255, 255, 255, 0.50)', // Ivory Highlight
+    'rgba(36, 71, 69, 0.10)',    // Faint Teal
+    'rgba(192, 138, 62, 0.10)',  // Faint Amber
+    'rgba(21, 25, 26, 0.06)',    // Faint Ink
+    'rgba(255, 253, 247, 0.50)', // Ivory Highlight
 ];
 
 class Particle {

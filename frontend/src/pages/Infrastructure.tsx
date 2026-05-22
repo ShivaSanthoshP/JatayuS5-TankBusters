@@ -356,12 +356,12 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
                       <YAxis hide domain={['auto', 'auto']} />
                       <Tooltip
                         contentStyle={{
-                          background: 'rgba(255,255,255,0.95)',
-                          border: '1px solid rgba(20,24,32,0.10)',
+                          background: 'rgba(255,253,247,0.95)',
+                          border: '1px solid rgba(21,25,26,0.10)',
                           borderRadius: 8,
                           fontSize: 11,
                           fontFamily: 'JetBrains Mono, monospace',
-                          boxShadow: '0 8px 20px -8px rgba(20,24,32,0.20)',
+                          boxShadow: '0 8px 20px -8px rgba(21,25,26,0.20)',
                         }}
                       />
                       <Line type="monotone" dataKey={ch.key} stroke={ch.color} strokeWidth={1.5} dot={false} />

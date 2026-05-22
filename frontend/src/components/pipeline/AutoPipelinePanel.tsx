@@ -62,7 +62,7 @@ export default function AutoPipelinePanel() {
             style={{
               background: enabled
                 ? 'linear-gradient(135deg, var(--color-accent), var(--color-accent-dim))'
-                : 'rgba(20,24,32,0.06)',
+                : 'rgba(21,25,26,0.06)',
             }}
           >
             <Zap size={16} className={enabled ? 'text-[var(--color-surface)]' : 'text-ink-faint'} />
