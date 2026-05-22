@@ -124,8 +124,8 @@ export default function MessageInput({
             aria-controls={open ? listId : undefined}
             aria-autocomplete="list"
             aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
-            className="flex-1 min-w-0 border-0 bg-transparent py-1.5 text-sm text-ink
-              placeholder:text-ink-faint focus:outline-none focus:ring-0 disabled:opacity-60"
+            className="chat-pill-input flex-1 min-w-0 py-1.5 text-sm text-ink
+              placeholder:text-ink-faint focus:outline-none disabled:opacity-60"
           />
 
           {disabled ? (

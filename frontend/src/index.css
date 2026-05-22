@@ -550,6 +550,17 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(36, 71, 69, 0.10);
 }
 
+/* The Argus chat input opts out of the frosted-glass form styling above —
+   it sits borderless and transparent directly inside its rounded pill, in
+   every state. !important is needed to beat the specificity of the
+   input:not(...):not(...) selectors above. */
+.chat-pill-input,
+.chat-pill-input:focus {
+  background: transparent !important;
+  border-width: 0 !important;
+  box-shadow: none !important;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--color-ink-faint);
