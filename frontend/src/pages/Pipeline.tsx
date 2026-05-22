@@ -14,6 +14,7 @@ import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { InfraNode, PipelineResult, RemediationArtifact, PipelineRunStatus } from '../types';
 import { palette } from '../lib/theme';
+import { easing } from '../lib/motion';
 
 const AGENT_ICONS: Record<string, React.ElementType> = {
   monitoring: Eye,
@@ -34,6 +35,19 @@ const AGENT_GLOW: Record<string, string> = {
 };
 
 const PIPELINE_STEPS = ['monitoring', 'predictive', 'diagnostic', 'remediation', 'reporting'];
+
+// The run is a 3-stage flow. The stage is DERIVED from existing run state
+// (no extra state to keep in sync): running → 'running', a finished
+// result/error → 'results', otherwise → 'select'.
+type Phase = 'select' | 'running' | 'results';
+
+// Each stage slides in as its own "page"; reduced-motion strips the y via the
+// app-level MotionConfig.
+const stageVariants = {
+  hidden:  { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.28, ease: easing.outSoft } },
+  exit:    { opacity: 0, y: -10, transition: { duration: 0.18, ease: easing.inOutQuart } },
+};
 
 const NODE_TYPE_ICONS: Record<string, string> = {
   server: 'S',
@@ -319,21 +333,36 @@ export default function Pipeline() {
 
   if (nodesLoading) return <Loader text="Loading infrastructure nodes…" />;
 
+  const phase: Phase = running ? 'running' : (result || error) ? 'results' : 'select';
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Run Pipeline</h1>
-        <p className="text-xs sm:text-sm text-ink-mute mt-1">
-          Select a node, review its status, and trigger the full agent pipeline
-        </p>
+    <div className="space-y-6">
+      {/* Header + stage progress */}
+      <div className="flex items-start sm:items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Run Pipeline</h1>
+          <p className="text-xs sm:text-sm text-ink-mute mt-1">
+            Select a node, watch the agents work, then review the result
+          </p>
+        </div>
+        <StageStepper current={phase} />
       </div>
 
-      {/* ── Automatic execution control ───────────────────────── */}
-      <AutoPipelinePanel />
+      <AnimatePresence mode="wait">
+        {phase === 'select' && (
+          <motion.div
+            key="select"
+            variants={stageVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="space-y-6"
+          >
+            {/* ── Automatic execution control ───────────────────────── */}
+            <AutoPipelinePanel />
 
-      {/* ── Node Selection + Filters ──────────────────────────── */}
-      <div className="grid lg:grid-cols-3 gap-5">
+            {/* ── Node Selection + Filters ──────────────────────────── */}
+            <div className="grid lg:grid-cols-3 gap-5">
         {/* Filters panel */}
         <GlassCard hover={false} className="lg:col-span-1">
           <div className="flex items-center gap-2 mb-4">
@@ -523,33 +552,49 @@ export default function Pipeline() {
               <RefreshCw size={14} />
               Run All Nodes
             </button>
-            {result && (
-              <button
-                onClick={handleSelectNewNode}
-                disabled={running}
-                className="flex items-center gap-2 px-4 sm:px-5 py-2.5 border border-hairline-strong text-ink-mute rounded-lg text-sm font-medium hover:bg-canvas-soft hover:text-ink-soft hover:border-ink/20 transition-colors disabled:opacity-40"
-              >
-                <RotateCcw size={14} />
-                Select New Node
-              </button>
-            )}
           </div>
         </GlassCard>
       </div>
+          </motion.div>
+        )}
 
-      {/* ── Pipeline Flow Visualization ───────────────────────── */}
-      <GlassCard hover={false}>
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-sm font-semibold text-ink-soft">Pipeline Flow</h2>
-          {(running || result?.agent_trace?.length) && (
-            <div className="flex items-center gap-2 text-xs font-mono">
-              <Clock size={14} className={running ? 'text-warning animate-pulse' : 'text-success'} />
-              <span className={running ? 'text-warning' : 'text-success'}>{formatElapsed(elapsedMs)}</span>
+        {phase === 'running' && (
+          <motion.div
+            key="running"
+            variants={stageVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="flex flex-col gap-4 sm:gap-5 min-h-[calc(100dvh-220px)]"
+          >
+            {/* Running header — pinned in view, so it's obvious a run is live */}
+            <div className="glass p-4 sm:p-5 flex items-center justify-between gap-3 flex-wrap gpu">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-warning/12 shrink-0">
+                  <Loader2 size={18} className="animate-spin text-warning" />
+                </span>
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-ink truncate">
+                    {selectedNodeObj
+                      ? `Running pipeline · ${selectedNodeObj.node_name}`
+                      : 'Running pipeline · all nodes'}
+                  </h2>
+                  <p className="text-[11px] text-ink-mute mt-0.5">
+                    {currentAgent
+                      ? `${currentAgent.charAt(0).toUpperCase() + currentAgent.slice(1)} agent working — results open automatically when it finishes`
+                      : 'Starting the agent pipeline — results open automatically when it finishes'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm font-mono shrink-0">
+                <Clock size={15} className="text-warning animate-pulse" />
+                <span className="text-warning numeric">{formatElapsed(elapsedMs)}</span>
+              </div>
             </div>
-          )}
-        </div>
 
-        <div className="flex items-center justify-center gap-3 overflow-x-auto pb-2">
+            {/* Agent flow */}
+            <div className="glass p-4 sm:p-6 gpu">
+              <div className="flex items-center justify-center gap-3 overflow-x-auto pb-2">
           {PIPELINE_STEPS.map((step, i) => {
             const isDone = completedAgents.has(step);
             const isCurrent = currentAgent === step;
@@ -586,49 +631,23 @@ export default function Pipeline() {
               </div>
             );
           })}
-        </div>
-
-        {running && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4 flex items-center gap-2 text-xs text-warning bg-warning/10 border border-warning/25 rounded-lg px-3 py-2.5"
-          >
-            <Loader2 size={13} className="animate-spin" />
-            <span>
-              {currentAgent
-                ? `${currentAgent.charAt(0).toUpperCase() + currentAgent.slice(1)} agent is running`
-                : 'Waiting for backend to start the pipeline'}
-            </span>
-          </motion.div>
-        )}
-      </GlassCard>
-
-      {/* ── Pipeline Logs ──────────────────────────────────────── */}
-      {displayedLogs.length > 0 && (
-        <GlassCard hover={false}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Terminal size={16} className="text-ink-mute" />
-              <h2 className="text-sm font-semibold text-ink-soft">Pipeline Logs</h2>
+              </div>
             </div>
-            {running && <Loader2 size={14} className="animate-spin text-accent" />}
-            {!running && displayedLogs.length > 0 && (
-              <button
-                onClick={() => {
-                  setLogs([]);
-                  setPipelineRun(null);
-                }}
-                className="text-[10px] text-ink-faint hover:text-ink-soft transition-colors"
+
+            {/* Live log — fills the rest of the screen, scrolls internally */}
+            <div className="glass p-4 sm:p-5 flex flex-col flex-1 min-h-[240px] gpu">
+              <div className="flex items-center gap-2 mb-3 shrink-0">
+                <Terminal size={16} className="text-ink-mute" />
+                <h2 className="text-sm font-semibold text-ink-soft">Live log</h2>
+                <span className="label-eyebrow !text-[9px] ml-auto flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-warning pulse-live" />
+                  streaming
+                </span>
+              </div>
+              <div
+                ref={logsContainerRef}
+                className="terminal-pane rounded-lg p-4 flex-1 min-h-0 overflow-y-auto font-mono text-xs leading-5 space-y-0.5"
               >
-                Clear
-              </button>
-            )}
-          </div>
-          <div
-            ref={logsContainerRef}
-            className="terminal-pane rounded-lg p-4 max-h-64 overflow-y-auto font-mono text-xs leading-5 space-y-0.5"
-          >
             {displayedLogs.map((log, i) => (
               <div key={i} className={`flex gap-3 ${log.type === 'error' ? 'text-critical' :
                 log.type === 'success' ? 'text-success' :
@@ -639,17 +658,69 @@ export default function Pipeline() {
                 <span>{log.message}</span>
               </div>
             ))}
+            {displayedLogs.length === 0 && (
+              <div className="text-ink-faint">Waiting for the first agent to report…</div>
+            )}
             {running && (
               <div className="flex gap-3 text-ink-mute">
                 <span className="text-ink-soft shrink-0">[{formatElapsed(elapsedMs)}]</span>
                 <span className="animate-pulse">█</span>
               </div>
             )}
-          </div>
-        </GlassCard>
-      )}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-      {/* ── Results ───────────────────────────────────────────── */}
+        {phase === 'results' && (
+          <motion.div
+            key="results"
+            variants={stageVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="space-y-5"
+          >
+            {/* Results action bar — what just ran + how to move on */}
+            <div className="glass p-3 sm:p-4 flex items-center justify-between gap-3 flex-wrap gpu">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {error
+                  ? <XCircle size={18} className="text-critical shrink-0" />
+                  : <CheckCircle2 size={18} className="text-success shrink-0" />}
+                <div className="min-w-0">
+                  <h2 className="text-sm font-semibold text-ink truncate">
+                    {error ? 'Pipeline error' : 'Pipeline result'}
+                    {selectedNodeObj && <span className="text-ink-mute font-normal"> · {selectedNodeObj.node_name}</span>}
+                    {!selectedNodeObj && !error && <span className="text-ink-mute font-normal"> · all nodes</span>}
+                  </h2>
+                  <p className="text-[11px] text-ink-faint mt-0.5 numeric">finished in {formatElapsed(elapsedMs)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedNode ? (
+                  <button
+                    onClick={handleRunPipeline}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-hairline-strong text-ink-soft text-xs font-medium hover:bg-canvas-soft hover:border-ink/20 transition-colors press-tactile"
+                  >
+                    <RefreshCw size={13} /> Re-run this node
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleRunAll}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-hairline-strong text-ink-soft text-xs font-medium hover:bg-canvas-soft hover:border-ink/20 transition-colors press-tactile"
+                  >
+                    <RefreshCw size={13} /> Run all again
+                  </button>
+                )}
+                <button
+                  onClick={handleSelectNewNode}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent text-[var(--color-surface)] text-xs font-medium hover:bg-accent-bright transition-colors press-tactile"
+                >
+                  <RotateCcw size={13} /> Run another node
+                </button>
+              </div>
+            </div>
+
       <AnimatePresence mode="wait">
         {error && (
           <motion.div
@@ -903,17 +974,10 @@ export default function Pipeline() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Empty state */}
-      {!result && !error && !running && (
-        <GlassCard hover={false}>
-          <div className="text-center py-8">
-            <Activity size={32} className="text-ink-faint mx-auto mb-3" />
-            <p className="text-sm text-ink-faint">Select a node and run the pipeline to see results</p>
-          </div>
-        </GlassCard>
-      )}
-    </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -950,5 +1014,43 @@ function AgentResultCard({
         )}
       </div>
     </GlassCard>
+  );
+}
+
+/* ── Helper: 3-stage progress stepper ──────────────────────────
+   Gives a new user constant orientation — "I'm on stage 2 of 3". */
+function StageStepper({ current }: { current: Phase }) {
+  const steps: { key: Phase; label: string }[] = [
+    { key: 'select',  label: 'Select' },
+    { key: 'running', label: 'Running' },
+    { key: 'results', label: 'Results' },
+  ];
+  const idx = steps.findIndex((s) => s.key === current);
+  return (
+    <div
+      className="flex items-center gap-1.5 sm:gap-2"
+      role="group"
+      aria-label={`Stage ${idx + 1} of 3: ${steps[idx].label}`}
+    >
+      {steps.map((s, i) => (
+        <div key={s.key} className="flex items-center gap-1.5 sm:gap-2">
+          <span className={`flex items-center gap-1.5 text-[11px] font-medium ${
+            i === idx ? 'text-ink' : i < idx ? 'text-ink-mute' : 'text-ink-faint'
+          }`}>
+            <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-mono ${
+              i === idx ? 'bg-accent text-[var(--color-surface)]'
+                : i < idx ? 'bg-success/15 text-success'
+                : 'bg-ink/8 text-ink-faint'
+            }`}>
+              {i < idx ? <CheckCircle2 size={11} /> : i + 1}
+            </span>
+            <span className="hidden sm:inline">{s.label}</span>
+          </span>
+          {i < steps.length - 1 && (
+            <span className={`h-px w-4 sm:w-7 ${i < idx ? 'bg-success/40' : 'bg-hairline-strong'}`} />
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
