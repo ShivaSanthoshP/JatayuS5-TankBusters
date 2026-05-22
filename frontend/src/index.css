@@ -950,6 +950,44 @@ textarea::placeholder {
    ─────────────────────────────────────────────────────────────────── */
 .gpu { transform: translateZ(0); will-change: transform, opacity; backface-visibility: hidden; }
 
+/* ═══════════════════════════════════════════════════════════════════
+   LANDING PAGE — its own palette, scoped to .landing-page.
+   Independent of the app's warm-cream @theme; the app will be migrated
+   to these values later. Every landing colour references one of these.
+   ═══════════════════════════════════════════════════════════════════ */
+.landing-page {
+  --lp-bg:          #f3f4ed;
+  --lp-surface:     #fbfbf6;
+  --lp-ink:         #1a1a1a;
+  --lp-ink-soft:    rgba(26, 26, 26, 0.68);
+  --lp-ink-faint:   rgba(26, 26, 26, 0.44);
+  --lp-blue:        #0871e7;
+  --lp-blue-deep:   #0a5fc0;
+  --lp-blue-glint:  #def0fc;
+  --lp-line:        rgba(20, 22, 18, 0.10);
+  --lp-line-strong: rgba(20, 22, 18, 0.20);
+  --lp-term-bg:     #0e1112;
+  --lp-term-ink:    #d9d4c8;
+  --lp-term-dim:    #767f76;
+  --lp-term-green:  #7fb38a;
+
+  background-color: var(--lp-bg);
+  color: var(--lp-ink);
+}
+
+/* On-palette focus ring + selection (app defaults are teal) */
+.landing-page :focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--lp-bg), 0 0 0 4px rgba(8, 113, 231, 0.55);
+}
+.landing-page ::selection {
+  background: rgba(8, 113, 231, 0.18);
+  color: var(--lp-ink);
+}
+
+@keyframes lp-blink { 0%, 48% { opacity: 1; } 52%, 100% { opacity: 0; } }
+.lp-cursor { animation: lp-blink 1s steps(1, end) infinite; }
+
 /* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
