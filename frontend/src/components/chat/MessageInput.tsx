@@ -1,10 +1,8 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ArrowUp, Square } from 'lucide-react';
 import { useQuestionSuggestions } from '../../hooks/useQuestionSuggestions';
 import SuggestionList from './SuggestionList';
-
-const MAX_TEXTAREA_HEIGHT = 200;
 
 export default function MessageInput({
   onSend, onStop, disabled,
@@ -14,7 +12,7 @@ export default function MessageInput({
   const [activeIndex, setActiveIndex] = useState(-1);
   // Esc / a pick close the dropdown until the user types again.
   const [dismissed, setDismissed] = useState(false);
-  const taRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const baseId = useId();
   const listId = `${baseId}-list`;
@@ -22,15 +20,6 @@ export default function MessageInput({
 
   const suggestions = useQuestionSuggestions(draft);
   const open = !disabled && !dismissed && suggestions.length > 0;
-
-  // Auto-grow the textarea to fit its content, ChatGPT-style — one line at
-  // rest, expanding up to a cap, then scrolling.
-  useEffect(() => {
-    const ta = taRef.current;
-    if (!ta) return;
-    ta.style.height = 'auto';
-    ta.style.height = `${Math.min(ta.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
-  }, [draft]);
 
   const submit = () => {
     const text = draft.trim();
@@ -47,17 +36,17 @@ export default function MessageInput({
     setDraft(q.text);
     setActiveIndex(-1);
     setDismissed(true); // stay closed until the next keystroke
-    // After the value updates: focus, and select the first {placeholder} so the
-    // user's next keystroke replaces it; otherwise drop the caret at the end.
+    // Focus, and select the first {placeholder} so the next keystroke replaces
+    // it; otherwise drop the caret at the end.
     requestAnimationFrame(() => {
-      const ta = taRef.current;
-      if (!ta) return;
-      ta.focus();
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
       const m = q.text.match(/\{[^}]+\}/);
       if (m && m.index !== undefined) {
-        ta.setSelectionRange(m.index, m.index + m[0].length);
+        el.setSelectionRange(m.index, m.index + m[0].length);
       } else {
-        ta.setSelectionRange(q.text.length, q.text.length);
+        el.setSelectionRange(q.text.length, q.text.length);
       }
     });
   };
@@ -68,7 +57,7 @@ export default function MessageInput({
     setDismissed(false); // typing re-opens the dropdown
   };
 
-  const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (open) {
       if (e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
         e.preventDefault();
@@ -86,13 +75,13 @@ export default function MessageInput({
         setActiveIndex(-1);
         return;
       }
-      if (e.key === 'Enter' && !e.shiftKey && activeIndex >= 0) {
+      if (e.key === 'Enter' && activeIndex >= 0) {
         e.preventDefault();
         pick(activeIndex);
         return;
       }
     }
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter') {
       e.preventDefault();
       submit();
     }
@@ -114,20 +103,20 @@ export default function MessageInput({
           )}
         </AnimatePresence>
 
-        {/* The pill IS the textbox: a <label>, so a click anywhere focuses the
-            textarea. Text on top, a controls row below — ChatGPT composer,
-            themed to the app (cream surface, teal accent). */}
+        {/* One horizontal pill — text fills the left, send button on the right.
+            A <label> so a click anywhere focuses the input; the input is
+            borderless and transparent, so the text sits directly in the pill. */}
         <label
-          className="flex flex-col rounded-[28px] bg-surface p-2 cursor-text
+          className="flex items-center gap-2 rounded-full bg-surface pl-5 pr-2 py-2 cursor-text
             ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(21,25,26,0.42)]
             transition-shadow focus-within:ring-accent/45"
         >
-          <textarea
-            ref={taRef}
+          <input
+            ref={inputRef}
+            type="text"
             value={draft}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={onKey}
-            rows={1}
             placeholder="Ask Argus…"
             disabled={disabled}
             role="combobox"
@@ -135,44 +124,40 @@ export default function MessageInput({
             aria-controls={open ? listId : undefined}
             aria-autocomplete="list"
             aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
-            className="w-full resize-none border-0 bg-transparent px-3 py-2.5 text-sm leading-6
-              text-ink placeholder:text-ink-faint focus:outline-none focus:ring-0
-              disabled:opacity-60 min-h-[2.75rem] max-h-[200px] overflow-y-auto"
+            className="flex-1 min-w-0 border-0 bg-transparent py-1.5 text-sm text-ink
+              placeholder:text-ink-faint focus:outline-none focus:ring-0 disabled:opacity-60"
           />
 
-          {/* Controls row — send button only (no attach / tools / mic). */}
-          <div className="flex items-center justify-end px-1 pb-0.5">
-            {disabled ? (
-              // Processing — spinning ring around a stop square; click to halt.
-              <button
-                type="button"
-                onClick={onStop}
-                title="Stop generating"
-                aria-label="Stop generating"
-                className="relative shrink-0 w-8 h-8 rounded-full flex items-center justify-center
-                  bg-accent/10 hover:bg-accent/15 transition-colors"
-              >
-                <span
-                  aria-hidden="true"
-                  className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
-                />
-                <Square size={10} className="text-accent" fill="currentColor" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={submit}
-                disabled={!draft.trim()}
-                title="Send"
-                aria-label="Send message"
-                className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center
-                  bg-accent text-[var(--color-surface)] transition-opacity
-                  disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <ArrowUp size={17} strokeWidth={2.6} />
-              </button>
-            )}
-          </div>
+          {disabled ? (
+            // Processing — spinning ring around a stop square; click to halt.
+            <button
+              type="button"
+              onClick={onStop}
+              title="Stop generating"
+              aria-label="Stop generating"
+              className="relative shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                bg-accent/10 hover:bg-accent/15 transition-colors"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
+              />
+              <Square size={11} className="text-accent" fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!draft.trim()}
+              title="Send"
+              aria-label="Send message"
+              className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                bg-accent text-[var(--color-surface)] transition-opacity
+                disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ArrowUp size={18} strokeWidth={2.6} />
+            </button>
+          )}
         </label>
 
         {open && (
