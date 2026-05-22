@@ -384,7 +384,7 @@ export default function Settings() {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-6 h-6 animate-spin text-accent" />
-        <span className="ml-3 text-ink-mute">Loading settings...</span>
+        <span className="ml-3 text-ink-mute">Loading settings…</span>
       </div>
     );
   }
@@ -647,7 +647,7 @@ export default function Settings() {
                         type={showPrimaryKey ? 'text' : 'password'}
                         value={primaryKeyDraft}
                         onChange={(e) => setPrimaryKeyDraft(e.target.value)}
-                        placeholder="API key..."
+                        placeholder="API key…"
                         autoComplete="off"
                         className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
                       />
@@ -803,7 +803,7 @@ export default function Settings() {
                     type={showFallbackKey ? 'text' : 'password'}
                     value={fallbackKeyDraft}
                     onChange={(e) => setFallbackKeyDraft(e.target.value)}
-                    placeholder="API key..."
+                    placeholder="API key…"
                     autoComplete="off"
                     className="w-full glass-sm rounded-lg px-3 py-2.5 pr-10 text-sm font-mono text-ink focus:outline-none focus:ring-2 focus:ring-accent/40"
                   />

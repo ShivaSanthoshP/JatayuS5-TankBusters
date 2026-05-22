@@ -75,7 +75,7 @@ export default function Incidents() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className={`glass overflow-hidden transition-all ${inc.severity === 'critical' ? 'border-critical/25 glow-red' : ''
+                className={`glass overflow-hidden transition-colors ${inc.severity === 'critical' ? 'border-critical/25 glow-red' : ''
                   }`}
               >
                 {/* Header row */}
@@ -116,7 +116,7 @@ export default function Incidents() {
                         {remediationLoading[inc.id] && (
                           <div className="mt-4 flex items-center gap-2 text-xs text-ink-faint">
                             <Loader2 size={12} className="animate-spin" />
-                            Loading remediation scripts...
+                            Loading remediation scripts…
                           </div>
                         )}
 
@@ -278,7 +278,7 @@ export default function Incidents() {
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage <= 1}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft size={14} />
                 Previous
@@ -289,7 +289,7 @@ export default function Incidents() {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage >= totalPages}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-glass-border text-xs font-medium text-ink-soft hover:bg-accent/5 hover:border-accent/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 Next
                 <ChevronRight size={14} />

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Wand2, ArrowRight } from 'lucide-react';
 import { spring, fadeUp } from '../lib/motion';
 
 /**
@@ -17,7 +17,7 @@ export default function CopilotPromo() {
         to="/copilot"
         aria-label="Open Argus, the fleet chat assistant"
         className="group block rounded-[22px] outline-none
-          focus-visible:ring-2 focus-visible:ring-[#c08a3e]
+          focus-visible:ring-2 focus-visible:ring-[var(--color-warning)]
           focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-canvas)]"
       >
         <motion.div
@@ -27,22 +27,12 @@ export default function CopilotPromo() {
           className="liquid-glass relative overflow-hidden rounded-[22px] gpu
             px-5 py-5 sm:px-7 sm:py-6 cursor-pointer"
           style={{
-            background: 'linear-gradient(135deg, #3a6f6a 0%, #244745 46%, #1b3635 100%)',
+            background: 'linear-gradient(135deg, var(--color-accent-bright) 0%, var(--color-accent) 46%, var(--color-accent-dim) 100%)',
             boxShadow: '0 18px 40px -18px rgba(27,54,53,0.65)',
           }}
         >
-          {/* Decorative glow orbs + oversized watermark icon (clipped by the card) */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -top-16 -right-10 w-64 h-64 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(192,138,62,0.34), transparent 68%)' }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute -bottom-24 left-[30%] w-72 h-72 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(58,111,106,0.48), transparent 70%)' }}
-          />
-          <Sparkles
+          {/* Oversized watermark mark, clipped by the card — no floating orbs. */}
+          <Wand2
             aria-hidden
             size={130}
             className="pointer-events-none absolute -right-5 -bottom-8 text-white/[0.045]"
@@ -53,11 +43,11 @@ export default function CopilotPromo() {
             <div
               className="shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, #c08a3e 0%, #9a6c2e 100%)',
+                background: 'linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-ink-strong) 100%)',
                 boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.38), 0 8px 22px -6px rgba(192,138,62,0.6)',
               }}
             >
-              <Sparkles size={22} className="text-[#fbf8f1]" />
+              <Wand2 size={22} className="text-[var(--color-surface)]" />
             </div>
 
             {/* Copy */}
@@ -65,7 +55,7 @@ export default function CopilotPromo() {
               <span className="label-eyebrow !text-[9.5px]" style={{ color: 'rgba(222,182,124,0.95)' }}>
                 Meet Argus
               </span>
-              <h2 className="font-display text-[20px] sm:text-[25px] leading-[1.16] mt-1.5 text-[#fbf8f1]">
+              <h2 className="font-display text-[20px] sm:text-[25px] leading-[1.16] mt-1.5 text-[var(--color-surface)]">
                 Stop reading dashboards. Start asking Argus.
               </h2>
               <p className="text-[12.5px] sm:text-[13px] leading-relaxed mt-2 max-w-[64ch]"
@@ -94,9 +84,9 @@ export default function CopilotPromo() {
             <div className="shrink-0 md:self-center">
               <span
                 className="inline-flex items-center justify-center gap-2 w-full md:w-auto
-                  rounded-full px-4 py-2.5 font-display text-[13px] text-[#1b3635] whitespace-nowrap"
+                  rounded-full px-4 py-2.5 font-display text-[13px] text-[var(--color-accent-dim)] whitespace-nowrap"
                 style={{
-                  background: 'linear-gradient(135deg, #fbf8f1 0%, #ece6d8 100%)',
+                  background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-canvas) 100%)',
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.75), 0 8px 20px -8px rgba(0,0,0,0.45)',
                 }}
               >

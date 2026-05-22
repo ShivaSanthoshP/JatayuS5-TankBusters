@@ -25,7 +25,7 @@ export default function CopilotLauncher({ hidden = false }: CopilotLauncherProps
       animate={hidden
         ? { opacity: 0, scale: 0.8, y: 12, pointerEvents: 'none' }
         : { opacity: 1, scale: 1, y: 0, pointerEvents: 'auto' }}
-      transition={spring.bouncy}
+      transition={spring.smooth}
       whileHover={{ y: -2, scale: 1.03 }}
       whileTap={{ scale: 0.97 }}
       className="press-tactile fixed z-40 bottom-5 right-5 sm:bottom-6 sm:right-6

@@ -57,7 +57,7 @@ export default function MessageList({
           >
             <Eye size={22} className="text-[var(--color-surface)]" />
           </div>
-          <h2 className="font-display text-[20px] text-ink">Hi, I'm Argus.</h2>
+          <h2 className="font-display text-[20px] text-ink">Hi, I’m Argus.</h2>
           <p className="text-[13px] text-ink-mute mt-1">Nothing on your fleet goes unwatched.</p>
           <p className="text-[12px] text-ink-faint leading-relaxed mt-3.5 max-w-md">
             <span className="font-medium text-ink-soft">Why “Argus”?</span> In Greek myth,

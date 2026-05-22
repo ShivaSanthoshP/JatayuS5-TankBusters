@@ -1,60 +1,72 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
-type Tone = { bg: string; text: string; border: string; dot: string };
+/**
+ * Each status maps to a base hue + its readable "ink" text shade — both
+ * pulled from the @theme tokens in index.css (no inline hex). Background and
+ * border are derived from the base via color-mix, so the whole badge stays
+ * sourced from the design system.
+ */
+type Tone = { base: string; ink: string; dot?: string };
+
+const STRONG = 'var(--color-warning-strong)';
+const NEUTRAL: Tone = { base: 'var(--color-ink)', ink: 'var(--color-ink-mute)', dot: 'var(--color-ink-faint)' };
 
 const TONES: Record<string, Tone> = {
   // System / health
-  healthy:    { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
-  degraded:   { bg: 'rgba(192,138,62,0.12)',  text: '#8a6024', border: 'rgba(192,138,62,0.26)', dot: '#c08a3e' },
-  critical:   { bg: 'rgba(197,82,77,0.12)',   text: '#923a36', border: 'rgba(197,82,77,0.28)',  dot: '#c5524d' },
-  offline:    { bg: 'rgba(21,25,26,0.06)',    text: '#6f7470', border: 'rgba(21,25,26,0.12)',   dot: '#a4a8a1' },
+  healthy:    { base: 'var(--color-success)',  ink: 'var(--color-success-ink)' },
+  degraded:   { base: 'var(--color-warning)',  ink: 'var(--color-warning-ink)' },
+  critical:   { base: 'var(--color-critical)', ink: 'var(--color-critical-ink)' },
+  offline:    NEUTRAL,
 
   // Severities
-  low:        { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
-  medium:     { bg: 'rgba(192,138,62,0.12)',  text: '#8a6024', border: 'rgba(192,138,62,0.26)', dot: '#c08a3e' },
-  high:       { bg: 'rgba(192,138,62,0.16)',  text: '#7a5320', border: 'rgba(192,138,62,0.32)', dot: '#b07a2e' },
+  low:        { base: 'var(--color-success)',  ink: 'var(--color-success-ink)' },
+  medium:     { base: 'var(--color-warning)',  ink: 'var(--color-warning-ink)' },
+  high:       { base: STRONG, ink: 'var(--color-warning-ink-strong)', dot: STRONG },
 
   // Incident lifecycle
-  detected:          { bg: 'rgba(58,90,125,0.10)',  text: '#2d4660', border: 'rgba(58,90,125,0.22)', dot: '#3a5a7d' },
-  analyzing:         { bg: 'rgba(36,71,69,0.10)',   text: '#1c3837', border: 'rgba(36,71,69,0.22)',  dot: '#244745' },
-  diagnosed:         { bg: 'rgba(102,71,116,0.10)', text: '#4d3458', border: 'rgba(102,71,116,0.22)',dot: '#664774' },
-  awaiting_approval: { bg: 'rgba(192,138,62,0.12)', text: '#8a6024', border: 'rgba(192,138,62,0.26)',dot: '#c08a3e' },
-  remediating:       { bg: 'rgba(36,71,69,0.10)',   text: '#1c3837', border: 'rgba(36,71,69,0.22)',  dot: '#244745' },
-  resolved:          { bg: 'rgba(61,125,101,0.10)', text: '#2d5e4c', border: 'rgba(61,125,101,0.22)',dot: '#3d7d65' },
-  escalated:         { bg: 'rgba(197,82,77,0.12)',  text: '#923a36', border: 'rgba(197,82,77,0.28)', dot: '#c5524d' },
-  failed:            { bg: 'rgba(197,82,77,0.12)',  text: '#923a36', border: 'rgba(197,82,77,0.28)', dot: '#c5524d' },
+  detected:          { base: 'var(--color-info)',    ink: 'var(--color-info-ink)' },
+  analyzing:         { base: 'var(--color-accent)',  ink: 'var(--color-accent-ink)' },
+  diagnosed:         { base: 'var(--color-info)',    ink: 'var(--color-info-ink)' },
+  awaiting_approval: { base: 'var(--color-warning)', ink: 'var(--color-warning-ink)' },
+  remediating:       { base: 'var(--color-accent)',  ink: 'var(--color-accent-ink)' },
+  resolved:          { base: 'var(--color-success)', ink: 'var(--color-success-ink)' },
+  escalated:         { base: 'var(--color-critical)',ink: 'var(--color-critical-ink)' },
+  failed:            { base: 'var(--color-critical)',ink: 'var(--color-critical-ink)' },
 
   // Connections
-  active:     { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
-  connected:  { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
-  configured: { bg: 'rgba(58,90,125,0.10)',   text: '#2d4660', border: 'rgba(58,90,125,0.22)',  dot: '#3a5a7d' },
-  error:      { bg: 'rgba(197,82,77,0.12)',   text: '#923a36', border: 'rgba(197,82,77,0.28)',  dot: '#c5524d' },
+  active:     { base: 'var(--color-success)', ink: 'var(--color-success-ink)' },
+  connected:  { base: 'var(--color-success)', ink: 'var(--color-success-ink)' },
+  configured: { base: 'var(--color-info)',    ink: 'var(--color-info-ink)' },
+  error:      { base: 'var(--color-critical)',ink: 'var(--color-critical-ink)' },
 
   // Simulator statuses
-  running:    { bg: 'rgba(61,125,101,0.10)',  text: '#2d5e4c', border: 'rgba(61,125,101,0.22)', dot: '#3d7d65' },
-  paused:     { bg: 'rgba(192,138,62,0.12)',  text: '#8a6024', border: 'rgba(192,138,62,0.26)', dot: '#c08a3e' },
-  stopped:    { bg: 'rgba(21,25,26,0.06)',    text: '#6f7470', border: 'rgba(21,25,26,0.12)',   dot: '#a4a8a1' },
-  finished:   { bg: 'rgba(58,90,125,0.10)',   text: '#2d4660', border: 'rgba(58,90,125,0.22)',  dot: '#3a5a7d' },
+  running:    { base: 'var(--color-success)', ink: 'var(--color-success-ink)' },
+  paused:     { base: 'var(--color-warning)', ink: 'var(--color-warning-ink)' },
+  stopped:    NEUTRAL,
+  finished:   { base: 'var(--color-info)',    ink: 'var(--color-info-ink)' },
 };
 
 export default function StatusBadge({ status, pulse = false }: { status: string; pulse?: boolean }) {
-  const c = TONES[status] || TONES.detected;
+  const reduce = useReducedMotion();
+  const t = TONES[status] || TONES.detected;
+  const tintPct = t === NEUTRAL ? 6 : 12;
+  const borderPct = t === NEUTRAL ? 12 : 26;
 
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2.5 py-[3px] rounded-full text-[11px] font-medium"
       style={{
-        background: c.bg,
-        color: c.text,
-        border: `1px solid ${c.border}`,
+        background: `color-mix(in srgb, ${t.base} ${tintPct}%, transparent)`,
+        color: t.ink,
+        border: `1px solid color-mix(in srgb, ${t.base} ${borderPct}%, transparent)`,
         letterSpacing: '0.01em',
       }}
     >
       <motion.span
         className="w-[6px] h-[6px] rounded-full"
-        style={{ background: c.dot }}
-        animate={pulse ? { scale: [1, 1.35, 1], opacity: [1, 0.7, 1] } : undefined}
-        transition={pulse ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : undefined}
+        style={{ background: t.dot ?? t.base }}
+        animate={pulse && !reduce ? { scale: [1, 1.35, 1], opacity: [1, 0.7, 1] } : undefined}
+        transition={pulse && !reduce ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : undefined}
       />
       {status.replace(/_/g, ' ')}
     </span>

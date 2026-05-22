@@ -18,6 +18,7 @@ import { useMetricsStream } from '../hooks/useWebSocket';
 import * as api from '../services/api';
 import type { WsMetricEvent, DashboardStats, Incident } from '../types';
 import { spring, stagger, fadeUp } from '../lib/motion';
+import { palette } from '../lib/theme';
 
 /* ── persistent chart-data ring buffer ───────────────────── */
 type ChartPoint = { time: string; cpu: number; mem: number; err: number; lat: number };
@@ -82,7 +83,7 @@ function useChartHistory(events: WsMetricEvent[], maxPoints = 60) {
 }
 
 /* ── editorial donut gauge with springy fill ────────────── */
-function Gauge({ value, label, sub, accent = 'var(--color-accent)', hint }: {
+function Gauge({ value, label, sub, accent = palette.accent, hint }: {
   value: number; label: string; sub?: string; accent?: string; hint?: string;
 }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
@@ -123,7 +124,7 @@ function Kpi({ label, value, suffix, hint }: {
   label: string; value: number | string; suffix?: string; hint?: string;
 }) {
   return (
-    <motion.div variants={fadeUp} className="glass-sm p-4 flex flex-col gap-1 gpu" title={hint}>
+    <motion.div variants={fadeUp} className="tile p-4 flex flex-col gap-1 gpu" title={hint}>
       <span className="label-eyebrow !text-[9.5px]">{label}</span>
       <div className="flex items-baseline justify-between mt-1">
         <span className="font-display text-[24px] leading-none numeric text-[var(--color-ink)]">
@@ -173,7 +174,7 @@ function PipelineStep({ Icon, label, sub }: {
 }
 
 /* ── Sparkline ───────────────────────────────────────────── */
-function Sparkline({ data, color = '#244745' }: { data: number[]; color?: string }) {
+function Sparkline({ data, color = palette.accent }: { data: number[]; color?: string }) {
   if (data.length < 2) return <div className="w-14 h-5" />;
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -353,14 +354,14 @@ export default function Dashboard() {
               value={memAvg}
               label="MEMORY"
               sub={wsEvents.length ? 'live average' : 'no data'}
-              accent="#3a6f6a"
+              accent={palette.accentBright}
               hint="Average memory usage across all live-streaming nodes right now"
             />
             <Gauge
               value={Math.min(99, latP50)}
               label="LATENCY"
               sub={wsEvents.length ? `${latP50}ms p50` : 'no data'}
-              accent="#c08a3e"
+              accent={palette.warning}
               hint="Median (p50) request latency across the fleet — half of requests are faster than this number"
             />
           </div>
@@ -484,12 +485,12 @@ export default function Dashboard() {
 
           <motion.div variants={stagger(0.05)} className="grid grid-cols-2 gap-3">
             {[
-              { key: 'cpu' as const, label: 'CPU avg',     val: `${cpuAvg.toFixed(1)}%`,    color: '#244745', hint: 'Average CPU utilization across the live fleet' },
-              { key: 'mem' as const, label: 'Memory avg',  val: `${memAvg.toFixed(1)}%`,    color: '#3a6f6a', hint: 'Average memory utilization across the live fleet' },
-              { key: 'err' as const, label: 'Error rate',  val: `${errAvg}%`,                color: '#c08a3e', hint: 'Average percentage of requests returning errors' },
-              { key: 'lat' as const, label: 'Latency p50', val: `${latP50}ms`,              color: '#15191a', hint: 'Median request latency — half of requests are faster than this' },
+              { key: 'cpu' as const, label: 'CPU avg',     val: `${cpuAvg.toFixed(1)}%`,    color: palette.accent,       hint: 'Average CPU utilization across the live fleet' },
+              { key: 'mem' as const, label: 'Memory avg',  val: `${memAvg.toFixed(1)}%`,    color: palette.accentBright, hint: 'Average memory utilization across the live fleet' },
+              { key: 'err' as const, label: 'Error rate',  val: `${errAvg}%`,                color: palette.warning,      hint: 'Average percentage of requests returning errors' },
+              { key: 'lat' as const, label: 'Latency p50', val: `${latP50}ms`,              color: palette.ink,          hint: 'Median request latency — half of requests are faster than this' },
             ].map(ch => (
-              <motion.div key={ch.key} variants={fadeUp} className="glass-sm !rounded-xl p-3 gpu" title={ch.hint}>
+              <motion.div key={ch.key} variants={fadeUp} className="tile !rounded-xl p-3 gpu" title={ch.hint}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="label-eyebrow !text-[9px]">{ch.label}</span>
                   <span className="text-[12px] font-mono numeric text-[var(--color-ink)]">{ch.val}</span>
@@ -549,15 +550,15 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-3 text-[10.5px] font-mono">
               <span className="flex items-center gap-1" title="Healthy nodes">
-                <span className="status-dot" style={{ background: '#3d7d65' }} />
+                <span className="status-dot" style={{ background: palette.success }} />
                 {safeStats.healthy_nodes}
               </span>
               <span className="flex items-center gap-1" title="Degraded nodes">
-                <span className="status-dot" style={{ background: '#c08a3e' }} />
+                <span className="status-dot" style={{ background: palette.warning }} />
                 {safeStats.degraded_nodes}
               </span>
               <span className="flex items-center gap-1" title="Critical nodes">
-                <span className="status-dot" style={{ background: '#c5524d' }} />
+                <span className="status-dot" style={{ background: palette.critical }} />
                 {safeStats.critical_nodes}
               </span>
             </div>
@@ -577,16 +578,15 @@ export default function Dashboard() {
                   <th className="px-2 py-2 text-right font-medium">Trend</th>
                 </tr>
               </thead>
-              <motion.tbody variants={stagger(0.025)}>
+              <tbody>
                 {fleet.map(ev => {
                   const tone = ev.is_anomaly
-                    ? (ev.anomaly_severity === 'critical' ? '#c5524d' : '#c08a3e')
-                    : '#3d7d65';
+                    ? (ev.anomaly_severity === 'critical' ? palette.critical : palette.warning)
+                    : palette.success;
                   const trend = chartData.slice(-12).map(p => p.cpu);
                   return (
                     <motion.tr
                       key={ev.node_name}
-                      variants={fadeUp}
                       className="border-t"
                       style={{ borderColor: 'var(--color-hairline)' }}
                       whileHover={{ backgroundColor: 'rgba(255,253,247,0.55)' }}
@@ -619,7 +619,7 @@ export default function Dashboard() {
                     </td>
                   </tr>
                 )}
-              </motion.tbody>
+              </tbody>
             </table>
           </div>
         </GlassCard>
@@ -644,7 +644,7 @@ export default function Dashboard() {
               className="text-[10.5px] font-mono px-2 py-0.5 rounded-full"
               style={{
                 background: 'rgba(197,82,77,0.10)',
-                color: '#923a36',
+                color: 'var(--color-critical-ink)',
                 border: '1px solid rgba(197,82,77,0.20)',
               }}
               title="Incidents that have not yet been resolved"
@@ -653,28 +653,23 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <motion.div variants={stagger(0.04)} className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
-            {recentIncidents.map(inc => (
+          <div className="space-y-2 max-h-[440px] overflow-y-auto pr-1">
+            {recentIncidents.map(inc => {
+              const sevColor =
+                inc.severity === 'critical' ? palette.critical :
+                inc.severity === 'high'     ? palette.warningStrong :
+                inc.severity === 'medium'   ? palette.warning :
+                                              palette.success;
+              return (
               <motion.div
                 key={inc.id}
-                variants={fadeUp}
                 whileHover={{ x: 2 }}
                 transition={spring.smooth}
-                className="glass-sm !rounded-xl p-3.5 relative gpu"
-                style={{ paddingLeft: '14px' }}
+                className="tile !rounded-xl p-3.5 relative gpu hover-row"
               >
-                <div
-                  className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r"
-                  style={{
-                    background:
-                      inc.severity === 'critical' ? '#c5524d' :
-                      inc.severity === 'high'     ? '#c08a3e' :
-                      inc.severity === 'medium'   ? '#c08a3e' :
-                                                    '#3d7d65',
-                  }}
-                />
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <div className="flex items-center gap-2">
+                    <span className="status-dot" style={{ background: sevColor }} title={`Severity: ${inc.severity}`} />
                     <span className="font-mono text-[11px] text-[var(--color-ink-mute)]">#{inc.id}</span>
                     <StatusBadge status={inc.severity} />
                   </div>
@@ -692,13 +687,14 @@ export default function Dashboard() {
                   <StatusBadge status={inc.status} />
                 </div>
               </motion.div>
-            ))}
+              );
+            })}
             {recentIncidents.length === 0 && (
               <p className="text-center py-10 text-[var(--color-ink-mute)] text-[12px]">
                 No incidents in window.
               </p>
             )}
-          </motion.div>
+          </div>
         </GlassCard>
       </div>
     </motion.div>

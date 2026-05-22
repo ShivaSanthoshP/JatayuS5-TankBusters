@@ -12,6 +12,7 @@ import Portal from '../components/ui/Portal';
 import { usePolling, useApi } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { InfraNode, MetricSnapshot } from '../types';
+import { palette } from '../lib/theme';
 
 const NODE_ICONS: Record<string, React.ElementType> = {
   server: Server,
@@ -69,7 +70,7 @@ export default function Infrastructure() {
   const [typeSel, setTypeSel] = useState<Set<string>>(new Set());
   const [sourceSel, setSourceSel] = useState<Set<string>>(new Set());
 
-  if (loading && !nodes) return <Loader text="Loading infrastructure..." />;
+  if (loading && !nodes) return <Loader text="Loading infrastructure…" />;
 
   const all = nodes ?? [];
 
@@ -186,7 +187,7 @@ export default function Infrastructure() {
                 <button
                   onClick={(e) => { e.stopPropagation(); setLogsNode(node); }}
                   title="View recent log entries for this node"
-                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#13171a] text-[#7fb3a3] hover:bg-[#0e1112] hover:text-[#9fcab9] ring-1 ring-white/10 hover:ring-[#7fb3a3]/40 text-[10px] font-mono font-medium transition-all shrink-0"
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--color-term-bg-soft)] text-[var(--color-term-info)] hover:bg-[var(--color-term-bg)] hover:text-[var(--color-term-mint)] ring-1 ring-white/10 hover:ring-[var(--color-term-info)]/40 text-[10px] font-mono font-medium transition-colors shrink-0"
                 >
                   <Terminal size={11} />
                   <span>View Logs</span>
@@ -217,12 +218,12 @@ export default function Infrastructure() {
 }
 
 const LOG_LEVEL_COLORS: Record<string, string> = {
-  CRITICAL: 'text-[#e0726c]',
-  ERROR:    'text-[#e0726c]',
-  WARN:     'text-[#dba94f]',
-  WARNING:  'text-[#dba94f]',
-  INFO:     'text-[#7fb3a3]',
-  DEBUG:    'text-[#7fa3c4]',
+  CRITICAL: 'text-[var(--color-term-critical)]',
+  ERROR:    'text-[var(--color-term-critical)]',
+  WARN:     'text-[var(--color-term-warn)]',
+  WARNING:  'text-[var(--color-term-warn)]',
+  INFO:     'text-[var(--color-term-info)]',
+  DEBUG:    'text-[var(--color-term-debug)]',
 };
 
 function NodeLogsModal({ node, onClose }: { node: InfraNode; onClose: () => void }) {
@@ -253,28 +254,28 @@ function NodeLogsModal({ node, onClose }: { node: InfraNode; onClose: () => void
               <X size={18} className="text-ink-mute" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto bg-[#0e1112] font-mono text-[11px] leading-relaxed p-3 sm:p-4">
+          <div className="flex-1 overflow-y-auto bg-[var(--color-term-bg)] font-mono text-[11px] leading-relaxed p-3 sm:p-4">
             {loading && (
-              <div className="flex items-center gap-2 text-[#7fb3a3]">
+              <div className="flex items-center gap-2 text-[var(--color-term-info)]">
                 <Loader2 size={12} className="animate-spin" /> Fetching logs…
               </div>
             )}
             {!loading && (logs?.length ?? 0) === 0 && (
-              <div className="text-[#7fa3c4]/60 italic">
+              <div className="text-[var(--color-term-debug)]/60 italic">
                 No stored logs for this node yet.
                 {' '}This view shows lines captured by the data-source adapter (e.g. CloudWatch).
-                {' '}Simulator nodes stream live and don't persist into this store.
+                {' '}Simulator nodes stream live and don’t persist into this store.
               </div>
             )}
             {(logs ?? []).slice().reverse().map((l) => {
               const ts = l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : '--:--:--';
-              const color = LOG_LEVEL_COLORS[l.level?.toUpperCase()] || 'text-[#9aa6ab]';
+              const color = LOG_LEVEL_COLORS[l.level?.toUpperCase()] || 'text-[var(--color-term-ink-mute)]';
               return (
                 <div key={l.id} className="whitespace-pre-wrap break-words">
-                  <span className="text-[#5b6770]">{ts}</span>{' '}
+                  <span className="text-[var(--color-term-ink-faint)]">{ts}</span>{' '}
                   <span className={`${color} font-semibold`}>[{l.level}]</span>{' '}
-                  <span className="text-[#7fa3c4]">{l.source}</span>{' '}
-                  <span className="text-[#cfd6da]">{l.message}</span>
+                  <span className="text-[var(--color-term-debug)]">{l.source}</span>{' '}
+                  <span className="text-[var(--color-term-ink)]">{l.message}</span>
                 </div>
               );
             })}
@@ -304,11 +305,11 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
   // its chart; otherwise we skip it instead of plotting a misleading flat
   // line at 0 (e.g. EC2 has no app-level latency/error rate).
   const ALL_CHARTS: Array<{ key: 'cpu' | 'mem' | 'disk' | 'err' | 'lat'; label: string; color: string; field: string }> = [
-    { key: 'cpu',  label: 'CPU %',        color: '#244745', field: 'cpu_percent' },
-    { key: 'mem',  label: 'Memory %',     color: '#3a6f6a', field: 'memory_percent' },
-    { key: 'disk', label: 'Disk %',       color: '#3a5a7d', field: 'disk_percent' },
-    { key: 'err',  label: 'Error Rate %', color: '#c08a3e', field: 'error_rate' },
-    { key: 'lat',  label: 'Latency ms',   color: '#15191a', field: 'latency_ms' },
+    { key: 'cpu',  label: 'CPU %',        color: palette.accent,       field: 'cpu_percent' },
+    { key: 'mem',  label: 'Memory %',     color: palette.accentBright, field: 'memory_percent' },
+    { key: 'disk', label: 'Disk %',       color: palette.info,         field: 'disk_percent' },
+    { key: 'err',  label: 'Error Rate %', color: palette.warning,      field: 'error_rate' },
+    { key: 'lat',  label: 'Latency ms',   color: palette.ink,          field: 'latency_ms' },
   ];
   const measured = (node.metadata_?.measured_metrics as string[] | undefined);
   const CHARTS = measured && measured.length > 0
@@ -343,7 +344,7 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
 
         <StatusBadge status={node.status} pulse={node.status !== 'healthy'} />
 
-        {loading ? <Loader text="Loading metrics..." /> : (
+        {loading ? <Loader text="Loading metrics…" /> : (
           <div className="grid sm:grid-cols-2 gap-4">
             {CHARTS.map(ch => (
               <div key={ch.key} className="glass-sm p-3">

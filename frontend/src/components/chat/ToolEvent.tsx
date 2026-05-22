@@ -14,7 +14,7 @@ export default function ToolEvent({ inv }: { inv: ToolInvocation }) {
     <div className="inline-flex flex-col gap-1 max-w-full">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#13171a] text-[#9aa6ab] text-[11px] font-mono ring-1 ring-white/10 hover:bg-[#0e1112]"
+        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--color-term-bg-soft)] text-[var(--color-term-ink-mute)] text-[11px] font-mono ring-1 ring-white/10 hover:bg-[var(--color-term-bg)]"
       >
         <Wrench size={11} />
         <span>{inv.tool}</span>
@@ -22,7 +22,7 @@ export default function ToolEvent({ inv }: { inv: ToolInvocation }) {
         <ChevronDown size={10} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
       </button>
       {open && (
-        <pre className="text-[10px] bg-[#0e1112] text-[#cfd6da] p-2 rounded-md font-mono max-w-full overflow-x-auto">
+        <pre className="text-[10px] bg-[var(--color-term-bg)] text-[var(--color-term-ink)] p-2 rounded-md font-mono max-w-full overflow-x-auto">
 {JSON.stringify({ args: inv.args, status: inv.status, result: inv.result, error: inv.error }, null, 2)}
         </pre>
       )}

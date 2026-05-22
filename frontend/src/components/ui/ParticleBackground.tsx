@@ -83,19 +83,25 @@ export default function ParticleBackground() {
         if (!ctx) return;
 
         let particles: Particle[] = [];
-        let animationFrameId: number;
+        let animationFrameId = 0;
+        let running = false;
         let mouseX = -1000;
         let mouseY = -1000;
+
+        const reduceMq = window.matchMedia('(prefers-reduced-motion: reduce)');
 
         const resize = () => {
             // Use devicePixelRatio for retina display sharpness
             const dpr = window.devicePixelRatio || 1;
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(dpr, dpr);
             canvas.style.width = `${window.innerWidth}px`;
             canvas.style.height = `${window.innerHeight}px`;
             initParticles();
+            // When motion is reduced we still want the dust visible — just frozen.
+            if (reduceMq.matches) drawStaticFrame();
         };
 
         const initParticles = () => {
@@ -117,30 +123,55 @@ export default function ParticleBackground() {
             mouseY = -1000;
         };
 
-        const animate = () => {
-            // Clear canvas with a slightly transparent fill to create a microscopic trail effect
+        const drawStaticFrame = () => {
             ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            particles.forEach(p => p.draw(ctx));
+        };
 
+        const animate = () => {
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
             particles.forEach(p => {
                 p.update(window.innerWidth, window.innerHeight, mouseX, mouseY);
                 p.draw(ctx);
             });
-
             animationFrameId = requestAnimationFrame(animate);
+        };
+
+        const start = () => {
+            // Don't animate if the user prefers reduced motion or the tab is hidden.
+            if (running || reduceMq.matches || document.hidden) return;
+            running = true;
+            animate();
+        };
+
+        const stop = () => {
+            running = false;
+            cancelAnimationFrame(animationFrameId);
+        };
+
+        const onVisibility = () => { if (document.hidden) stop(); else start(); };
+
+        const onReduceChange = () => {
+            if (reduceMq.matches) { stop(); drawStaticFrame(); }
+            else start();
         };
 
         window.addEventListener('resize', resize);
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseleave', handleMouseLeave);
+        document.addEventListener('visibilitychange', onVisibility);
+        reduceMq.addEventListener('change', onReduceChange);
 
         resize();
-        animate();
+        start();
 
         return () => {
             window.removeEventListener('resize', resize);
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseleave', handleMouseLeave);
-            cancelAnimationFrame(animationFrameId);
+            document.removeEventListener('visibilitychange', onVisibility);
+            reduceMq.removeEventListener('change', onReduceChange);
+            stop();
         };
     }, []);
 
