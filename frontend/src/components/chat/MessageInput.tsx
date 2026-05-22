@@ -135,9 +135,9 @@ export default function MessageInput({
             aria-controls={open ? listId : undefined}
             aria-autocomplete="list"
             aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
-            className="w-full resize-none bg-transparent px-3 py-2.5 text-sm leading-6 text-ink
-              placeholder:text-ink-faint focus:outline-none disabled:opacity-60
-              min-h-[2.75rem] max-h-[200px] overflow-y-auto"
+            className="w-full resize-none border-0 bg-transparent px-3 py-2.5 text-sm leading-6
+              text-ink placeholder:text-ink-faint focus:outline-none focus:ring-0
+              disabled:opacity-60 min-h-[2.75rem] max-h-[200px] overflow-y-auto"
           />
 
           {/* Controls row — send button only (no attach / tools / mic). */}
