@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Activity, ArrowRight, BookOpen, Mail, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Activity, ArrowRight } from 'lucide-react';
 
 const VIDEO_SRC =
   'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_115001_bcdaa3b4-03de-47e7-ad63-ae3e392c32d4.mp4';
@@ -9,7 +9,6 @@ const FADE_MS = 500;
 const FADE_OUT_LEAD = 0.55; // seconds before end to start fading out
 
 export default function Landing() {
-  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
   const rafRef = useRef(0);
   const fadingOutRef = useRef(false);
@@ -74,11 +73,6 @@ export default function Landing() {
     };
   }, []);
 
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    navigate('/dashboard');
-  };
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-black">
       {/* Background video — JS-driven seamless fade loop, shifted down 17% */}
@@ -94,21 +88,20 @@ export default function Landing() {
         aria-hidden="true"
         tabIndex={-1}
       />
+      {/* Scrim — keeps the all-white text legible over bright video frames */}
+      <div aria-hidden className="absolute inset-0 z-0 bg-black/35" />
 
       <div className="relative z-10 flex min-h-screen flex-col">
-        {/* Nav — logo + single Launch app button (no tab links) */}
+        {/* Nav — full name (two lines), no links, no buttons */}
         <nav className="relative z-20 px-6 py-6">
           <div className="mx-auto flex max-w-5xl items-center justify-between rounded-full px-6 py-3">
-            <div className="flex items-center gap-2">
-              <Activity size={24} className="text-white" />
-              <span className="text-lg font-semibold text-white">ITOps</span>
+            <div className="flex items-center gap-2.5">
+              <Activity size={24} className="shrink-0 text-white" />
+              <div className="flex flex-col leading-[1.15] text-white">
+                <span className="text-sm font-semibold sm:text-[15px]">Dynamic IT</span>
+                <span className="text-sm font-semibold sm:text-[15px]">Operations Orchestrator</span>
+              </div>
             </div>
-            <Link
-              to="/dashboard"
-              className="cine-glass rounded-full px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-white/5"
-            >
-              Launch app
-            </Link>
           </div>
         </nav>
 
@@ -121,24 +114,15 @@ export default function Landing() {
             Ops that never sleeps
           </h1>
 
-          <div className="w-full max-w-xl space-y-4">
-            {/* Early-access bar */}
-            <form onSubmit={onSubmit} className="cine-glass flex items-center gap-3 rounded-full py-2 pl-6 pr-2">
-              <input
-                type="email"
-                required
-                placeholder="Enter your work email"
-                aria-label="Work email"
-                className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-white/40"
-              />
-              <button
-                type="submit"
-                aria-label="Get early access"
-                className="rounded-full bg-white p-3 text-black"
-              >
-                <ArrowRight size={20} />
-              </button>
-            </form>
+          <div className="w-full max-w-xl space-y-6">
+            {/* Launch app — moved here from the nav, slightly bigger */}
+            <Link
+              to="/dashboard"
+              className="cine-glass inline-flex items-center gap-2 rounded-full px-10 py-4 text-base font-medium text-white transition-colors hover:bg-white/5"
+            >
+              Launch app
+              <ArrowRight size={18} />
+            </Link>
 
             <p className="px-4 text-sm leading-relaxed text-white">
               Five autonomous agents watch your fleet, predict failures, and fix them
@@ -147,24 +131,11 @@ export default function Landing() {
 
             <Link
               to="/copilot"
-              className="cine-glass mx-auto inline-block rounded-full px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-white/5"
+              className="cine-glass inline-block rounded-full px-8 py-3 text-sm font-medium text-white transition-colors hover:bg-white/5"
             >
               Meet Argus
             </Link>
           </div>
-        </div>
-
-        {/* Social footer */}
-        <div className="relative z-10 flex justify-center gap-4 pb-12">
-          <a href="#" aria-label="Docs" className="cine-glass rounded-full p-4 text-white/80 transition-all hover:bg-white/5 hover:text-white">
-            <BookOpen size={20} />
-          </a>
-          <a href="#" aria-label="Live site" className="cine-glass rounded-full p-4 text-white/80 transition-all hover:bg-white/5 hover:text-white">
-            <Globe size={20} />
-          </a>
-          <a href="#" aria-label="Contact" className="cine-glass rounded-full p-4 text-white/80 transition-all hover:bg-white/5 hover:text-white">
-            <Mail size={20} />
-          </a>
         </div>
       </div>
     </div>
