@@ -28,7 +28,7 @@ export default function CopilotLauncher({ hidden = false }: CopilotLauncherProps
       transition={spring.smooth}
       whileHover={{ y: -2, scale: 1.03 }}
       whileTap={{ scale: 0.97 }}
-      className="argus-neon press-tactile fixed z-40 bottom-5 left-5 sm:bottom-6 sm:left-6
+      className="argus-neon press-tactile fixed z-40 bottom-5 right-5 sm:bottom-6 sm:right-6
         inline-flex items-center gap-2 rounded-full pl-3.5 pr-4 py-2.5
         font-display text-[13px] text-[var(--color-surface)]"
       style={{
