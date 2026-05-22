@@ -73,6 +73,7 @@
   --font-display: 'Instrument Serif', 'Times New Roman', Georgia, serif;
   --font-sans:    'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono:    'JetBrains Mono', 'IBM Plex Mono', ui-monospace, monospace;
+  --font-nokia:   'Nokia Cellphone FC Small', ui-monospace, monospace;
 }
 
 /* ───────────────────────────────────────────────────────────────────
@@ -970,6 +971,7 @@ textarea::placeholder {
   --lp-term-ink:    #d9d4c8;
   --lp-term-dim:    #767f76;
   --lp-term-green:  #7fb38a;
+  --lp-phone-ink:   #2a3616;  /* olive LCD ink for the phone-screen typing */
 
   background-color: var(--lp-bg);
   color: var(--lp-ink);
