@@ -18,7 +18,7 @@ const GlassNavbar: React.FC<GlassNavbarProps> = ({ children, className = '', con
   const padTop = 20 - condense * 8;       // 20 → 12
   const height = 64 - condense * 8;       // 64 → 56
   const scale = 1 - condense * 0.012;     // 1 → 0.988
-  const blur = 36 + condense * 12;        // 36 → 48
+  const blur = 42 + condense * 12;        // 42 → 54
 
   return (
     <div
