@@ -26,6 +26,9 @@ const mdComponents: Components = {
   ol: ({ node, ...props }) => <ol className="list-decimal ml-4 my-1 space-y-0.5" {...props} />,
   li: ({ node, ...props }) => <li className="leading-snug" {...props} />,
   p: ({ node, ...props }) => <p className="my-1 leading-relaxed first:mt-0 last:mb-0" {...props} />,
+  // Emphasised key terms (node names, statuses, metrics) — heavier weight so
+  // they're scannable against the body text.
+  strong: ({ node, ...props }) => <strong className="font-semibold text-ink" {...props} />,
   a: ({ node, ...props }) => (
     <a className="text-accent underline" target="_blank" rel="noopener noreferrer" {...props} />
   ),
