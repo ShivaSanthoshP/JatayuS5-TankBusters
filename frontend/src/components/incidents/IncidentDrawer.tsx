@@ -67,16 +67,22 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
-  // Lock body scroll while open + capture/restore focus.
+  // Lock page scroll while open + capture/restore focus. The actual scroll
+  // container in this app is <main> (overflow-y-auto in Layout.tsx), not
+  // <body> — so locking body alone leaves the page scrollable behind the
+  // drawer. Lock both to be safe.
   useEffect(() => {
     if (!isOpen) return;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
-    const prevOverflow = document.body.style.overflow;
+    const main = document.querySelector('main') as HTMLElement | null;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevMainOverflow = main?.style.overflow ?? '';
     document.body.style.overflow = 'hidden';
-    // Move focus to the close button so keyboard users land inside the drawer.
+    if (main) main.style.overflow = 'hidden';
     const t = window.setTimeout(() => closeBtnRef.current?.focus(), 60);
     return () => {
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      if (main) main.style.overflow = prevMainOverflow;
       window.clearTimeout(t);
       previouslyFocused.current?.focus?.();
     };
@@ -86,7 +92,8 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
     <AnimatePresence>
       {isOpen && incident && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop — starts below the navbar on desktop so the nav
+              stays visible and usable; full-overlay on mobile. */}
           <motion.div
             key="incident-drawer-backdrop"
             initial={{ opacity: 0 }}
@@ -94,11 +101,15 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
             onClick={onClose}
-            className="fixed inset-0 z-[60] bg-[rgba(21,25,26,0.32)] backdrop-blur-[2px]"
+            className="fixed left-0 right-0 bottom-0 z-[60]
+              top-0 sm:top-[88px]
+              bg-[rgba(21,25,26,0.28)] backdrop-blur-[2px]"
             aria-hidden
           />
 
-          {/* Panel */}
+          {/* Panel — flush to the right edge, starts below the navbar on
+              desktop with a rounded top-left so it reads as a panel, not
+              a takeover. */}
           <motion.div
             key="incident-drawer-panel"
             role="dialog"
@@ -108,10 +119,13 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
-            className="fixed top-0 right-0 bottom-0 z-[61]
+            className="fixed right-0 bottom-0 z-[61]
+              top-0 sm:top-[88px]
               w-full sm:w-[520px] md:w-[600px] lg:w-[640px]
               bg-[var(--color-surface)] border-l border-glass-border
               shadow-[-24px_0_60px_-20px_rgba(21,25,26,0.22)]
+              sm:rounded-tl-2xl
+              overflow-hidden
               flex flex-col"
           >
             {/* Header */}
@@ -173,8 +187,9 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
               Back to incidents
             </button>
 
-            {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto px-5 sm:px-6 pt-5 pb-10">
+            {/* Scrollable body — overscroll-contain stops the scroll
+                chain from continuing into the page below. */}
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pt-5 pb-10">
               <IncidentDetailBody
                 incident={incident}
                 remediation={remediation}
