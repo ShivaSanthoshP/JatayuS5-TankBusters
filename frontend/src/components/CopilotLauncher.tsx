@@ -34,7 +34,7 @@ export default function CopilotLauncher({ hidden = false }: CopilotLauncherProps
         onClick={() => navigate('/copilot')}
         whileHover={{ y: -2, scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
-        className="argus-neon press-tactile relative inline-flex items-center gap-2
+        className="press-tactile relative inline-flex items-center gap-2
           rounded-full pl-3.5 pr-4 py-2.5
           font-display text-[13px] text-[var(--color-surface)]"
         style={{

@@ -986,32 +986,6 @@ textarea::placeholder {
 @keyframes chat-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
 .chat-caret { animation: chat-blink 1.05s steps(1, end) infinite; }
 
-/* ───────────────────────────────────────────────────────────────────
-   ARGUS NEON RING — an electric-teal light circling the floating
-   launcher, inviting the user to open Argus. Halts under reduced-motion.
-   ─────────────────────────────────────────────────────────────────── */
-@property --argus-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
-@keyframes argus-spin { to { --argus-angle: 360deg; } }
-
-.argus-neon::before {
-  content: '';
-  position: absolute;
-  inset: -2.5px;
-  border-radius: 9999px;
-  padding: 2px;
-  background: conic-gradient(from var(--argus-angle),
-    transparent 0deg, #2fe6cf 38deg, #8ff5e6 66deg, #2fe6cf 96deg,
-    transparent 165deg, transparent 200deg,
-    #2fe6cf 268deg, #8ff5e6 296deg, #2fe6cf 326deg, transparent 360deg);
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  filter: drop-shadow(0 0 4px #2fe6cf) drop-shadow(0 0 11px rgba(47, 230, 207, 0.70));
-  animation: argus-spin 3.4s linear infinite;
-  pointer-events: none;
-}
-
 /* ARIIA-style breathing aura around the launcher: a soft halo that hugs
    the pill shape and breathes opacity, plus circular ping waves that
    emanate from the pill center. Layered behind the button via DOM order. */
