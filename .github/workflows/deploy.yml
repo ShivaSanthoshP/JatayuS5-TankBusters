@@ -123,6 +123,11 @@ jobs:
           pip install -q --upgrade pip
           pip install -q -r requirements.txt
 
+          # >>> ONE-TIME RUNBOOK SEED — REMOVE THIS BLOCK AFTER THIS DEPLOY <<<
+          echo "=== Seeding canonical runbooks (one-time) ==="
+          python -m scripts.seed_runbooks
+          # >>> END ONE-TIME RUNBOOK SEED <<<
+
           echo "=== Restarting backend service ==="
           sudo systemctl restart itops-backend
 
