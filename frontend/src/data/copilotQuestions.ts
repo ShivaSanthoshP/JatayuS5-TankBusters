@@ -138,6 +138,17 @@ export const COPILOT_QUESTIONS: BankQuestion[] = [
   { text: 'Summarize runbook {runbook}', category: 'Runbooks' },
   { text: 'Find a runbook for CPU saturation', category: 'Runbooks' },
   { text: 'Search runbooks for cache eviction', category: 'Runbooks' },
+  // Author new canonical runbooks — Argus drafts, you review & save in the form
+  { text: 'Create a runbook for {issue}', category: 'Runbooks' },
+  { text: 'Draft a runbook for {issue}', category: 'Runbooks' },
+  { text: 'Add a runbook for {issue}', category: 'Runbooks' },
+  { text: 'Author a runbook for {issue}', category: 'Runbooks' },
+  { text: 'Write a runbook for {issue} and let me review it', category: 'Runbooks' },
+  { text: 'Seed a new runbook for {issue}', category: 'Runbooks' },
+  { text: 'Create a runbook for Kafka consumer lag', category: 'Runbooks' },
+  { text: 'Create a runbook for SSL certificate expiry', category: 'Runbooks' },
+  { text: 'Draft a runbook for thread pool starvation', category: 'Runbooks' },
+  { text: 'Add a runbook for DNS resolution failures', category: 'Runbooks' },
 
   // ── Data sources ───────────────────────────────────────────────
   { text: 'List all data sources', category: 'Data sources' },
