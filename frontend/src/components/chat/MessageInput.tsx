@@ -61,7 +61,7 @@ export default function MessageInput({
       }
       return false;
     };
-    const onDown = (e: KeyboardEvent) => {
+    const onDown = (e: globalThis.KeyboardEvent) => {
       if (e.code !== 'Space' || e.repeat) return;
       if (isTypingElement(document.activeElement)) return;
       e.preventDefault();
@@ -72,7 +72,7 @@ export default function MessageInput({
         if (cancelHoldRef.current) voice.stop();
       })();
     };
-    const onUp = (e: KeyboardEvent) => {
+    const onUp = (e: globalThis.KeyboardEvent) => {
       if (e.code !== 'Space') return;
       cancelHoldRef.current = true;
       voice.stop();
