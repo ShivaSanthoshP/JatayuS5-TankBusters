@@ -18,7 +18,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  */
 
 const BAR_COUNT = 5;
-const BROKEN_FLAG_KEY = 'webspeech:broken';
 
 type Status = 'idle' | 'listening' | 'error';
 type PermissionStateLike = 'granted' | 'denied' | 'prompt' | 'unknown';
@@ -38,7 +37,8 @@ interface UseVoiceInput {
   interim: string;
   supported: boolean;
   /** True only if the API exists AND is believed to actually work here.
-   *  False in Firefox, Brave, and after a `network` failure this session. */
+   *  False in Firefox (no API) and in Brave (Google STT stripped). A transient
+   *  `network` error does NOT flip this — voice stays available to retry. */
   functional: boolean;
   permission: PermissionStateLike;
   error: string | null;
@@ -75,13 +75,6 @@ async function detectBrave(): Promise<boolean> {
   const nav = navigator as unknown as { brave?: { isBrave?: () => Promise<boolean> } };
   if (!nav.brave?.isBrave) return false;
   try { return await nav.brave.isBrave(); } catch { return false; }
-}
-
-function getBrokenFlag(): boolean {
-  try { return sessionStorage.getItem(BROKEN_FLAG_KEY) === '1'; } catch { return false; }
-}
-function setBrokenFlag(): void {
-  try { sessionStorage.setItem(BROKEN_FLAG_KEY, '1'); } catch { /* private mode */ }
 }
 
 /** Pick the highest-confidence alternative — beats blindly taking #1. */
@@ -173,7 +166,6 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
   const supported = !!getSRCtor();
   const [functional, setFunctional] = useState<boolean>(() => {
     if (!supported) return false;
-    if (getBrokenFlag()) return false;
     return true; // optimistic — Brave check below may flip this
   });
 
@@ -323,12 +315,12 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
       const err = String(e?.error ?? 'error');
       console.warn('[voice] recognition error:', err);
       setError(err);
-      // Brave / no-Google-services fingerprint: cache for the session and
-      // mark voice non-functional so the UI hides the mic from now on.
-      if (err === 'network') {
-        setBrokenFlag();
-        setFunctional(false);
-      }
+      // Errors here are transient — `network` (Google/Apple STT hiccup, common
+      // after a few rapid start/stop cycles), `no-speech`, `aborted`, etc. We
+      // do NOT touch `functional`: doing so would hide the mic for the whole
+      // session over one blip. onend fires next, returns status to idle, and
+      // the button stays put so the user can just try again. Brave (which has
+      // no real STT) is already caught up front by navigator.brave.isBrave().
     };
     rec.onend = () => {
       const trailing = interimTextRef.current.trim();
