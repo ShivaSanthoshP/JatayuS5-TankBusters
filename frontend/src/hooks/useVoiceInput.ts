@@ -39,6 +39,7 @@ interface SR {
   interimResults: boolean;
   continuous: boolean;
   maxAlternatives: number;
+  onstart: (() => void) | null;
   onresult: ((e: SREvent) => void) | null;
   onerror: ((e: { error?: string }) => void) | null;
   onend: (() => void) | null;
@@ -194,6 +195,7 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
     // Ask the engine for its top-3 hypotheses per chunk — `pickBest` then
     // chooses the highest-confidence one, which beats blindly taking #1.
     rec.maxAlternatives = 3;
+    rec.onstart = () => { console.warn('[voice] started'); };
     rec.onresult = (e: SREvent) => {
       let partial = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -215,6 +217,7 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
       const trailing = interimTextRef.current.trim();
       const raw = (finalTextRef.current + (trailing ? ' ' + trailing : '')).trim();
       const final = polish(raw);
+      console.warn('[voice] ended, transcript length =', final.length);
       if (final) onFinalRef.current(final);
       setInterim('');
       setStatus('idle');

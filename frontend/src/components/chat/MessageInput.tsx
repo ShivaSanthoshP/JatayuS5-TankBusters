@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { ArrowUp, Mic, Square } from 'lucide-react';
 import { useQuestionSuggestions } from '../../hooks/useQuestionSuggestions';
@@ -15,6 +15,12 @@ export default function MessageInput({
   // Esc / a pick close the dropdown until the user types again.
   const [dismissed, setDismissed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Push-to-talk needs the current draft (Space-while-input-focused should
+  // dictate when draft is empty, type a space otherwise) and a cancel flag for
+  // the race where the user releases Space before voice.start() resolves.
+  const draftRef = useRef('');
+  useEffect(() => { draftRef.current = draft; }, [draft]);
+  const cancelHoldRef = useRef(false);
 
   const baseId = useId();
   const listId = `${baseId}-list`;
@@ -33,6 +39,51 @@ export default function MessageInput({
     },
   });
   const isListening = voice.status === 'listening';
+
+  // ── Push-to-talk: hold Space to dictate, release to stop ───────────────
+  // Skips when the user is typing in any input/textarea/contenteditable, with
+  // one exception — our own chat input when it's empty (common right after
+  // sending a message, where the input keeps focus). preventDefault on the
+  // keydown suppresses both page scroll and the literal space character.
+  useEffect(() => {
+    if (!voice.supported || disabled) return;
+    const isTypingElement = (el: Element | null): boolean => {
+      if (!el || el === document.body) return false;
+      const tag = el.tagName;
+      if (tag === 'TEXTAREA') return true;
+      if ((el as HTMLElement).isContentEditable) return true;
+      if (tag === 'INPUT') {
+        // Allow PTT when our own chat input is focused but empty.
+        if (el === inputRef.current && draftRef.current.trim().length === 0) {
+          return false;
+        }
+        return true;
+      }
+      return false;
+    };
+    const onDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat) return;
+      if (isTypingElement(document.activeElement)) return;
+      e.preventDefault();
+      cancelHoldRef.current = false;
+      void (async () => {
+        await voice.start();
+        // User released Space before getUserMedia resolved — stop immediately.
+        if (cancelHoldRef.current) voice.stop();
+      })();
+    };
+    const onUp = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      cancelHoldRef.current = true;
+      voice.stop();
+    };
+    document.addEventListener('keydown', onDown);
+    document.addEventListener('keyup', onUp);
+    return () => {
+      document.removeEventListener('keydown', onDown);
+      document.removeEventListener('keyup', onUp);
+    };
+  }, [voice, disabled]);
 
   const open = !disabled && !isListening && !dismissed && suggestions.length > 0;
 
@@ -147,6 +198,9 @@ export default function MessageInput({
               <input
                 ref={inputRef}
                 type="text"
+                name="message"
+                id="argus-message"
+                autoComplete="off"
                 value={draft}
                 onChange={(e) => onChange(e.target.value)}
                 onKeyDown={onKey}
@@ -165,8 +219,8 @@ export default function MessageInput({
                 <button
                   type="button"
                   onClick={() => { void voice.start(); }}
-                  title="Speak"
-                  aria-label="Speak"
+                  title="Speak — or hold Space"
+                  aria-label="Speak (or hold the Space key to talk)"
                   className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
                     text-ink-mute hover:text-ink hover:bg-ink/5 transition-colors"
                 >
@@ -211,6 +265,16 @@ export default function MessageInput({
         {open && (
           <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
             ↑↓ or Tab to move · Enter to pick · Esc to dismiss
+          </div>
+        )}
+        {!open && isListening && (
+          <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
+            Listening… release <span className="font-mono text-ink-mute">Space</span> (or click stop) to insert
+          </div>
+        )}
+        {!open && !isListening && voice.supported && !disabled && (
+          <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
+            Hold <span className="font-mono text-ink-mute">Space</span> to talk · or click the mic
           </div>
         )}
       </div>
