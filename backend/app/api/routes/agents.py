@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db, SessionLocal
 from app.api.schemas import (
-    PipelineRunRequest, PipelineResult, AgentInfo, RunbookEntryOut,
+    PipelineRunRequest, PipelineResult, AgentInfo, RunbookEntryOut, RunbookWrite,
 )
 from app.agents.orchestrator import run_pipeline
 from app.services.infra_service import InfraService
@@ -382,21 +382,132 @@ def list_runbooks(limit: int = 2000, db: Session = Depends(get_db)):
     ]
 
 
-@router.delete("/runbooks/{runbook_id}")
-def delete_runbook(runbook_id: int, db: Session = Depends(get_db)):
-    """Delete a runbook record from the DB and the vector store.
+def _mirror_runbook(rb: RunbookEntry) -> None:
+    """Push a runbook into the vector store so RAG surfaces it (best-effort)."""
+    try:
+        from app.memory.vector_store import get_memory
+        get_memory().store_runbook(
+            runbook_id=rb.id,
+            title=rb.title,
+            problem_pattern=rb.problem_pattern,
+            solution_steps=rb.solution_steps,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Vector store push for runbook %d failed: %s", rb.id, exc)
 
-    Seeded runbooks (shipped with the system) can't be deleted — they get
-    re-seeded on next startup anyway. Only learned/auto-generated entries
-    are deletable.
-    """
+
+def _compose_solution_text(p: RunbookWrite) -> str:
+    """Build a readable solution_steps blob from the structured fields, so the
+    NOT-NULL column and the RAG document are populated when the admin leaves
+    the free-text field blank."""
+    parts: list[str] = []
+    if p.root_cause:
+        parts.append(f"Root cause: {p.root_cause}")
+    if p.causal_chain:
+        parts.append("Causal chain:\n  - " + "\n  - ".join(p.causal_chain))
+    if p.recommended_actions:
+        acts = "\n".join(
+            f"  {a.priority or i + 1}. {a.action}" + (f" — {a.description}" if a.description else "")
+            for i, a in enumerate(p.recommended_actions)
+        )
+        parts.append("Recommended actions:\n" + acts)
+    if p.remediation_steps:
+        steps = "\n".join(
+            f"  {s.order}. {s.action}" + (f": {s.description}" if s.description else "")
+            for s in p.remediation_steps
+        )
+        parts.append("Remediation steps:\n" + steps)
+    if p.remediation_summary:
+        parts.append(f"Plan summary: {p.remediation_summary}")
+    return "\n".join(parts).strip()
+
+
+def _normalize_issue_type(raw: str | None) -> str | None:
+    return (raw or "").strip() or None
+
+
+def _apply_runbook_payload(rb: RunbookEntry, p: RunbookWrite) -> None:
+    rb.title = p.title.strip()
+    rb.problem_pattern = p.problem_pattern.strip()
+    rb.issue_type = _normalize_issue_type(p.issue_type)
+    rb.root_cause = p.root_cause
+    rb.causal_chain = p.causal_chain or None
+    rb.blast_radius = p.blast_radius or None
+    rb.blast_radius_severity = p.blast_radius_severity
+    rb.recommended_actions = [a.model_dump() for a in p.recommended_actions] if p.recommended_actions else None
+    rb.remediation_summary = p.remediation_summary
+    rb.remediation_steps = [s.model_dump() for s in p.remediation_steps] if p.remediation_steps else None
+    rb.artifacts = [a.model_dump() for a in p.artifacts] if p.artifacts else None
+    # Keep the NOT-NULL solution_steps populated even when left blank.
+    rb.solution_steps = (p.solution_steps or "").strip() or _compose_solution_text(p) or rb.problem_pattern
+
+
+@router.post("/runbooks", response_model=RunbookEntryOut, status_code=201)
+def create_runbook(payload: RunbookWrite, db: Session = Depends(get_db)):
+    """Create an admin-authored canonical (seeded) runbook."""
+    if not payload.title.strip() or not payload.problem_pattern.strip():
+        raise HTTPException(status_code=422, detail="title and problem_pattern are required")
+    issue_type = _normalize_issue_type(payload.issue_type)
+    if issue_type:
+        clash = db.query(RunbookEntry).filter(RunbookEntry.issue_type == issue_type).first()
+        if clash:
+            raise HTTPException(
+                status_code=409,
+                detail=f"A runbook for issue_type '{issue_type}' already exists (#{clash.id}). Edit it instead.",
+            )
+    rb = RunbookEntry(is_seeded=True)
+    _apply_runbook_payload(rb, payload)
+    db.add(rb)
+    db.commit()
+    db.refresh(rb)
+    _mirror_runbook(rb)
+    return RunbookEntryOut.model_validate(rb)
+
+
+@router.put("/runbooks/{runbook_id}", response_model=RunbookEntryOut)
+def update_runbook(runbook_id: int, payload: RunbookWrite, db: Session = Depends(get_db)):
+    """Edit an existing runbook (seeded or learned)."""
     rb = db.query(RunbookEntry).filter(RunbookEntry.id == runbook_id).first()
     if not rb:
         raise HTTPException(status_code=404, detail="Runbook not found")
-    if rb.is_seeded:
+    if not payload.title.strip() or not payload.problem_pattern.strip():
+        raise HTTPException(status_code=422, detail="title and problem_pattern are required")
+    issue_type = _normalize_issue_type(payload.issue_type)
+    if issue_type:
+        clash = (
+            db.query(RunbookEntry)
+            .filter(RunbookEntry.issue_type == issue_type, RunbookEntry.id != runbook_id)
+            .first()
+        )
+        if clash:
+            raise HTTPException(
+                status_code=409,
+                detail=f"A runbook for issue_type '{issue_type}' already exists (#{clash.id}).",
+            )
+    _apply_runbook_payload(rb, payload)
+    db.commit()
+    db.refresh(rb)
+    _mirror_runbook(rb)
+    return RunbookEntryOut.model_validate(rb)
+
+
+@router.delete("/runbooks/{runbook_id}")
+def delete_runbook(runbook_id: int, db: Session = Depends(get_db)):
+    """Delete a runbook from the DB and the vector store.
+
+    The 8 built-in canonical runbooks are recreated by the startup seeder, so
+    deleting them is pointless — those are blocked. Admin-authored seeded
+    runbooks (custom issue_type) and learned ones are deletable.
+    """
+    from app.database.runbook_seed import ISSUE_PROFILES as _CANONICAL
+
+    rb = db.query(RunbookEntry).filter(RunbookEntry.id == runbook_id).first()
+    if not rb:
+        raise HTTPException(status_code=404, detail="Runbook not found")
+    if rb.issue_type and rb.issue_type in _CANONICAL:
         raise HTTPException(
             status_code=400,
-            detail="Seeded runbooks cannot be deleted — they get re-seeded on startup.",
+            detail="Built-in canonical runbooks are recreated on startup and can't be deleted. Edit it instead.",
         )
     db.delete(rb)
     db.commit()

@@ -188,6 +188,51 @@ export interface RunbookEntry {
   created_at: string | null;
 }
 
+/* ── Admin-authored runbook payloads (create + edit) ───────── */
+export interface RecommendedActionInput {
+  action: string;
+  type?: string | null;
+  priority?: number | null;
+  description?: string | null;
+}
+
+export interface RemediationStepInput {
+  order: number;
+  action: string;
+  action_type?: string | null;
+  description?: string | null;
+  script?: string | null;
+  rollback_script?: string | null;
+  risk_level?: string | null;
+  estimated_duration_seconds?: number | null;
+  validation_command?: string | null;
+}
+
+export interface RunbookArtifactInput {
+  id?: string | null;
+  name: string;
+  kind?: string | null;
+  language?: string | null;
+  purpose?: string | null;
+  description?: string | null;
+  content: string;
+}
+
+export interface RunbookWrite {
+  title: string;
+  issue_type?: string | null;
+  problem_pattern: string;
+  solution_steps?: string | null;
+  root_cause?: string | null;
+  causal_chain?: string[] | null;
+  blast_radius?: string[] | null;
+  blast_radius_severity?: string | null;
+  recommended_actions?: RecommendedActionInput[] | null;
+  remediation_summary?: string | null;
+  remediation_steps?: RemediationStepInput[] | null;
+  artifacts?: RunbookArtifactInput[] | null;
+}
+
 export interface DataSourceProvider {
   id: string;
   name: string;

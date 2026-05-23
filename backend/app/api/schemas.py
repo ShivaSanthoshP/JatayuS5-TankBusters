@@ -207,6 +207,55 @@ class RunbookEntryOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RecommendedActionIn(BaseModel):
+    action: str
+    type: str | None = None
+    priority: int | None = None
+    description: str | None = None
+
+
+class RemediationStepIn(BaseModel):
+    order: int
+    action: str
+    action_type: str | None = None
+    description: str | None = None
+    script: str | None = None
+    rollback_script: str | None = None
+    risk_level: str | None = "low"
+    estimated_duration_seconds: int | None = None
+    validation_command: str | None = None
+
+
+class RunbookArtifactIn(BaseModel):
+    id: str | None = None
+    name: str
+    kind: str | None = "shell"
+    language: str | None = "bash"
+    purpose: str | None = None
+    description: str | None = None
+    content: str
+
+
+class RunbookWrite(BaseModel):
+    """Payload for admin-authored canonical runbooks (create + update).
+
+    `solution_steps` is optional — when blank the server composes it from the
+    structured fields so the NOT-NULL column and RAG document are populated.
+    """
+    title: str
+    issue_type: str | None = None
+    problem_pattern: str
+    solution_steps: str | None = None
+    root_cause: str | None = None
+    causal_chain: list[str] | None = None
+    blast_radius: list[str] | None = None
+    blast_radius_severity: str | None = None
+    recommended_actions: list[RecommendedActionIn] | None = None
+    remediation_summary: str | None = None
+    remediation_steps: list[RemediationStepIn] | None = None
+    artifacts: list[RunbookArtifactIn] | None = None
+
+
 # ── Simulator ──────────────────────────────────────────────────────
 
 class SimulatorOut(BaseModel):

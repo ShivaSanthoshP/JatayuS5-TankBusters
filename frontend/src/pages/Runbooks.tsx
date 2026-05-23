@@ -2,10 +2,11 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Search, Hash, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  X, Wrench, Shield, FileText, Copy, Check, ExternalLink, Trash2,
+  X, Wrench, Shield, FileText, Copy, Check, ExternalLink, Trash2, Pencil, Plus,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import Loader from '../components/ui/Loader';
+import RunbookFormModal from '../components/runbooks/RunbookFormModal';
 import { usePolling } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { RunbookEntry } from '../types';
@@ -144,11 +145,13 @@ function RunbookCard({
   rb,
   isOpen,
   onToggle,
+  onEdit,
   onDelete,
 }: {
   rb: RunbookEntry;
   isOpen: boolean;
   onToggle: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 }) {
   const remediationSteps = (rb.remediation_steps ?? []) as Array<Record<string, unknown>>;
@@ -231,11 +234,20 @@ function RunbookCard({
           >
             {rb.times_used} {rb.times_used === 1 ? 'apply' : 'applies'}
           </span>
-          {!rb.is_seeded && onDelete && (
+          {onEdit && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className="p-1 rounded hover:bg-accent/10"
+              title="Edit this runbook"
+            >
+              <Pencil size={12} className="text-ink-mute hover:text-accent" />
+            </button>
+          )}
+          {onDelete && (
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(); }}
               className="p-1 rounded hover:bg-critical/10"
-              title="Delete this learned runbook"
+              title="Delete this runbook"
             >
               <Trash2 size={12} className="text-critical/70 hover:text-critical" />
             </button>
@@ -462,6 +474,13 @@ export default function Runbooks() {
   const [titleFilter, setTitleFilter] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
+  // Author / edit modal
+  const [formOpen, setFormOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<RunbookEntry | null>(null);
+  const openCreate = () => { setEditTarget(null); setFormOpen(true); };
+  const openEdit = (rb: RunbookEntry) => { setEditTarget(rb); setFormOpen(true); };
+  const closeForm = () => { setFormOpen(false); setEditTarget(null); };
+
   // Pagination
   const PAGE_SIZE = 50;
   const [rbPage, setRbPage] = useState(1);
@@ -566,16 +585,25 @@ export default function Runbooks() {
             Playbooks for known issues — seeded canonical runbooks plus learned ones from past resolved incidents.
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={handlePurge}
-            disabled={purging}
-            className="glass-sm rounded-lg px-3 py-1.5 text-xs text-ink-soft hover:bg-critical/10 hover:text-critical disabled:opacity-50 flex items-center gap-1.5"
-            title="Remove log entries emitted by iTOps itself (one-shot cleanup of the pre-fix feedback loop)"
-          >
-            <Trash2 size={12} />
-            {purging ? 'Purging…' : 'Purge self-emitted logs'}
-          </button>
+        <div className="flex flex-col items-end gap-1.5">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openCreate}
+              className="rounded-lg px-3 py-1.5 text-xs font-medium bg-accent text-white hover:bg-accent-bright flex items-center gap-1.5"
+              title="Author a new canonical runbook"
+            >
+              <Plus size={13} /> New runbook
+            </button>
+            <button
+              onClick={handlePurge}
+              disabled={purging}
+              className="glass-sm rounded-lg px-3 py-1.5 text-xs text-ink-soft hover:bg-critical/10 hover:text-critical disabled:opacity-50 flex items-center gap-1.5"
+              title="Remove log entries emitted by iTOps itself (one-shot cleanup of the pre-fix feedback loop)"
+            >
+              <Trash2 size={12} />
+              {purging ? 'Purging…' : 'Purge self-emitted logs'}
+            </button>
+          </div>
           {purgeMsg && (
             <span className="text-[10px] text-ink-faint">{purgeMsg}</span>
           )}
@@ -726,6 +754,7 @@ export default function Runbooks() {
               rb={rb}
               isOpen={expandedId === rb.id}
               onToggle={() => setExpandedId(expandedId === rb.id ? null : rb.id)}
+              onEdit={() => openEdit(rb)}
               onDelete={() => handleDelete(rb.id, rb.title)}
             />
           ))}
@@ -782,6 +811,14 @@ export default function Runbooks() {
           )}
         </div>
       </div>
+
+      {formOpen && (
+        <RunbookFormModal
+          initial={editTarget}
+          onClose={closeForm}
+          onSaved={refetch}
+        />
+      )}
     </motion.div>
   );
 }

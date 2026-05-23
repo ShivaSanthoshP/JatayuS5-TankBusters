@@ -68,6 +68,14 @@ export const runPipeline = (body: any) =>
 export const runPipelineAll = () =>
   requestWithTimeout<any>('/agents/pipeline/run-all', 120000, { method: 'POST' });
 export const getRunbooks = () => request<any[]>('/agents/runbooks');
+export const createRunbook = (body: import('../types').RunbookWrite) =>
+  request<import('../types').RunbookEntry>('/agents/runbooks', {
+    method: 'POST', body: JSON.stringify(body),
+  });
+export const updateRunbook = (id: number, body: import('../types').RunbookWrite) =>
+  request<import('../types').RunbookEntry>(`/agents/runbooks/${id}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  });
 export const deleteRunbook = (id: number) =>
   request<{ message: string; id: number }>(`/agents/runbooks/${id}`, { method: 'DELETE' });
 export const purgeSelfEmittedLogs = () =>
