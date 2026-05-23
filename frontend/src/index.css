@@ -376,43 +376,51 @@ button {
   color: var(--color-ink-soft);
 }
 
-/* "Pop" tab — the Argus entry, styled like a ButtonColorful CTA:
-   a dark zinc pill with a blurred indigo→purple→pink gradient glow
-   behind it. The glow is handled by .argus-tab-halo, breathing via
-   .argus-tab-glow keyframes; the pill itself stays static. */
+/* "Pop" tab — the Argus entry, styled as an Apple-Tahoe liquid-glass
+   pill. The pill itself is transparent; the .argus-tab-halo span is the
+   lens (backdrop-filter blur + SVG displacement + multi-layer reflex
+   shadows). Text floats above the lens. */
 .glass-nav-tab-pop {
-  color: #ffffff;
-  background: #18181b;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.10),
-    0 4px 14px -4px rgba(0, 0, 0, 0.45);
+  color: var(--color-ink);
+  background: transparent;
   transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glass-nav-tab-pop:hover:not(.glass-nav-tab-active) {
-  color: #ffffff;
+  color: var(--color-ink);
   transform: translateY(-1px);
 }
 
-/* Colorful breathing halo behind the Argus nav tab — indigo→purple→pink
-   gradient, blurred so the colors bleed into a soft glow around the
-   pill, opacity pulsing on a 2.4s rhythm. */
+/* Liquid-glass lens — the refracting "glass" surface behind the Argus
+   pill. Filter ID matches the one mounted in Layout.tsx. The very subtle
+   accent-tinted background tints the glass without overpowering the
+   refraction. Breathing rhythm preserved via the brightness pulse. */
 @keyframes argus-tab-glow {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 0.95; }
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(1.06); }
 }
 .argus-tab-halo {
   position: absolute;
-  inset: -1px;
+  inset: 0;
   border-radius: 9999px;
   pointer-events: none;
-  background: linear-gradient(to right, #6366f1, #a855f7, #ec4899);
-  filter: blur(6px);
+  z-index: 0;
+  background-color: rgba(36, 71, 69, 0.06);
+  backdrop-filter: blur(8px) url(#liquid-glass-nav) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 10%, transparent),
+    inset 1.5px 2px 0 -1.5px color-mix(in srgb, white 75%, transparent),
+    inset -1.5px -1.5px 0 -1.5px color-mix(in srgb, white 65%, transparent),
+    inset -2px -5px 1px -4px color-mix(in srgb, white 50%, transparent),
+    inset -0.3px -0.8px 3px 0 color-mix(in srgb, black 12%, transparent),
+    inset -1.2px 2px 0 -1.5px color-mix(in srgb, black 18%, transparent),
+    inset 0 2px 3px -1.5px color-mix(in srgb, black 18%, transparent),
+    inset 1.5px -4.5px 1px -3px color-mix(in srgb, black 10%, transparent),
+    0 1px 4px 0 color-mix(in srgb, black 8%, transparent),
+    0 4px 12px 0 color-mix(in srgb, black 6%, transparent);
   animation: argus-tab-glow 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  will-change: opacity;
-}
-.glass-nav-tab-pop:hover .argus-tab-halo {
-  filter: blur(8px);
+  will-change: filter;
 }
 
 /* Active-tab state — soft accent-tinted pill, not a competing CTA.

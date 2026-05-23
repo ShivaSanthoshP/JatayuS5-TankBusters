@@ -75,6 +75,24 @@ export default function Layout() {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden relative">
+      {/* Apple-Tahoe liquid-glass displacement filter — mounted once for
+          every glassy pill on the page (currently: the Argus nav tab). */}
+      <svg className="absolute w-0 h-0 overflow-hidden pointer-events-none" aria-hidden>
+        <filter id="liquid-glass-nav" primitiveUnits="objectBoundingBox">
+          <feImage
+            result="map"
+            width="100%"
+            height="100%"
+            x="0"
+            y="0"
+            href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'><radialGradient id='g' cx='.5' cy='.5' r='.6'><stop offset='0' stop-color='%23808080'/><stop offset='1' stop-color='%23ffffff'/></radialGradient><rect width='1' height='1' fill='url(%23g)'/></svg>"
+            preserveAspectRatio="none"
+          />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="0.01" result="blur" />
+          <feDisplacementMap in="blur" in2="map" scale="0.35" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </svg>
+
       <ParticleBackground />
 
       <GlassNavbar condense={condense} className="liquid-glass">
