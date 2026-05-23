@@ -1,8 +1,10 @@
 import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowUp, Square } from 'lucide-react';
+import { ArrowUp, Mic, Square } from 'lucide-react';
 import { useQuestionSuggestions } from '../../hooks/useQuestionSuggestions';
+import { useVoiceInput } from '../../hooks/useVoiceInput';
 import SuggestionList from './SuggestionList';
+import VoiceWave from './VoiceWave';
 
 export default function MessageInput({
   onSend, onStop, disabled,
@@ -19,7 +21,20 @@ export default function MessageInput({
   const optionId = (i: number) => `${baseId}-opt-${i}`;
 
   const suggestions = useQuestionSuggestions(draft);
-  const open = !disabled && !dismissed && suggestions.length > 0;
+
+  const voice = useVoiceInput({
+    lang: 'en-IN',
+    onFinal: (text) => {
+      // Final transcript drops into the textbox — user reviews & presses Enter.
+      setDraft(text);
+      setActiveIndex(-1);
+      setDismissed(true); // don't pop suggestions over a freshly-dictated draft
+      requestAnimationFrame(() => inputRef.current?.focus());
+    },
+  });
+  const isListening = voice.status === 'listening';
+
+  const open = !disabled && !isListening && !dismissed && suggestions.length > 0;
 
   const submit = () => {
     const text = draft.trim();
@@ -111,52 +126,85 @@ export default function MessageInput({
             ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(21,25,26,0.42)]
             transition-shadow focus-within:ring-accent/45"
         >
-          <input
-            ref={inputRef}
-            type="text"
-            value={draft}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={onKey}
-            placeholder="Ask Argus…"
-            disabled={disabled}
-            role="combobox"
-            aria-expanded={open}
-            aria-controls={open ? listId : undefined}
-            aria-autocomplete="list"
-            aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
-            className="chat-pill-input flex-1 min-w-0 py-1.5 text-sm text-ink
-              placeholder:text-ink-faint focus:outline-none disabled:opacity-60"
-          />
-
-          {disabled ? (
-            // Processing — spinning ring around a stop square; click to halt.
-            <button
-              type="button"
-              onClick={onStop}
-              title="Stop generating"
-              aria-label="Stop generating"
-              className="relative shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                bg-accent/10 hover:bg-accent/15 transition-colors"
-            >
-              <span
-                aria-hidden="true"
-                className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
-              />
-              <Square size={11} className="text-accent" fill="currentColor" />
-            </button>
+          {isListening ? (
+            <>
+              <div className="flex-1 min-w-0">
+                <VoiceWave bars={voice.bars} />
+              </div>
+              <button
+                type="button"
+                onClick={voice.stop}
+                title="Stop and insert transcript"
+                aria-label="Stop listening"
+                className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                  bg-accent text-[var(--color-surface)] transition-opacity"
+              >
+                <Square size={11} fill="currentColor" />
+              </button>
+            </>
           ) : (
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!draft.trim()}
-              title="Send"
-              aria-label="Send message"
-              className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                bg-accent text-[var(--color-surface)] transition-opacity
-                disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <ArrowUp size={18} strokeWidth={2.6} />
-            </button>
+            <>
+              <input
+                ref={inputRef}
+                type="text"
+                value={draft}
+                onChange={(e) => onChange(e.target.value)}
+                onKeyDown={onKey}
+                placeholder="Ask Argus…"
+                disabled={disabled}
+                role="combobox"
+                aria-expanded={open}
+                aria-controls={open ? listId : undefined}
+                aria-autocomplete="list"
+                aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
+                className="chat-pill-input flex-1 min-w-0 py-1.5 text-sm text-ink
+                  placeholder:text-ink-faint focus:outline-none disabled:opacity-60"
+              />
+
+              {!disabled && voice.supported && (
+                <button
+                  type="button"
+                  onClick={() => { void voice.start(); }}
+                  title="Speak"
+                  aria-label="Speak"
+                  className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                    text-ink-mute hover:text-ink hover:bg-ink/5 transition-colors"
+                >
+                  <Mic size={16} />
+                </button>
+              )}
+
+              {disabled ? (
+                // Processing — spinning ring around a stop square; click to halt.
+                <button
+                  type="button"
+                  onClick={onStop}
+                  title="Stop generating"
+                  aria-label="Stop generating"
+                  className="relative shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                    bg-accent/10 hover:bg-accent/15 transition-colors"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
+                  />
+                  <Square size={11} className="text-accent" fill="currentColor" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={!draft.trim()}
+                  title="Send"
+                  aria-label="Send message"
+                  className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                    bg-accent text-[var(--color-surface)] transition-opacity
+                    disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ArrowUp size={18} strokeWidth={2.6} />
+                </button>
+              )}
+            </>
           )}
         </label>
 
