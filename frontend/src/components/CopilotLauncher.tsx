@@ -25,8 +25,9 @@ export default function CopilotLauncher({ hidden = false }: CopilotLauncherProps
       transition={spring.smooth}
       className="fixed z-40 bottom-5 right-5 sm:bottom-6 sm:right-6 inline-flex items-center"
     >
-      <span aria-hidden className="argus-wave-ring" />
-      <span aria-hidden className="argus-wave-ring argus-wave-ring--delayed" />
+      <span aria-hidden className="argus-aura-halo" />
+      <span aria-hidden className="argus-aura-ping" />
+      <span aria-hidden className="argus-aura-ping argus-aura-ping--delayed" />
       <motion.button
         type="button"
         aria-label="Ask Argus"

@@ -994,30 +994,49 @@ textarea::placeholder {
   pointer-events: none;
 }
 
-/* Breathing radar wave — circular neon rings emanating outward from the
-   launcher's center. Two staggered rings keep emission continuous. */
-@keyframes argus-wave {
-  0%   { transform: translate(-50%, -50%) scale(0.55); opacity: 0.85; }
-  70%  { opacity: 0; }
-  100% { transform: translate(-50%, -50%) scale(3.4);  opacity: 0; }
+/* ARIIA-style breathing aura around the launcher: a soft halo that hugs
+   the pill shape and breathes opacity, plus circular ping waves that
+   emanate from the pill center. Layered behind the button via DOM order. */
+
+/* Soft halo following the pill silhouette */
+@keyframes argus-halo {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 0.65; }
 }
-.argus-wave-ring {
+.argus-aura-halo {
+  position: absolute;
+  inset: -5px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(47, 230, 207, 0.7), rgba(143, 245, 230, 0.7));
+  filter: blur(6px);
+  animation: argus-halo 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: opacity;
+}
+
+/* Circular ping wave radiating from the pill center */
+@keyframes argus-ping {
+  0%        { transform: scale(1);   opacity: 0.55; }
+  75%, 100% { transform: scale(4.2); opacity: 0; }
+}
+.argus-aura-ping {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 130px;
-  height: 130px;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  margin-top: -20px;
   border-radius: 50%;
   pointer-events: none;
-  transform: translate(-50%, -50%) scale(0.55);
-  box-shadow:
-    0 0 0 1.5px rgba(47, 230, 207, 0.75),
-    0 0 18px 3px rgba(47, 230, 207, 0.5),
-    inset 0 0 10px rgba(143, 245, 230, 0.35);
-  animation: argus-wave 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  background: radial-gradient(circle,
+    rgba(47, 230, 207, 0.85) 0%,
+    rgba(47, 230, 207, 0.55) 55%,
+    rgba(47, 230, 207, 0) 85%);
+  animation: argus-ping 1.9s cubic-bezier(0, 0, 0.2, 1) infinite;
   will-change: transform, opacity;
 }
-.argus-wave-ring--delayed { animation-delay: 1.3s; }
+.argus-aura-ping--delayed { animation-delay: 0.95s; }
 
 /* Reduced motion respect */
 @media (prefers-reduced-motion: reduce) {
