@@ -37,8 +37,10 @@ export default function CopilotLauncher({ hidden = false }: CopilotLauncherProps
           'inset 0 1px 0 rgba(255,255,255,0.28), 0 10px 28px -8px var(--color-accent-glow), 0 2px 8px -2px rgba(0,0,0,0.25)',
       }}
     >
-      <Wand2 size={16} className="shrink-0" />
-      <span className="whitespace-nowrap">Ask Argus</span>
+      <span aria-hidden className="argus-wave-ring" />
+      <span aria-hidden className="argus-wave-ring argus-wave-ring--delayed" />
+      <Wand2 size={16} className="relative shrink-0" />
+      <span className="relative whitespace-nowrap">Ask Argus</span>
     </motion.button>
   );
 }
