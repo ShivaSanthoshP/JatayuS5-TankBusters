@@ -35,7 +35,7 @@ const GlassTab: React.FC<GlassTabProps> = ({
         fullWidth ? 'block w-full' : '',
         // Argus (pop) gets a touch of extra breathing room to its right so
         // it reads as the headline CTA, not just another tab.
-        pop && !fullWidth ? 'mr-2' : '',
+        pop && !fullWidth ? 'mr-4' : '',
       ].filter(Boolean).join(' ') || undefined}
     >
       {({ isActive }) => (
