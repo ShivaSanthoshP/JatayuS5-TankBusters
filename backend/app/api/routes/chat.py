@@ -28,7 +28,7 @@ def _ensure_tools_registered() -> None:
         ListIncidentsTool, GetIncidentTool, GetDashboardOverviewTool,
     )
     from app.chat.tools.runbooks import (
-        ListRunbooksTool, SearchRunbooksTool, DeleteRunbookTool,
+        ListRunbooksTool, SearchRunbooksTool, DeleteRunbookTool, DraftRunbookTool,
     )
     from app.chat.tools.simulators import (
         ListSimulatorsTool, ControlSimulatorTool, DeleteSimulatorTool,
@@ -46,7 +46,7 @@ def _ensure_tools_registered() -> None:
     for cls in (
         ListNodesTool, GetNodeTool, GetNodeLogsTool, GetNodeMetricsTool,
         ListIncidentsTool, GetIncidentTool, GetDashboardOverviewTool,
-        ListRunbooksTool, SearchRunbooksTool, DeleteRunbookTool,
+        ListRunbooksTool, SearchRunbooksTool, DeleteRunbookTool, DraftRunbookTool,
         ListSimulatorsTool, ControlSimulatorTool, DeleteSimulatorTool,
         RunPipelineTool, RunPipelineBatchTool, ListRecentPipelineRunsTool,
         ListDataSourcesTool, DataSourceConnCheckTool,

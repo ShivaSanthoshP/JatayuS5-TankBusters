@@ -10,6 +10,7 @@ import GlassTab from './common/GlassTab';
 import PageTransition from './common/PageTransition';
 import ParticleBackground from './ui/ParticleBackground';
 import CopilotLauncher from './CopilotLauncher';
+import GlobalRunbookForm from './runbooks/GlobalRunbookForm';
 
 const NAV: { to: string; icon: LucideIcon; label: string; pop?: boolean }[] = [
   // Argus sits leftmost and is "popped" — the accent CTA of the nav.
@@ -200,6 +201,10 @@ export default function Layout() {
       {/* Floating chat-launcher — every page except Copilot itself and the
           Dashboard (which carries its own Copilot promo card) */}
       {!isCopilot && !isDashboard && <CopilotLauncher hidden={mobileOpen} />}
+
+      {/* One runbook form for the whole app — opened from the Runbooks page or
+          from an Argus chat draft. */}
+      <GlobalRunbookForm />
     </div>
   );
 }

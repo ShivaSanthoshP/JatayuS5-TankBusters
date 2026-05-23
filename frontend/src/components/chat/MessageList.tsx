@@ -7,6 +7,8 @@ import type { DisplayMessage } from '../../hooks/useChatStream';
 import ToolEvent from './ToolEvent';
 import ConfirmCard from './ConfirmCard';
 import TypingIndicator from './TypingIndicator';
+import RunbookDraftCard from './RunbookDraftCard';
+import type { RunbookDraftResult } from '../../types';
 
 // Markdown renderers styled for the chat bubble using itops theme tokens.
 // react-markdown does not render raw HTML by default, so model text is safe.
@@ -103,6 +105,11 @@ export default function MessageList({
               {m.tools.map((t) => <ToolEvent key={t.toolCallId} inv={t} />)}
             </div>
           )}
+          {m.role === 'assistant' && m.tools
+            .filter((t) => t.tool === 'draft_runbook' && t.status === 'ok' && t.result)
+            .map((t) => (
+              <RunbookDraftCard key={`draft-${t.toolCallId}`} result={t.result as RunbookDraftResult} />
+            ))}
           {m.role === 'assistant' && m.confirms.map((c) => (
             <ConfirmCard
               key={c.confirmationId}

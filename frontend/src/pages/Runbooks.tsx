@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import Loader from '../components/ui/Loader';
-import RunbookFormModal from '../components/runbooks/RunbookFormModal';
+import { runbookDraft, RUNBOOKS_CHANGED_EVENT } from '../hooks/useRunbookDraft';
 import { usePolling } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { RunbookEntry } from '../types';
@@ -474,12 +474,13 @@ export default function Runbooks() {
   const [titleFilter, setTitleFilter] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  // Author / edit modal
-  const [formOpen, setFormOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<RunbookEntry | null>(null);
-  const openCreate = () => { setEditTarget(null); setFormOpen(true); };
-  const openEdit = (rb: RunbookEntry) => { setEditTarget(rb); setFormOpen(true); };
-  const closeForm = () => { setFormOpen(false); setEditTarget(null); };
+  // The runbook form is a single global modal (mounted in Layout) so it can
+  // also be opened from an Argus chat draft. Refetch the list when it saves.
+  useEffect(() => {
+    const onChanged = () => refetch();
+    window.addEventListener(RUNBOOKS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(RUNBOOKS_CHANGED_EVENT, onChanged);
+  }, [refetch]);
 
   // Pagination
   const PAGE_SIZE = 50;
@@ -588,7 +589,7 @@ export default function Runbooks() {
         <div className="flex flex-col items-end gap-1.5">
           <div className="flex items-center gap-2">
             <button
-              onClick={openCreate}
+              onClick={() => runbookDraft.openCreate()}
               className="rounded-lg px-3 py-1.5 text-xs font-medium bg-accent text-white hover:bg-accent-bright flex items-center gap-1.5"
               title="Author a new canonical runbook"
             >
@@ -754,7 +755,7 @@ export default function Runbooks() {
               rb={rb}
               isOpen={expandedId === rb.id}
               onToggle={() => setExpandedId(expandedId === rb.id ? null : rb.id)}
-              onEdit={() => openEdit(rb)}
+              onEdit={() => runbookDraft.openEntry(rb)}
               onDelete={() => handleDelete(rb.id, rb.title)}
             />
           ))}
@@ -811,14 +812,6 @@ export default function Runbooks() {
           )}
         </div>
       </div>
-
-      {formOpen && (
-        <RunbookFormModal
-          initial={editTarget}
-          onClose={closeForm}
-          onSaved={refetch}
-        />
-      )}
     </motion.div>
   );
 }

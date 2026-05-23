@@ -233,6 +233,14 @@ export interface RunbookWrite {
   artifacts?: RunbookArtifactInput[] | null;
 }
 
+/** Result payload of the `draft_runbook` Argus chat tool. */
+export interface RunbookDraftResult {
+  draft: RunbookWrite;
+  issue_type_exists: boolean;
+  existing_runbook_id: number | null;
+  note: string;
+}
+
 export interface DataSourceProvider {
   id: string;
   name: string;

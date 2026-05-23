@@ -4,6 +4,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.chat.schemas import SafetyLevel, ToolInput, ToolOutput
+from app.api.schemas import RecommendedActionIn, RemediationStepIn, RunbookArtifactIn
 from app.database.models import RunbookEntry
 from app.memory.vector_store import get_memory
 
@@ -132,3 +133,67 @@ class DeleteRunbookTool:
             pass
         return DeleteRunbookOut(runbook_id=args.runbook_id, deleted=True,
                                 message=f"Deleted runbook #{args.runbook_id}")
+
+
+# ── draft_runbook (drafts only — no DB write) ───────────────────────
+
+class DraftRunbookIn(ToolInput):
+    title: str = ""
+    issue_type: str | None = None
+    problem_pattern: str = ""
+    root_cause: str | None = None
+    causal_chain: list[str] | None = None
+    blast_radius: list[str] | None = None
+    blast_radius_severity: str | None = None
+    recommended_actions: list[RecommendedActionIn] | None = None
+    remediation_summary: str | None = None
+    remediation_steps: list[RemediationStepIn] | None = None
+    artifacts: list[RunbookArtifactIn] | None = None
+
+
+class DraftRunbookOut(ToolOutput):
+    draft: dict
+    issue_type_exists: bool = False
+    existing_runbook_id: int | None = None
+    note: str
+
+
+class DraftRunbookTool:
+    name = "draft_runbook"
+    description = (
+        "Draft a NEW canonical runbook from the conversation for the human to review "
+        "and save — use when the user asks to create, add, author, or seed a runbook. "
+        "Fill in every field you reasonably can from the discussion and your SRE "
+        "knowledge: issue_type as lowercase_with_underscores, problem_pattern, "
+        "root_cause, causal_chain, blast_radius (+ severity), recommended_actions, "
+        "remediation_summary, remediation_steps (with shell scripts + validation), and "
+        "artifacts. This does NOT save anything — it opens a prefilled form the user "
+        "verifies, edits, and approves. Do not claim the runbook was created."
+    )
+    input_model = DraftRunbookIn
+    output_model = DraftRunbookOut
+    safety = SafetyLevel.SAFE
+
+    def preview(self, args):
+        return ""
+
+    def execute(self, args: DraftRunbookIn, *, db: Session, idempotency_key: str) -> DraftRunbookOut:
+        draft = args.model_dump()
+        issue_type = (args.issue_type or "").strip() or None
+        exists = False
+        existing_id: int | None = None
+        if issue_type:
+            row = db.query(RunbookEntry).filter(RunbookEntry.issue_type == issue_type).one_or_none()
+            if row is not None:
+                exists, existing_id = True, row.id
+
+        if exists:
+            note = (
+                f"A runbook for issue_type '{issue_type}' already exists (#{existing_id}). "
+                "Change the issue_type before saving, or edit the existing one instead."
+            )
+        else:
+            note = "Draft ready — opening a prefilled form for you to review, edit, and save."
+        return DraftRunbookOut(
+            draft=draft, issue_type_exists=exists, existing_runbook_id=existing_id, note=note,
+        )

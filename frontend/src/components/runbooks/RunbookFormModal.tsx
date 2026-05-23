@@ -15,14 +15,17 @@ const str = (v: unknown): string => (v == null ? '' : String(v));
 const num = (v: unknown): number | null =>
   v == null || v === '' || Number.isNaN(Number(v)) ? null : Number(v);
 
-function toActions(rows: Record<string, unknown>[] | null): RecommendedActionInput[] {
-  return (rows ?? []).map(r => ({
+const asRows = (v: unknown): Record<string, unknown>[] =>
+  Array.isArray(v) ? (v as Record<string, unknown>[]) : [];
+
+function toActions(rows: unknown): RecommendedActionInput[] {
+  return asRows(rows).map(r => ({
     action: str(r.action), type: str(r.type) || null,
     priority: num(r.priority), description: str(r.description) || null,
   }));
 }
-function toSteps(rows: Record<string, unknown>[] | null): RemediationStepInput[] {
-  return (rows ?? []).map((r, i) => ({
+function toSteps(rows: unknown): RemediationStepInput[] {
+  return asRows(rows).map((r, i) => ({
     order: num(r.order) ?? i + 1, action: str(r.action),
     action_type: str(r.action_type) || null, description: str(r.description) || null,
     script: str(r.script) || null, validation_command: str(r.validation_command) || null,
@@ -31,8 +34,8 @@ function toSteps(rows: Record<string, unknown>[] | null): RemediationStepInput[]
     estimated_duration_seconds: num(r.estimated_duration_seconds),
   }));
 }
-function toArtifacts(rows: Record<string, unknown>[] | null): RunbookArtifactInput[] {
-  return (rows ?? []).map(r => ({
+function toArtifacts(rows: unknown): RunbookArtifactInput[] {
+  return asRows(rows).map(r => ({
     id: str(r.id) || null, name: str(r.name), kind: str(r.kind) || 'shell',
     language: str(r.language) || 'bash', purpose: str(r.purpose) || 'apply',
     description: str(r.description) || null, content: str(r.content),
@@ -94,25 +97,30 @@ function StringList({
 }
 
 interface Props {
+  /** Editing an existing runbook (has an id) — submits via PUT. */
   initial?: RunbookEntry | null;
+  /** Prefill for a new runbook (e.g. an Argus draft) — submits via POST. */
+  prefill?: RunbookWrite | null;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export default function RunbookFormModal({ initial, onClose, onSaved }: Props) {
+export default function RunbookFormModal({ initial, prefill, onClose, onSaved }: Props) {
   const editing = !!initial;
-  const [title, setTitle] = useState(str(initial?.title));
-  const [issueType, setIssueType] = useState(str(initial?.issue_type));
-  const [problemPattern, setProblemPattern] = useState(str(initial?.problem_pattern));
-  const [rootCause, setRootCause] = useState(str(initial?.root_cause));
-  const [causalChain, setCausalChain] = useState<string[]>(initial?.causal_chain ?? []);
-  const [blastRadius, setBlastRadius] = useState<string[]>(initial?.blast_radius ?? []);
-  const [severity, setSeverity] = useState(str(initial?.blast_radius_severity));
-  const [actions, setActions] = useState<RecommendedActionInput[]>(toActions(initial?.recommended_actions ?? null));
-  const [summary, setSummary] = useState(str(initial?.remediation_summary));
-  const [steps, setSteps] = useState<RemediationStepInput[]>(toSteps(initial?.remediation_steps ?? null));
-  const [artifacts, setArtifacts] = useState<RunbookArtifactInput[]>(toArtifacts(initial?.artifacts ?? null));
-  const [solutionSteps, setSolutionSteps] = useState(str(initial?.solution_steps));
+  // Edit an existing entry, or prefill a new one from a draft — both share field names.
+  const src = initial ?? prefill ?? null;
+  const [title, setTitle] = useState(str(src?.title));
+  const [issueType, setIssueType] = useState(str(src?.issue_type));
+  const [problemPattern, setProblemPattern] = useState(str(src?.problem_pattern));
+  const [rootCause, setRootCause] = useState(str(src?.root_cause));
+  const [causalChain, setCausalChain] = useState<string[]>(src?.causal_chain ?? []);
+  const [blastRadius, setBlastRadius] = useState<string[]>(src?.blast_radius ?? []);
+  const [severity, setSeverity] = useState(str(src?.blast_radius_severity));
+  const [actions, setActions] = useState<RecommendedActionInput[]>(toActions(src?.recommended_actions));
+  const [summary, setSummary] = useState(str(src?.remediation_summary));
+  const [steps, setSteps] = useState<RemediationStepInput[]>(toSteps(src?.remediation_steps));
+  const [artifacts, setArtifacts] = useState<RunbookArtifactInput[]>(toArtifacts(src?.artifacts));
+  const [solutionSteps, setSolutionSteps] = useState(str(src?.solution_steps));
   const [showSolution, setShowSolution] = useState(false);
 
   const [saving, setSaving] = useState(false);
