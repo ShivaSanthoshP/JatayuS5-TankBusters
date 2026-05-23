@@ -57,6 +57,8 @@ export default function Incidents() {
     if (currentPage > totalPages) setCurrentPage(1);
   }, [totalPages, currentPage]);
 
+  const drawerOpen = openIncident !== null;
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <div>
@@ -68,50 +70,70 @@ export default function Incidents() {
         </p>
       </div>
 
-      {/* ── Incident list ─────────────────────────────────────── */}
-      <div className="space-y-3">
+      {/* ── Incident list. When the drawer is open we narrow the list's
+          right margin so rows don't sit under the panel; the panel is
+          flush-right at ~520–620px wide on sm+. */}
+      <div
+        className={`space-y-3 transition-[margin] duration-300 ease-out
+          ${drawerOpen ? 'sm:mr-[520px] md:mr-[580px] lg:mr-[620px]' : ''}`}
+      >
         <AnimatePresence>
-          {paginatedIncidents.map((inc) => (
-            <motion.button
-              key={inc.id}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              type="button"
-              onClick={() => openDrawer(inc.id)}
-              aria-label={`Open incident ${inc.id}: ${inc.title}`}
-              className={`glass overflow-hidden transition-colors w-full text-left
-                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40
-                ${inc.severity === 'critical' ? 'border-critical/25 glow-red' : ''}`}
-            >
-              <div className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 hover-row">
-                <span className="text-xs sm:text-sm font-mono text-ink-faint w-8 sm:w-12 shrink-0">
-                  #{inc.id}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-ink truncate">{inc.title}</p>
-                  <p className="text-[11px] sm:text-xs text-ink-faint mt-0.5 truncate">
-                    {inc.node_name}
-                    {inc.detected_at && (
-                      <>
-                        {' · '}
-                        {new Date(inc.detected_at).toLocaleString()}
-                      </>
-                    )}
-                  </p>
+          {paginatedIncidents.map((inc) => {
+            const isActive = openIncident?.id === inc.id;
+            return (
+              <motion.button
+                key={inc.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                type="button"
+                onClick={() => openDrawer(inc.id)}
+                aria-label={`Open incident ${inc.id}: ${inc.title}`}
+                aria-current={isActive ? 'true' : undefined}
+                className={`glass overflow-hidden transition-colors w-full text-left relative
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40
+                  ${inc.severity === 'critical' ? 'border-critical/25 glow-red' : ''}
+                  ${isActive ? 'bg-accent/[0.04] border-accent/30' : ''}`}
+              >
+                {/* Active rail — present only when this row's incident is
+                    the one shown in the drawer. */}
+                {isActive && (
+                  <span
+                    aria-hidden
+                    className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-accent"
+                  />
+                )}
+                <div className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 hover-row">
+                  <span className="text-xs sm:text-sm font-mono text-ink-faint w-8 sm:w-12 shrink-0">
+                    #{inc.id}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm truncate ${isActive ? 'text-ink font-medium' : 'text-ink'}`}>
+                      {inc.title}
+                    </p>
+                    <p className="text-[11px] sm:text-xs text-ink-faint mt-0.5 truncate">
+                      {inc.node_name}
+                      {inc.detected_at && (
+                        <>
+                          {' · '}
+                          {new Date(inc.detected_at).toLocaleString()}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-2 shrink-0">
+                    <StatusBadge status={inc.severity} />
+                    <StatusBadge status={inc.status} />
+                  </div>
+                  <div className="flex sm:hidden shrink-0">
+                    <StatusBadge status={inc.severity} />
+                  </div>
+                  <RowChevron size={16} className="text-ink-faint shrink-0" />
                 </div>
-                <div className="hidden sm:flex items-center gap-2 shrink-0">
-                  <StatusBadge status={inc.severity} />
-                  <StatusBadge status={inc.status} />
-                </div>
-                <div className="flex sm:hidden shrink-0">
-                  <StatusBadge status={inc.severity} />
-                </div>
-                <RowChevron size={16} className="text-ink-faint shrink-0" />
-              </div>
-            </motion.button>
-          ))}
+              </motion.button>
+            );
+          })}
         </AnimatePresence>
 
         {incidentList.length === 0 && (

@@ -12,10 +12,10 @@ interface IncidentDrawerProps {
 }
 
 /**
- * Slide-over drawer for one incident. Opens from the right on desktop and
- * fills the screen on mobile. Owns the remediation fetch for the open
- * incident; the parent page only hands in the incident object + close
- * callback. Esc and backdrop click both close.
+ * Slide-over drawer for one incident, Linear/Stripe pattern: opens from
+ * the right, the list stays visible and clickable behind it (no heavy
+ * backdrop on desktop), so SREs can swap incidents without closing.
+ * Full-screen on mobile with a light backdrop for tap-out.
  */
 export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProps) {
   const isOpen = incident !== null;
@@ -67,22 +67,15 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, onClose]);
 
-  // Lock page scroll while open + capture/restore focus. The actual scroll
-  // container in this app is <main> (overflow-y-auto in Layout.tsx), not
-  // <body> — so locking body alone leaves the page scrollable behind the
-  // drawer. Lock both to be safe.
+  // Focus the close button on open + restore focus on close. The page
+  // scroll is *not* locked — the list behind the drawer should stay
+  // scrollable so the user can browse and swap. The drawer body itself
+  // carries overscroll-contain so its own scroll doesn't chain out.
   useEffect(() => {
     if (!isOpen) return;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
-    const main = document.querySelector('main') as HTMLElement | null;
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevMainOverflow = main?.style.overflow ?? '';
-    document.body.style.overflow = 'hidden';
-    if (main) main.style.overflow = 'hidden';
     const t = window.setTimeout(() => closeBtnRef.current?.focus(), 60);
     return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      if (main) main.style.overflow = prevMainOverflow;
       window.clearTimeout(t);
       previouslyFocused.current?.focus?.();
     };
@@ -92,8 +85,9 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
     <AnimatePresence>
       {isOpen && incident && (
         <>
-          {/* Backdrop — starts below the navbar on desktop so the nav
-              stays visible and usable; full-overlay on mobile. */}
+          {/* Mobile-only backdrop — drawer is full-screen on mobile so
+              the dimmed area is the tap-to-close target. On sm+ there's
+              no backdrop; the list stays bright and interactive. */}
           <motion.div
             key="incident-drawer-backdrop"
             initial={{ opacity: 0 }}
@@ -101,19 +95,16 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
             onClick={onClose}
-            className="fixed left-0 right-0 bottom-0 z-[60]
-              top-0 sm:top-[88px]
-              bg-[rgba(21,25,26,0.28)] backdrop-blur-[2px]"
+            className="sm:hidden fixed inset-0 z-[60]
+              bg-[rgba(21,25,26,0.32)] backdrop-blur-[2px]"
             aria-hidden
           />
 
-          {/* Panel — flush to the right edge, starts below the navbar on
-              desktop with a rounded top-left so it reads as a panel, not
-              a takeover. */}
+          {/* Panel */}
           <motion.div
             key="incident-drawer-panel"
             role="dialog"
-            aria-modal="true"
+            aria-modal={false}
             aria-labelledby={titleId}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
@@ -121,58 +112,53 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
             transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
             className="fixed right-0 bottom-0 z-[61]
               top-0 sm:top-[88px]
-              w-full sm:w-[520px] md:w-[600px] lg:w-[640px]
+              w-full sm:w-[520px] md:w-[580px] lg:w-[620px]
               bg-[var(--color-surface)] border-l border-glass-border
-              shadow-[-24px_0_60px_-20px_rgba(21,25,26,0.22)]
+              shadow-[-24px_0_60px_-20px_rgba(21,25,26,0.18)]
               sm:rounded-tl-2xl
               overflow-hidden
               flex flex-col"
           >
-            {/* Header */}
-            <header
-              className="shrink-0 px-5 sm:px-6 pt-5 pb-4
-                border-b border-glass-border
-                bg-[var(--color-surface)]"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-[11px] font-mono text-ink-faint">
-                      #{incident.id}
-                    </span>
-                    <StatusBadge status={incident.severity} />
-                    <StatusBadge status={incident.status} />
-                  </div>
-                  <h2
-                    id={titleId}
-                    className="font-display text-[17px] sm:text-[19px] text-ink leading-snug"
-                  >
-                    {incident.title}
-                  </h2>
-                  <p className="text-[11px] sm:text-xs text-ink-faint mt-1.5">
-                    {incident.node_name}
-                    {incident.detected_at && (
-                      <>
-                        <span className="mx-1.5">·</span>
-                        {new Date(incident.detected_at).toLocaleString()}
-                      </>
-                    )}
-                  </p>
-                </div>
+            {/* Close button — its own row, top-right. Keeps the title
+                row free of competing controls. */}
+            <div className="shrink-0 flex justify-end px-3 pt-3">
+              <button
+                ref={closeBtnRef}
+                type="button"
+                onClick={onClose}
+                aria-label="Close incident detail"
+                className="inline-flex items-center justify-center
+                  w-9 h-9 rounded-full text-ink-mute
+                  hover:text-ink hover:bg-canvas-soft
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40
+                  transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-                <button
-                  ref={closeBtnRef}
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Close incident detail"
-                  className="shrink-0 -mr-1 -mt-1 inline-flex items-center justify-center
-                    w-9 h-9 rounded-full text-ink-mute
-                    hover:text-ink hover:bg-canvas-soft
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40
-                    transition-colors"
-                >
-                  <X size={18} />
-                </button>
+            {/* Header — title gets the full line, badges + meta sit in
+                a quiet row below. */}
+            <header className="shrink-0 px-5 sm:px-7 pb-5 border-b border-glass-border">
+              <h2
+                id={titleId}
+                className="font-display text-[22px] sm:text-[24px] leading-tight text-ink"
+              >
+                {incident.title}
+              </h2>
+              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[11px] sm:text-xs text-ink-faint">
+                <span className="font-mono text-ink-mute">#{incident.id}</span>
+                <span className="text-ink-faint/60">·</span>
+                <StatusBadge status={incident.severity} />
+                <StatusBadge status={incident.status} />
+                <span className="text-ink-faint/60">·</span>
+                <span>{incident.node_name}</span>
+                {incident.detected_at && (
+                  <>
+                    <span className="text-ink-faint/60">·</span>
+                    <span>{new Date(incident.detected_at).toLocaleString()}</span>
+                  </>
+                )}
               </div>
             </header>
 
@@ -189,7 +175,7 @@ export default function IncidentDrawer({ incident, onClose }: IncidentDrawerProp
 
             {/* Scrollable body — overscroll-contain stops the scroll
                 chain from continuing into the page below. */}
-            <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-6 pt-5 pb-10">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 sm:px-7 pt-6 pb-10">
               <IncidentDetailBody
                 incident={incident}
                 remediation={remediation}
