@@ -30,8 +30,11 @@ export default function MessageInput({
 
   const voice = useVoiceInput({
     lang: 'en-IN',
+    // Word-by-word streaming: each partial result flows straight into the
+    // textbox (which is read-only while listening, so it can't fight back).
+    onTranscript: (text) => { setDraft(text); },
     onFinal: (text) => {
-      // Final transcript drops into the textbox — user reviews & presses Enter.
+      // Final polished transcript lands in the textbox — user reviews & Enter.
       setDraft(text);
       setActiveIndex(-1);
       setDismissed(true); // don't pop suggestions over a freshly-dictated draft
@@ -46,7 +49,7 @@ export default function MessageInput({
   // sending a message, where the input keeps focus). preventDefault on the
   // keydown suppresses both page scroll and the literal space character.
   useEffect(() => {
-    if (!voice.supported || disabled) return;
+    if (!voice.functional || disabled) return;
     const isTypingElement = (el: Element | null): boolean => {
       if (!el || el === document.body) return false;
       const tag = el.tagName;
@@ -177,102 +180,105 @@ export default function MessageInput({
             ring-1 ring-hairline-strong/70 shadow-[0_10px_34px_-14px_rgba(21,25,26,0.42)]
             transition-shadow focus-within:ring-accent/45"
         >
+          <input
+            ref={inputRef}
+            type="text"
+            name="message"
+            id="argus-message"
+            autoComplete="off"
+            value={draft}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={onKey}
+            placeholder={isListening ? 'Listening…' : 'Ask Argus…'}
+            disabled={disabled}
+            readOnly={isListening}
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={open ? listId : undefined}
+            aria-autocomplete="list"
+            aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
+            className="chat-pill-input flex-1 min-w-0 py-1.5 text-sm text-ink
+              placeholder:text-ink-faint focus:outline-none disabled:opacity-60"
+          />
+
+          {/* Inline wave confirms the mic is live while words stream in. */}
+          {isListening && <VoiceWave bars={voice.bars} compact />}
+
+          {/* Mic — only when idle, usable here, mic not blocked, not generating. */}
+          {!isListening && !disabled && voice.functional && voice.permission !== 'denied' && (
+            <button
+              type="button"
+              onClick={() => { void voice.start(); }}
+              title="Speak — or hold Space"
+              aria-label="Speak (or hold the Space key to talk)"
+              className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                text-ink-mute hover:text-ink hover:bg-ink/5 transition-colors"
+            >
+              <Mic size={16} />
+            </button>
+          )}
+
+          {/* Right action: stop-listening · stop-generating · send. */}
           {isListening ? (
-            <>
-              <div className="flex-1 min-w-0">
-                <VoiceWave bars={voice.bars} />
-              </div>
-              <button
-                type="button"
-                onClick={voice.stop}
-                title="Stop and insert transcript"
-                aria-label="Stop listening"
-                className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                  bg-accent text-[var(--color-surface)] transition-opacity"
-              >
-                <Square size={11} fill="currentColor" />
-              </button>
-            </>
-          ) : (
-            <>
-              <input
-                ref={inputRef}
-                type="text"
-                name="message"
-                id="argus-message"
-                autoComplete="off"
-                value={draft}
-                onChange={(e) => onChange(e.target.value)}
-                onKeyDown={onKey}
-                placeholder="Ask Argus…"
-                disabled={disabled}
-                role="combobox"
-                aria-expanded={open}
-                aria-controls={open ? listId : undefined}
-                aria-autocomplete="list"
-                aria-activedescendant={open && activeIndex >= 0 ? optionId(activeIndex) : undefined}
-                className="chat-pill-input flex-1 min-w-0 py-1.5 text-sm text-ink
-                  placeholder:text-ink-faint focus:outline-none disabled:opacity-60"
+            <button
+              type="button"
+              onClick={voice.stop}
+              title="Stop and insert transcript"
+              aria-label="Stop listening"
+              className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                bg-accent text-[var(--color-surface)] transition-opacity"
+            >
+              <Square size={11} fill="currentColor" />
+            </button>
+          ) : disabled ? (
+            // Processing — spinning ring around a stop square; click to halt.
+            <button
+              type="button"
+              onClick={onStop}
+              title="Stop generating"
+              aria-label="Stop generating"
+              className="relative shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                bg-accent/10 hover:bg-accent/15 transition-colors"
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
               />
-
-              {!disabled && voice.supported && (
-                <button
-                  type="button"
-                  onClick={() => { void voice.start(); }}
-                  title="Speak — or hold Space"
-                  aria-label="Speak (or hold the Space key to talk)"
-                  className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                    text-ink-mute hover:text-ink hover:bg-ink/5 transition-colors"
-                >
-                  <Mic size={16} />
-                </button>
-              )}
-
-              {disabled ? (
-                // Processing — spinning ring around a stop square; click to halt.
-                <button
-                  type="button"
-                  onClick={onStop}
-                  title="Stop generating"
-                  aria-label="Stop generating"
-                  className="relative shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                    bg-accent/10 hover:bg-accent/15 transition-colors"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-0 rounded-full border-2 border-accent/25 border-t-accent animate-spin"
-                  />
-                  <Square size={11} className="text-accent" fill="currentColor" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={submit}
-                  disabled={!draft.trim()}
-                  title="Send"
-                  aria-label="Send message"
-                  className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
-                    bg-accent text-[var(--color-surface)] transition-opacity
-                    disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  <ArrowUp size={18} strokeWidth={2.6} />
-                </button>
-              )}
-            </>
+              <Square size={11} className="text-accent" fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!draft.trim()}
+              title="Send"
+              aria-label="Send message"
+              className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center
+                bg-accent text-[var(--color-surface)] transition-opacity
+                disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ArrowUp size={18} strokeWidth={2.6} />
+            </button>
           )}
         </label>
 
-        {open && (
+        {open ? (
           <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
             ↑↓ or Tab to move · Enter to pick · Esc to dismiss
           </div>
-        )}
-        {!open && isListening && (
+        ) : isListening ? (
           <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
             Listening… release <span className="font-mono text-ink-mute">Space</span> (or click stop) to insert
           </div>
-        )}
-        {!open && !isListening && voice.supported && !disabled && (
+        ) : disabled ? null : !voice.functional ? (
+          <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
+            Voice input isn't available in this browser. Try Chrome, Edge, or Safari.
+          </div>
+        ) : voice.permission === 'denied' ? (
+          <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
+            Microphone blocked — enable it in your browser settings to use voice.
+          </div>
+        ) : (
           <div className="px-4 pt-1.5 hidden sm:block text-[10px] text-ink-faint">
             Hold <span className="font-mono text-ink-mute">Space</span> to talk · or click the mic
           </div>

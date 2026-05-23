@@ -1,36 +1,52 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
- * Push-to-talk speech-to-text via the browser's Web Speech API, with a live
- * audio-level meter driven by a separate WebAudio analyser. The hook delivers
- * the final transcript exactly once (when the user stops) via `onFinal`.
- * Locale defaults to `en-IN` so the recognizer biases toward Indian English.
+ * Push-to-talk speech-to-text via the browser's Web Speech API.
  *
- * The Web Speech API has uneven cross-browser support — `supported` is `false`
- * when the constructor is missing (notably Firefox) so the caller can disable
- * the mic UI gracefully.
+ * Surfaces:
+ * - A live audio-level meter (5 bars from an FFT analyser) so the UI can
+ *   show a waveform while listening.
+ * - A rolling `transcript` string — committed finals + the current interim —
+ *   updated on every partial result so consumers can mirror it into a
+ *   textbox in real time, ChatGPT-style.
+ * - `functional` reports whether the API is actually usable in this browser.
+ *   False in Firefox (no API) and in Brave (API present but Google STT is
+ *   stripped, so it returns `network` immediately). The UI degrades cleanly
+ *   instead of silently failing.
+ * - `permission` exposes the OS-level microphone permission state, with
+ *   live updates from the Permissions API where supported.
  */
 
 const BAR_COUNT = 5;
+const BROKEN_FLAG_KEY = 'webspeech:broken';
 
 type Status = 'idle' | 'listening' | 'error';
+type PermissionStateLike = 'granted' | 'denied' | 'prompt' | 'unknown';
 
 interface UseVoiceInputOpts {
   lang?: string;
+  /** Fired on every partial result with the live, unpolished transcript
+   *  (committed finals + current interim) — drive word-by-word streaming into
+   *  a textbox from here. */
+  onTranscript?: (text: string) => void;
   onFinal: (text: string) => void;
 }
 
 interface UseVoiceInput {
   status: Status;
-  bars: number[];      // length BAR_COUNT, each 0–1, fresh on every audio frame
-  interim: string;     // best-effort partial transcript for live display
+  bars: number[];
+  interim: string;
   supported: boolean;
+  /** True only if the API exists AND is believed to actually work here.
+   *  False in Firefox, Brave, and after a `network` failure this session. */
+  functional: boolean;
+  permission: PermissionStateLike;
   error: string | null;
   start: () => Promise<void>;
   stop: () => void;
 }
 
-// ── Minimal types for the vendor Web Speech API (not in lib.dom.d.ts) ──
+// ── Vendor Web Speech API types (not in lib.dom.d.ts) ──
 type SRAlternative = { transcript: string; confidence: number };
 type SRResult = ArrayLike<SRAlternative> & { isFinal: boolean };
 type SREvent = { resultIndex: number; results: ArrayLike<SRResult> };
@@ -54,8 +70,21 @@ function getSRCtor(): SRCtor | null {
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
-/** Pick the highest-confidence alternative; fall back to the first one when
- *  confidence is missing (Chrome reports 0 for interim results). */
+/** Brave exposes navigator.brave.isBrave() specifically so apps can detect it. */
+async function detectBrave(): Promise<boolean> {
+  const nav = navigator as unknown as { brave?: { isBrave?: () => Promise<boolean> } };
+  if (!nav.brave?.isBrave) return false;
+  try { return await nav.brave.isBrave(); } catch { return false; }
+}
+
+function getBrokenFlag(): boolean {
+  try { return sessionStorage.getItem(BROKEN_FLAG_KEY) === '1'; } catch { return false; }
+}
+function setBrokenFlag(): void {
+  try { sessionStorage.setItem(BROKEN_FLAG_KEY, '1'); } catch { /* private mode */ }
+}
+
+/** Pick the highest-confidence alternative — beats blindly taking #1. */
 function pickBest(r: SRResult): string {
   let best = r[0];
   for (let k = 1; k < r.length; k++) {
@@ -65,43 +94,88 @@ function pickBest(r: SRResult): string {
   return best.transcript;
 }
 
-// Domain post-processing — fixes the SRE/AWS terms the Web Speech recognizer
-// most reliably mishears, especially on Indian English. Kept small and
-// specific so unrelated words aren't accidentally rewritten.
+// Domain post-processing — fixes the SRE/DevOps/AWS terms the Web Speech
+// recognizer most reliably mishears, especially on Indian English. Each
+// pattern is anchored on word boundaries to avoid rewriting unrelated text.
 const TECH_FIXES: Array<[RegExp, string]> = [
+  // CLI / orchestration
   [/\b(?:cube|kube)[ -]?(?:control|cuddle|c\s*t\s*l)\b/gi, 'kubectl'],
   [/\bkuber[ -]?net(?:is|tis|ties|es)?\b/gi, 'kubernetes'],
+
+  // AWS services (acronyms commonly read out letter-by-letter)
   [/\b(?:ec|easy)[ -]?two\b/gi, 'EC2'],
   [/\bs[ -]?(?:three|free)\b/gi, 'S3'],
   [/\b(?:i[ -]?a[ -]?m|i\.a\.m\.)\b/gi, 'IAM'],
+  [/\br[ -]?d[ -]?s\b/gi, 'RDS'],
+  [/\be[ -]?k[ -]?s\b/gi, 'EKS'],
+  [/\be[ -]?c[ -]?s\b/gi, 'ECS'],
+  [/\bs[ -]?q[ -]?s\b/gi, 'SQS'],
+  [/\bs[ -]?n[ -]?s\b/gi, 'SNS'],
+  [/\bv[ -]?p[ -]?c\b/gi, 'VPC'],
   [/\bcloud[ -]?watch\b/gi, 'CloudWatch'],
   [/\bcloud[ -]?formation\b/gi, 'CloudFormation'],
   [/\bcloud[ -]?front\b/gi, 'CloudFront'],
   [/\bcloud[ -]?trail\b/gi, 'CloudTrail'],
+  [/\bdynamo[ -]?d[ -]?b\b/gi, 'DynamoDB'],
+  [/\bdynamo[ -]?db\b/gi, 'DynamoDB'],
+  [/\blambda\b/gi, 'Lambda'],
+
+  // Observability
   [/\bdata[ -]?dog\b/gi, 'Datadog'],
   [/\bpager[ -]?duty\b/gi, 'PagerDuty'],
   [/\bgraph[ -]?fana\b/gi, 'Grafana'],
-  [/\bgrafana\b/g, 'Grafana'],
-  [/\bprometheus\b/g, 'Prometheus'],
-  [/\bkafka\b/g, 'Kafka'],
+  [/\bgrafana\b/gi, 'Grafana'],
+  [/\bprometheus\b/gi, 'Prometheus'],
+  [/\bsentry\b/gi, 'Sentry'],
+  [/\bsplunk\b/gi, 'Splunk'],
+  [/\bnew[ -]?relic\b/gi, 'New Relic'],
+  [/\bopen[ -]?telemetry\b/gi, 'OpenTelemetry'],
+  [/\bloki\b/gi, 'Loki'],
+
+  // Data
+  [/\belastic[ -]?search\b/gi, 'Elasticsearch'],
+  [/\bela[ -]?stick[ -]?search\b/gi, 'Elasticsearch'],
+  [/\bmongo[ -]?d[ -]?b\b/gi, 'MongoDB'],
+  [/\bmongo[ -]?db\b/gi, 'MongoDB'],
+  [/\bpost[ -]?gres(?:ql)?\b/gi, 'Postgres'],
+  [/\bpost[ -]?grass\b/gi, 'Postgres'],
+  [/\bredis\b/gi, 'Redis'],
+  [/\bcassandra\b/gi, 'Cassandra'],
+  [/\bkafka\b/gi, 'Kafka'],
+
+  // CI/CD & IaC
+  [/\bargo[ -]?cd\b/gi, 'ArgoCD'],
+  [/\bspinnaker\b/gi, 'Spinnaker'],
+  [/\bjenkins\b/gi, 'Jenkins'],
+  [/\bterra[ -]?form\b/gi, 'Terraform'],
+  [/\bhelm\b/gi, 'Helm'],
+  [/\bistio\b/gi, 'Istio'],
+  [/\blinkerd\b/gi, 'Linkerd'],
+
+  // App-specific
   [/\bargus\b/gi, 'Argus'],
 ];
 
 function polish(text: string): string {
   let out = text;
   for (const [re, sub] of TECH_FIXES) out = out.replace(re, sub);
-  // Collapse double spaces and tidy whitespace before punctuation.
   return out.replace(/\s+/g, ' ').replace(/\s+([.,!?;:])/g, '$1').trim();
 }
 
 export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
-  const { lang = 'en-IN', onFinal } = opts;
+  const { lang = 'en-IN', onTranscript, onFinal } = opts;
   const [status, setStatus] = useState<Status>('idle');
   const [bars, setBars] = useState<number[]>(() => new Array(BAR_COUNT).fill(0));
   const [interim, setInterim] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [permission, setPermission] = useState<PermissionStateLike>('unknown');
 
   const supported = !!getSRCtor();
+  const [functional, setFunctional] = useState<boolean>(() => {
+    if (!supported) return false;
+    if (getBrokenFlag()) return false;
+    return true; // optimistic — Brave check below may flip this
+  });
 
   const recRef = useRef<SR | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -111,12 +185,52 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
   const interimTextRef = useRef('');
   const onFinalRef = useRef(onFinal);
   useEffect(() => { onFinalRef.current = onFinal; }, [onFinal]);
+  const onTranscriptRef = useRef(onTranscript);
+  useEffect(() => { onTranscriptRef.current = onTranscript; }, [onTranscript]);
+
+  // ── Brave detection (preemptive — avoids the wasted-click failure) ──
+  useEffect(() => {
+    let cancelled = false;
+    void detectBrave().then((isBrave) => {
+      if (!cancelled && isBrave) setFunctional(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Microphone permission state, live-updated where supported ──
+  useEffect(() => {
+    type PermStatus = {
+      state: PermissionStateLike;
+      addEventListener?: (type: string, listener: () => void) => void;
+      removeEventListener?: (type: string, listener: () => void) => void;
+      onchange?: (() => void) | null;
+    };
+    const nav = navigator as unknown as {
+      permissions?: { query: (descriptor: { name: string }) => Promise<PermStatus> };
+    };
+    if (!nav.permissions?.query) return;
+    let cancelled = false;
+    let status: PermStatus | null = null;
+    const onChange = () => { if (!cancelled && status) setPermission(status.state); };
+    nav.permissions.query({ name: 'microphone' }).then((s) => {
+      if (cancelled) return;
+      status = s;
+      setPermission(s.state);
+      if (s.addEventListener) s.addEventListener('change', onChange);
+      else s.onchange = onChange;
+    }).catch(() => { /* Permissions API doesn't support 'microphone' here */ });
+    return () => {
+      cancelled = true;
+      if (status?.removeEventListener) status.removeEventListener('change', onChange);
+    };
+  }, []);
 
   const teardown = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
     const rec = recRef.current;
     if (rec) {
+      rec.onstart = null;
       rec.onresult = null;
       rec.onerror = null;
       rec.onend = null;
@@ -142,12 +256,8 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
     finalTextRef.current = '';
     interimTextRef.current = '';
 
-    // Mic stream for the visual analyser. SpeechRecognition opens its own
+    // Cleaned mic stream for the analyser. SpeechRecognition opens its own
     // internal capture in parallel — Chrome handles both fine.
-    // Constraints clean the input audio before STT sees it: noise suppression
-    // kills HVAC hum, echoCancellation removes speaker bleed, autoGainControl
-    // levels soft speech. Mono + high sample rate match what the recognizer
-    // wants. These materially lift accuracy on noisy rooms and laptop mics.
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -192,8 +302,6 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
     rec.lang = lang;
     rec.interimResults = true;
     rec.continuous = true;
-    // Ask the engine for its top-3 hypotheses per chunk — `pickBest` then
-    // chooses the highest-confidence one, which beats blindly taking #1.
     rec.maxAlternatives = 3;
     rec.onstart = () => { console.warn('[voice] started'); };
     rec.onresult = (e: SREvent) => {
@@ -206,12 +314,21 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
       }
       interimTextRef.current = partial;
       setInterim(partial);
+      // Live unpolished transcript — pushed to the consumer for word-by-word
+      // streaming. Sent via callback (not state) to keep it out of an effect.
+      const combined = (finalTextRef.current + (partial ? ' ' + partial : '')).trim();
+      if (combined) onTranscriptRef.current?.(combined);
     };
     rec.onerror = (e) => {
       const err = String(e?.error ?? 'error');
-      // Log so it's visible in devtools when debugging mic/permission issues.
       console.warn('[voice] recognition error:', err);
       setError(err);
+      // Brave / no-Google-services fingerprint: cache for the session and
+      // mark voice non-functional so the UI hides the mic from now on.
+      if (err === 'network') {
+        setBrokenFlag();
+        setFunctional(false);
+      }
     };
     rec.onend = () => {
       const trailing = interimTextRef.current.trim();
@@ -230,5 +347,5 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
 
   useEffect(() => () => teardown(), [teardown]);
 
-  return { status, bars, interim, supported, error, start, stop };
+  return { status, bars, interim, supported, functional, permission, error, start, stop };
 }
