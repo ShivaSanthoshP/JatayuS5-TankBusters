@@ -27,7 +27,17 @@ const GlassTab: React.FC<GlassTabProps> = ({
   pop = false,
 }) => {
   return (
-    <NavLink to={to} onClick={onClick} end={to === '/'} className={fullWidth ? 'block w-full' : undefined}>
+    <NavLink
+      to={to}
+      onClick={onClick}
+      end={to === '/'}
+      className={[
+        fullWidth ? 'block w-full' : '',
+        // Argus (pop) gets a touch of extra breathing room to its right so
+        // it reads as the headline CTA, not just another tab.
+        pop && !fullWidth ? 'mr-2' : '',
+      ].filter(Boolean).join(' ') || undefined}
+    >
       {({ isActive }) => (
         <div className={`glass-nav-tab press-tactile ${fullWidth ? '!flex !w-full !justify-start !py-2.5 !text-[14px]' : ''} ${
           isActive ? 'glass-nav-tab-active' : pop ? 'glass-nav-tab-pop' : ''
