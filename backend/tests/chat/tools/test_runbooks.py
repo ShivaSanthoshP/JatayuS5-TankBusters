@@ -34,18 +34,19 @@ def test_search_runbooks_uses_memory():
         assert out.matches[0].title == "nginx 503"
 
 
-def test_delete_runbook_blocks_seeded():
+def test_delete_runbook_deletes_seeded_too():
+    # No auto-seeder, so seeded runbooks are deletable for good via chat too.
     from app.chat.tools.runbooks import DeleteRunbookTool, DeleteRunbookIn
     init_db()
     with SessionLocal() as db:
         db.add(RunbookEntry(title="seeded", problem_pattern="x",
-                            solution_steps="y", is_seeded=True))
+                            solution_steps="y", is_seeded=True, issue_type="memory_leak"))
         db.commit()
         rb = db.query(RunbookEntry).first()
         out = DeleteRunbookTool().execute(
             DeleteRunbookIn(runbook_id=rb.id), db=db, idempotency_key="k")
-        assert out.deleted is False
-        assert "seeded" in out.message.lower()
+        assert out.deleted is True
+        assert db.query(RunbookEntry).filter_by(id=rb.id).first() is None
 
 
 def test_draft_runbook_returns_draft_without_writing():

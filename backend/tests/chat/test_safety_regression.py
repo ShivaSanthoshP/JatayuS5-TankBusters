@@ -21,16 +21,21 @@ def test_update_setting_refuses_every_credential_key(blocked_key):
                 db=db, idempotency_key="k")
 
 
-def test_delete_runbook_blocks_seeded_runbooks():
+def test_delete_runbook_is_confirmation_gated_and_deletes():
+    # Runbooks are UI/Argus-authored with no auto-seeder, so seeded runbooks are
+    # deletable for good. The safety guard that remains is that delete is RISKY —
+    # it always routes through a confirmation card before it runs.
+    from app.chat.schemas import SafetyLevel
+    assert DeleteRunbookTool.safety == SafetyLevel.RISKY
     init_db()
     with SessionLocal() as db:
         db.add(RunbookEntry(title="canonical", problem_pattern="x",
-                            solution_steps="y", is_seeded=True))
+                            solution_steps="y", is_seeded=True, issue_type="memory_leak"))
         db.commit()
         rb = db.query(RunbookEntry).first()
         out = DeleteRunbookTool().execute(
             DeleteRunbookIn(runbook_id=rb.id), db=db, idempotency_key="k")
-        assert out.deleted is False
+        assert out.deleted is True
 
 
 def test_confirm_store_single_use():

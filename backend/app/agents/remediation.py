@@ -2,8 +2,8 @@ from __future__ import annotations
 """
 Remediation Agent — generates and manages remediation actions.
 
-Loads canonical templates from the runbook table (seeded via
-`scripts/seed_runbooks.py`). Each issue_type's runbook carries the
+Loads canonical templates from the runbook table (authored from the UI /
+Argus — see the Runbooks page). Each issue_type's runbook carries the
 remediation steps and shell artifacts as Python format-string templates;
 this agent renders them with concrete incident values at lookup time.
 Falls back to the configured LLM for novel issue types.

@@ -4,9 +4,9 @@ from __future__ import annotations
 Diagnostic Agent — root cause analysis.
 
 Performs fast deterministic reasoning by looking up canonical runbooks in
-the database (seeded via `scripts/seed_runbooks.py`) and pulling additional
-context from the vector store. Falls back to the configured LLM when the
-issue type has no seeded runbook.
+the database (authored from the UI / Argus) and pulling additional context
+from the vector store. Falls back to the configured LLM when the issue type
+has no matching runbook.
 """
 
 import asyncio

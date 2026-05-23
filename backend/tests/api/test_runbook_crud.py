@@ -77,11 +77,12 @@ def test_delete_admin_authored_seeded_succeeds():
         )
 
 
-def test_delete_canonical_is_blocked():
+def test_delete_is_permanent_for_any_issue_type():
+    # No auto-seeder exists, so nothing is "canonical" / protected — any
+    # runbook (any issue_type) deletes for good.
     init_db()
     with patch("app.memory.vector_store.get_memory"):
-        canon = {**_VALID, "issue_type": "memory_leak", "title": "Memory Leak (custom)"}
-        rid = client.post("/api/agents/runbooks", json=canon).json()["id"]
+        rid = client.post("/api/agents/runbooks", json={**_VALID, "issue_type": "memory_leak"}).json()["id"]
         r = client.delete(f"/api/agents/runbooks/{rid}")
-        assert r.status_code == 400
-        assert "canonical" in r.json()["detail"].lower()
+        assert r.status_code == 200, r.text
+        assert all(rb["id"] != rid for rb in client.get("/api/agents/runbooks").json())

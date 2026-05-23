@@ -493,22 +493,14 @@ def update_runbook(runbook_id: int, payload: RunbookWrite, db: Session = Depends
 
 @router.delete("/runbooks/{runbook_id}")
 def delete_runbook(runbook_id: int, db: Session = Depends(get_db)):
-    """Delete a runbook from the DB and the vector store.
+    """Delete any runbook from the DB and the vector store.
 
-    The 8 built-in canonical runbooks are recreated by the startup seeder, so
-    deleting them is pointless — those are blocked. Admin-authored seeded
-    runbooks (custom issue_type) and learned ones are deletable.
+    Runbooks are authored from the UI / Argus (there's no auto-seeder), so a
+    deletion is permanent — nothing recreates it.
     """
-    from app.database.runbook_seed import ISSUE_PROFILES as _CANONICAL
-
     rb = db.query(RunbookEntry).filter(RunbookEntry.id == runbook_id).first()
     if not rb:
         raise HTTPException(status_code=404, detail="Runbook not found")
-    if rb.issue_type and rb.issue_type in _CANONICAL:
-        raise HTTPException(
-            status_code=400,
-            detail="Built-in canonical runbooks are recreated on startup and can't be deleted. Edit it instead.",
-        )
     db.delete(rb)
     db.commit()
     # Drop from the vector store too so RAG stops surfacing it.

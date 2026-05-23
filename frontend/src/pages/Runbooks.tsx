@@ -440,7 +440,7 @@ export default function Runbooks() {
   const [purging, setPurging] = useState(false);
 
   const handleDelete = async (id: number, title: string) => {
-    if (!confirm(`Delete runbook "${title}"?\n\nThis removes it from the database and the search index. Seeded runbooks cannot be deleted.`)) return;
+    if (!confirm(`Delete runbook "${title}"?\n\nThis permanently removes it from the database and the search index.`)) return;
     try {
       await api.deleteRunbook(id);
       refetch();

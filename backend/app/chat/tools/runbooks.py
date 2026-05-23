@@ -109,22 +109,19 @@ class DeleteRunbookOut(ToolOutput):
 
 class DeleteRunbookTool:
     name = "delete_runbook"
-    description = "Delete a learned (auto-generated) runbook. Seeded runbooks cannot be deleted."
+    description = "Delete a runbook by id (DB row + vector store entry). Deletion is permanent."
     input_model = DeleteRunbookIn
     output_model = DeleteRunbookOut
     safety = SafetyLevel.RISKY
 
     def preview(self, args: DeleteRunbookIn) -> str:
-        return f"Delete learned runbook #{args.runbook_id} (DB row + vector store entry)."
+        return f"Delete runbook #{args.runbook_id} (DB row + vector store entry)."
 
     def execute(self, args: DeleteRunbookIn, *, db: Session, idempotency_key: str) -> DeleteRunbookOut:
         rb = db.query(RunbookEntry).filter_by(id=args.runbook_id).one_or_none()
         if rb is None:
             return DeleteRunbookOut(runbook_id=args.runbook_id, deleted=False,
                                     message="Runbook not found")
-        if rb.is_seeded:
-            return DeleteRunbookOut(runbook_id=args.runbook_id, deleted=False,
-                                    message="Seeded runbooks cannot be deleted")
         db.delete(rb)
         db.commit()
         try:

@@ -677,16 +677,7 @@ async def lifespan(app: FastAPI):
     finally:
         _seed_db.close()
 
-    # Seed canonical runbooks once. Runs in-process so it uses the same
-    # DATABASE_URL the service is configured with (out-of-process seeding
-    # silently hits the default SQLite DB). Idempotent + no-op once present.
-    try:
-        from app.database.runbook_seed import seed_canonical_runbooks
-        rb_counts = seed_canonical_runbooks(only_if_missing=True)
-        if rb_counts.get("created"):
-            logger.info(f"Seeded {rb_counts['created']} canonical runbooks into DB")
-    except Exception as exc:  # noqa: BLE001 — seeding must never block startup
-        logger.warning(f"Runbook seeding on startup failed: {exc}")
+    # Runbooks are authored from the UI / Argus only — no auto-seeding here.
 
     # Start background tasks
     _monitoring_task = asyncio.create_task(background_monitoring_loop())
