@@ -415,18 +415,20 @@ button {
   filter: blur(8px);
 }
 
+/* Active-tab state — soft accent-tinted pill, not a competing CTA.
+   The only filled-CTA pill on the strip is Argus; the active indicator
+   reads as "you are here" without shouting. */
 .glass-nav-tab-active {
-  color: var(--color-surface);
+  color: var(--color-accent);
   font-weight: 500;
 }
 
 .glass-nav-tab-indicator {
-  background: var(--color-ink);
+  background: rgba(36, 71, 69, 0.10);
   border-radius: var(--radius-pill);
   box-shadow:
-    0 1px 1px rgba(255, 255, 255, 0.25) inset,
-    0 4px 10px -2px rgba(21, 25, 26, 0.30),
-    0 1px 2px rgba(21, 25, 26, 0.18);
+    inset 0 0 0 1px rgba(36, 71, 69, 0.18),
+    0 1px 2px rgba(21, 25, 26, 0.04);
 }
 
 /* ───────────────────────────────────────────────────────────────────
