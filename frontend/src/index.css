@@ -994,24 +994,27 @@ textarea::placeholder {
   pointer-events: none;
 }
 
-/* Breathing radar wave — rings expanding outward from the launcher.
-   Two staggered rings keep the emission continuous. */
+/* Breathing radar wave — circular neon rings emanating outward from the
+   launcher's center. Two staggered rings keep emission continuous. */
 @keyframes argus-wave {
-  0%   { transform: scale(1);    opacity: 0.75; }
+  0%   { transform: translate(-50%, -50%) scale(0.55); opacity: 0.85; }
   70%  { opacity: 0; }
-  100% { transform: scale(2.25); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(3.4);  opacity: 0; }
 }
 .argus-wave-ring {
   position: absolute;
-  inset: 0;
-  border-radius: 9999px;
+  top: 50%;
+  left: 50%;
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
   pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.55);
   box-shadow:
-    0 0 0 1.5px rgba(47, 230, 207, 0.65),
-    0 0 14px 2px rgba(47, 230, 207, 0.45),
-    inset 0 0 6px rgba(143, 245, 230, 0.35);
+    0 0 0 1.5px rgba(47, 230, 207, 0.75),
+    0 0 18px 3px rgba(47, 230, 207, 0.5),
+    inset 0 0 10px rgba(143, 245, 230, 0.35);
   animation: argus-wave 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
-  transform-origin: center;
   will-change: transform, opacity;
 }
 .argus-wave-ring--delayed { animation-delay: 1.3s; }
