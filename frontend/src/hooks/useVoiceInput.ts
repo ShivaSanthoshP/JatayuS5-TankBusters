@@ -93,11 +93,6 @@ function polish(text: string): string {
   return out.replace(/\s+/g, ' ').replace(/\s+([.,!?;:])/g, '$1').trim();
 }
 
-// Silence-based auto-stop thresholds. Tuned so quiet rooms don't pre-trip but
-// natural end-of-utterance ends listening cleanly.
-const VOICE_THRESHOLD = 0.04;
-const SILENCE_MS = 1800;
-
 export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
   const { lang = 'en-IN', onFinal } = opts;
   const [status, setStatus] = useState<Status>('idle');
@@ -113,8 +108,6 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
   const rafRef = useRef(0);
   const finalTextRef = useRef('');
   const interimTextRef = useRef('');
-  const hasSpokenRef = useRef(false);
-  const lastVoiceAtRef = useRef(0);
   const onFinalRef = useRef(onFinal);
   useEffect(() => { onFinalRef.current = onFinal; }, [onFinal]);
 
@@ -147,8 +140,6 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
     setInterim('');
     finalTextRef.current = '';
     interimTextRef.current = '';
-    hasSpokenRef.current = false;
-    lastVoiceAtRef.current = performance.now();
 
     // Mic stream for the visual analyser. SpeechRecognition opens its own
     // internal capture in parallel — Chrome handles both fine.
@@ -186,28 +177,11 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
     const tick = () => {
       analyser.getByteFrequencyData(data);
       const next = new Array(BAR_COUNT);
-      let levelSum = 0;
       for (let b = 0; b < BAR_COUNT; b++) {
         let sum = 0;
         for (let j = 0; j < binSize; j++) sum += data[b * binSize + j];
         next[b] = (sum / binSize) / 255;
-        levelSum += next[b];
       }
-      const level = levelSum / BAR_COUNT;
-
-      // Silence-based auto-stop. Once the user has clearly spoken (level
-      // crossed VOICE_THRESHOLD at least once), sustained quiet ends the
-      // session — matches the user's "after I finish speaking" intent and
-      // avoids tail-end noise leaking into the transcript.
-      const now = performance.now();
-      if (level > VOICE_THRESHOLD) {
-        hasSpokenRef.current = true;
-        lastVoiceAtRef.current = now;
-      } else if (hasSpokenRef.current && now - lastVoiceAtRef.current > SILENCE_MS) {
-        try { recRef.current?.stop(); } catch { /* not running */ }
-        return; // onend will tear the rAF/stream down
-      }
-
       setBars(next);
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -231,7 +205,12 @@ export function useVoiceInput(opts: UseVoiceInputOpts): UseVoiceInput {
       interimTextRef.current = partial;
       setInterim(partial);
     };
-    rec.onerror = (e) => { setError(String(e?.error ?? 'error')); };
+    rec.onerror = (e) => {
+      const err = String(e?.error ?? 'error');
+      // Log so it's visible in devtools when debugging mic/permission issues.
+      console.warn('[voice] recognition error:', err);
+      setError(err);
+    };
     rec.onend = () => {
       const trailing = interimTextRef.current.trim();
       const raw = (finalTextRef.current + (trailing ? ' ' + trailing : '')).trim();
