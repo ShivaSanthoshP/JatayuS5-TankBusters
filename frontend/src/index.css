@@ -377,32 +377,34 @@ button {
 }
 
 /* "Pop" tab — the Argus entry, lifted out of the plain tab row as a
-   filled CTA pill that matches the launcher button + a subtle breathing
-   glow so the eye is drawn to it. */
-@keyframes argus-tab-breathe {
-  0%, 100% {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 4px 12px -4px rgba(36, 71, 69, 0.40),
-      0 0 0 0 rgba(36, 71, 69, 0.35);
-  }
-  50% {
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 6px 18px -4px rgba(36, 71, 69, 0.55),
-      0 0 0 4px rgba(36, 71, 69, 0.10);
-  }
-}
+   filled CTA pill that matches the launcher button. Breathing aura is
+   handled by .argus-tab-halo, rendered as a sibling span by GlassTab. */
 .glass-nav-tab-pop {
   color: var(--color-surface);
   background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dim) 100%);
-  animation: argus-tab-breathe 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 4px 14px -4px rgba(36, 71, 69, 0.45);
   transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .glass-nav-tab-pop:hover:not(.glass-nav-tab-active) {
   color: var(--color-surface);
   transform: translateY(-1px);
+}
+
+/* Breathing halo around the Argus nav tab — same opacity rhythm as the
+   launcher's halo, sized down to fit the smaller pill and stay within
+   the navbar bounds. */
+.argus-tab-halo {
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(36, 71, 69, 0.85), rgba(58, 111, 106, 0.85));
+  filter: blur(4px);
+  animation: argus-halo 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: opacity;
 }
 
 .glass-nav-tab-active {
