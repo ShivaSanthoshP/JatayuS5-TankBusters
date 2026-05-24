@@ -1,5 +1,6 @@
 import {
   Activity, Brain, FileCheck, Shield, TrendingUp, Wrench, Loader2,
+  BookOpen, Sparkles, Code2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import ArtifactViewer from '../remediation/ArtifactViewer';
@@ -88,7 +89,7 @@ export default function PipelineResultView({
   return (
     <div className="space-y-14">
       {/* 01 — Monitoring */}
-      <PipelineSection step="01" label="Monitoring" icon={Activity}>
+      <PipelineSection step="01" label="Monitoring" icon={Activity} source={sourceOf(mon)}>
         {pickStr(mon, 'description') ? (
           <p className="text-[13px] text-ink-mute leading-relaxed bg-canvas-soft rounded-lg px-4 py-3">
             {pickStr(mon, 'description')}
@@ -126,7 +127,7 @@ export default function PipelineResultView({
       </PipelineSection>
 
       {/* 02 — Prediction */}
-      <PipelineSection step="02" label="Prediction" icon={TrendingUp}>
+      <PipelineSection step="02" label="Prediction" icon={TrendingUp} source={sourceOf(pred)}>
         {pickNum(pred, 'failure_probability') !== undefined ? (
           <>
             <div className="grid grid-cols-3 gap-2 text-xs">
@@ -166,7 +167,7 @@ export default function PipelineResultView({
       </PipelineSection>
 
       {/* 03 — Diagnosis */}
-      <PipelineSection step="03" label="Diagnosis" icon={Brain}>
+      <PipelineSection step="03" label="Diagnosis" icon={Brain} source={sourceOf(diag)}>
         {rootCause && (
           <Subblock label="Root cause">
             <p className="text-[13px] text-ink-mute leading-relaxed bg-canvas-soft rounded-lg px-4 py-3">
@@ -270,7 +271,7 @@ export default function PipelineResultView({
       </PipelineSection>
 
       {/* 04 — Remediation */}
-      <PipelineSection step="04" label="Remediation" icon={Wrench}>
+      <PipelineSection step="04" label="Remediation" icon={Wrench} source={sourceOf((rem || {}) as Dict)}>
         {remediationLoading && (
           <div className="flex items-center gap-2 text-xs text-ink-faint">
             <Loader2 size={12} className="animate-spin" />
@@ -338,7 +339,7 @@ export default function PipelineResultView({
       </PipelineSection>
 
       {/* 05 — Reporting */}
-      <PipelineSection step="05" label="Reporting" icon={FileCheck}>
+      <PipelineSection step="05" label="Reporting" icon={FileCheck} source={sourceOf(rep)}>
         {executiveSummary && (
           <Subblock label="Executive summary">
             <p className="text-[13px] text-ink-mute leading-relaxed bg-canvas-soft rounded-lg px-4 py-3">
@@ -452,17 +453,70 @@ function formatMinutes(v: number | string | null | undefined): string {
 
 /* ─── presentation atoms ─────────────────────────────────────── */
 
+type Source = 'runbook' | 'llm' | 'llm_runbook' | 'heuristic';
+
+/** Compute the section's provenance from its agent payload. Order of
+ *  preference: RAG hit wins ("matched runbook"); else if an LLM call
+ *  was made, "AI inferred"; else local heuristic / template. */
+function sourceOf(data: Dict): Source {
+  const rag = Boolean(data['rag_context_used']);
+  const local = Boolean(data['generated_locally']);
+  if (rag && local) return 'runbook';
+  if (rag && !local) return 'llm_runbook';
+  if (!rag && !local) return 'llm';
+  return 'heuristic';
+}
+
+function SourceBadge({ source }: { source: Source }) {
+  const map: Record<
+    Source,
+    { label: string; icon: LucideIcon; cls: string }
+  > = {
+    runbook: {
+      label: 'Matched runbook',
+      icon: BookOpen,
+      cls: 'bg-accent/8 text-accent border-accent/20',
+    },
+    llm_runbook: {
+      label: 'AI + runbook',
+      icon: Sparkles,
+      cls: 'bg-accent/8 text-accent border-accent/20',
+    },
+    llm: {
+      label: 'AI inferred',
+      icon: Sparkles,
+      cls: 'bg-info/10 text-info border-info/20',
+    },
+    heuristic: {
+      label: 'Heuristic',
+      icon: Code2,
+      cls: 'bg-ink/5 text-ink-mute border-hairline-strong',
+    },
+  };
+  const { label, icon: Icon, cls } = map[source];
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-medium tracking-wide ${cls}`}
+      title={`Source: ${label}`}
+    >
+      <Icon size={10} />
+      {label}
+    </span>
+  );
+}
+
 function PipelineSection({
-  step, label, icon: Icon, children,
+  step, label, icon: Icon, source, children,
 }: {
   step: string;
   label: string;
   icon: LucideIcon;
+  source: Source;
   children: React.ReactNode;
 }) {
   return (
     <section>
-      <div className="flex items-center gap-2.5 mb-4">
+      <div className="flex items-center gap-2.5 mb-4 flex-wrap">
         <span className="font-mono text-[11px] text-ink-faint tabular-nums tracking-wide">
           {step}
         </span>
@@ -471,6 +525,8 @@ function PipelineSection({
           {label}
         </h2>
         <Icon size={15} className="text-ink-mute ml-1" />
+        <span className="flex-1" />
+        <SourceBadge source={source} />
       </div>
       <div className="space-y-4">{children}</div>
     </section>
