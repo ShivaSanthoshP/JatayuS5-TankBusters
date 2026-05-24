@@ -4,7 +4,7 @@ from __future__ import annotations
 import datetime
 import logging
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.database.models import (
     Incident, IncidentStatus, Severity, Remediation, RemediationStatus,
@@ -274,13 +274,25 @@ class IncidentService:
         return remediation, artifact
 
     def get_incidents(self, status: str | None = None, limit: int = 50) -> list[Incident]:
-        query = self.db.query(Incident).order_by(Incident.created_at.desc())
+        # Eager-load the node so the API serializer's `incident.node.node_name`
+        # access doesn't trigger one extra query per row (was N+1 with the
+        # default lazy relationship).
+        query = (
+            self.db.query(Incident)
+            .options(joinedload(Incident.node))
+            .order_by(Incident.created_at.desc())
+        )
         if status:
             try:
                 query = query.filter(Incident.status == IncidentStatus(status))
             except ValueError:
                 pass
-        incidents = query.limit(max(limit * 20, limit)).all()
+        # Pull a bounded window for the 15-minute dedupe headroom. The
+        # previous `limit * 20` could yank 40k rows on a default limit=2000
+        # request; capping at limit+200 (and a hard ceiling of 500) keeps
+        # dedupe correct in practice while making the round-trip cheap.
+        overfetch = min(max(limit + 200, limit), 500)
+        incidents = query.limit(overfetch).all()
         return self._collapse_recent_duplicates(incidents, limit)
 
     def get_incident(self, incident_id: int) -> Incident | None:

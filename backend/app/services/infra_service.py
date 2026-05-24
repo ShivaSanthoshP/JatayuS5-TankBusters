@@ -223,26 +223,49 @@ class InfraService:
         )
 
     def get_dashboard_stats(self) -> dict:
-        """Aggregate stats for the dashboard."""
-        nodes = self.db.query(InfrastructureNode).all()
-        incidents = self.db.query(Incident).all()
-        remediations = self.db.query(Remediation).all()
+        """Aggregate stats for the dashboard.
 
-        healthy = sum(1 for n in nodes if n.status == "healthy")
-        degraded = sum(1 for n in nodes if n.status == "degraded")
-        critical = sum(1 for n in nodes if n.status in ("critical", "offline"))
+        Polled every 8 seconds, so the cost matters. We use SQL aggregates
+        (one ``GROUP BY status`` per table) instead of loading every row to
+        count in Python — three cheap counts instead of three full table
+        scans plus hydration.
+        """
+        node_rows = (
+            self.db.query(InfrastructureNode.status, func.count(InfrastructureNode.id))
+            .group_by(InfrastructureNode.status)
+            .all()
+        )
+        inc_rows = (
+            self.db.query(Incident.status, func.count(Incident.id))
+            .group_by(Incident.status)
+            .all()
+        )
+        rem_rows = (
+            self.db.query(Remediation.status, func.count(Remediation.id))
+            .group_by(Remediation.status)
+            .all()
+        )
+
+        node_counts: dict[str, int] = {status: count for status, count in node_rows}
+        inc_counts: dict = {status: count for status, count in inc_rows}
+        rem_counts: dict = {status: count for status, count in rem_rows}
+
+        healthy = node_counts.get("healthy", 0)
+        degraded = node_counts.get("degraded", 0)
+        critical = node_counts.get("critical", 0) + node_counts.get("offline", 0)
+        total_nodes = sum(node_counts.values())
 
         open_statuses = {
             IncidentStatus.DETECTED, IncidentStatus.ANALYZING,
             IncidentStatus.DIAGNOSED, IncidentStatus.AWAITING_APPROVAL,
             IncidentStatus.REMEDIATING,
         }
-        open_incidents = sum(1 for i in incidents if i.status in open_statuses)
-        resolved = sum(1 for i in incidents if i.status == IncidentStatus.RESOLVED)
-        completed_rem = sum(
-            1 for r in remediations if r.status == RemediationStatus.COMPLETED
-        )
-        total_rem = len(remediations)
+        open_incidents = sum(c for s, c in inc_counts.items() if s in open_statuses)
+        resolved = inc_counts.get(IncidentStatus.RESOLVED, 0)
+        total_incidents = sum(inc_counts.values())
+
+        completed_rem = rem_counts.get(RemediationStatus.COMPLETED, 0)
+        total_rem = sum(rem_counts.values())
         success_rate = (completed_rem / total_rem * 100) if total_rem > 0 else 0.0
 
         # Vector memory stats
@@ -257,11 +280,11 @@ class InfraService:
 
         from app.services.settings_service import settings as _s
         return {
-            "total_nodes": len(nodes),
+            "total_nodes": total_nodes,
             "healthy_nodes": healthy,
             "degraded_nodes": degraded,
             "critical_nodes": critical,
-            "total_incidents": len(incidents),
+            "total_incidents": total_incidents,
             "open_incidents": open_incidents,
             "resolved_incidents": resolved,
             "total_remediations": total_rem,
