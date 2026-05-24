@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, Search, Hash, ChevronRight, ChevronLeft,
-  X, ExternalLink, Trash2, Plus,
+  X, ExternalLink, Trash2, Plus, Sparkles, GraduationCap, Target,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import Loader from '../components/ui/Loader';
@@ -283,6 +283,17 @@ export default function Runbooks() {
     auto:   allRunbooks.filter(rb => !rb.is_seeded).length,
   };
 
+  const avgEffectiveness = useMemo(() => {
+    if (allRunbooks.length === 0) return 0;
+    const sum = allRunbooks.reduce((acc, rb) => acc + (rb.effectiveness_score || 0), 0);
+    return sum / allRunbooks.length;
+  }, [allRunbooks]);
+
+  const totalApplies = useMemo(
+    () => allRunbooks.reduce((acc, rb) => acc + (rb.times_used || 0), 0),
+    [allRunbooks],
+  );
+
   // Search-result jump now navigates to the standalone detail page.
   const jumpToRunbook = useCallback((runbookId: number) => {
     navigate(`/runbooks/${runbookId}`);
@@ -343,6 +354,36 @@ export default function Runbooks() {
             <span className="text-[10px] text-ink-faint">{purgeMsg}</span>
           )}
         </div>
+      </div>
+
+      {/* ── Stats masthead ──────────────────────────────────────
+          Anchors the page so the list below reads as a library of
+          known fixes, not a generic dropdown. */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <RbStat
+          icon={<BookOpen size={14} className="text-ink-mute" />}
+          label="Total"
+          value={counts.all}
+          hint="known runbooks"
+        />
+        <RbStat
+          icon={<Sparkles size={14} className="text-info" />}
+          label="Seeded"
+          value={counts.seeded}
+          hint="canonical"
+        />
+        <RbStat
+          icon={<GraduationCap size={14} className="text-success" />}
+          label="Learned"
+          value={counts.auto}
+          hint="from incidents"
+        />
+        <RbStat
+          icon={<Target size={14} className="text-warning" />}
+          label="Avg effect."
+          value={`${avgEffectiveness.toFixed(1)} / 10`}
+          hint={`${totalApplies} ${totalApplies === 1 ? 'apply' : 'applies'} total`}
+        />
       </div>
 
       {/* ── Find a fix (RAG search) ──────────────────────────── */}
@@ -544,5 +585,28 @@ export default function Runbooks() {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+/* ─── stat card for the masthead ─────────────────────────────── */
+function RbStat({
+  icon, label, value, hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-xl border border-glass-border px-4 py-3 transition-colors">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium text-ink-mute">
+        {icon}
+        {label}
+      </div>
+      <div className="mt-1 font-display text-[22px] sm:text-[26px] leading-none text-ink tabular-nums">
+        {value}
+      </div>
+      <div className="text-[11px] text-ink-faint mt-1">{hint}</div>
+    </div>
   );
 }
