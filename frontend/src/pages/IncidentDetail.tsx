@@ -68,7 +68,7 @@ export default function IncidentDetail() {
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: [0.32, 0.72, 0, 1] }}
-      className="max-w-[920px] mx-auto"
+      className="max-w-[920px] xl:max-w-[1320px] mx-auto"
     >
       {/* Back link — small, quiet, top-left. No breadcrumb cliché. */}
       <Link
@@ -102,44 +102,75 @@ export default function IncidentDetail() {
       )}
 
       {incident && (
-        <>
-          {/* Title block. Title gets its own line at display weight; meta
-              sits below as one quiet horizontal row. */}
-          <header className="mt-6 pb-6 border-b border-glass-border">
-            <h1 className="font-display text-[28px] sm:text-[34px] lg:text-[38px] leading-tight text-ink">
-              {incident.title}
-            </h1>
-            <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-[12px] sm:text-[13px] text-ink-faint">
-              <span className="font-mono text-ink-mute">#{incident.id}</span>
-              <Dot />
-              <StatusBadge status={incident.severity} />
-              <StatusBadge status={incident.status} />
-              <Dot />
-              <span>{incident.node_name}</span>
-              {incident.detected_at && (
-                <>
-                  <Dot />
-                  <span>Detected {new Date(incident.detected_at).toLocaleString()}</span>
-                </>
-              )}
-              {incident.resolved_at && (
-                <>
-                  <Dot />
-                  <span>Resolved {new Date(incident.resolved_at).toLocaleString()}</span>
-                </>
-              )}
-            </div>
-          </header>
+        <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-12 xl:items-start">
+          <main className="min-w-0">
+            {/* Title block. Title gets its own line at display weight;
+                inline meta below on <xl, hidden on xl+ where the sidebar
+                takes over. */}
+            <header className="mt-6 pb-6 border-b border-glass-border">
+              <h1 className="font-display text-[28px] sm:text-[34px] lg:text-[38px] leading-tight text-ink">
+                {incident.title}
+              </h1>
+              <div className="xl:hidden mt-4 flex flex-wrap items-center gap-x-2 gap-y-2 text-[12px] sm:text-[13px] text-ink-faint">
+                <span className="font-mono text-ink-mute">#{incident.id}</span>
+                <Dot />
+                <StatusBadge status={incident.severity} />
+                <StatusBadge status={incident.status} />
+                <Dot />
+                <span>{incident.node_name}</span>
+                {incident.detected_at && (
+                  <>
+                    <Dot />
+                    <span>Detected {new Date(incident.detected_at).toLocaleString()}</span>
+                  </>
+                )}
+                {incident.resolved_at && (
+                  <>
+                    <Dot />
+                    <span>Resolved {new Date(incident.resolved_at).toLocaleString()}</span>
+                  </>
+                )}
+              </div>
+            </header>
 
-          {/* Detail body — same component the (now-retired) drawer used. */}
-          <div className="pt-8 pb-16">
-            <IncidentDetailBody
-              incident={incident}
-              remediation={remediation}
-              remediationLoading={remediationLoading}
-            />
-          </div>
-        </>
+            <div className="pt-8 pb-16">
+              <IncidentDetailBody
+                incident={incident}
+                remediation={remediation}
+                remediationLoading={remediationLoading}
+              />
+            </div>
+          </main>
+
+          {/* Sidebar — appears only on xl+. Carries the meta that's
+              inline at smaller breakpoints, plus the run timestamps. */}
+          <aside className="hidden xl:block xl:sticky xl:top-[120px] xl:self-start xl:mt-6">
+            <div className="glass-mica rounded-2xl p-5 space-y-5">
+              <div>
+                <div className="font-mono text-[11px] text-ink-faint tabular-nums">
+                  Incident #{incident.id}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <StatusBadge status={incident.severity} />
+                  <StatusBadge status={incident.status} />
+                </div>
+              </div>
+
+              <Divider />
+
+              <Field label="Node">{incident.node_name || '—'}</Field>
+              <Field label="Detected">
+                {incident.detected_at ? new Date(incident.detected_at).toLocaleString() : '—'}
+              </Field>
+              <Field label="Resolved">
+                {incident.resolved_at ? new Date(incident.resolved_at).toLocaleString() : '—'}
+              </Field>
+              <Field label="Filed">
+                {incident.created_at ? new Date(incident.created_at).toLocaleString() : '—'}
+              </Field>
+            </div>
+          </aside>
+        </div>
       )}
     </motion.div>
   );
@@ -147,4 +178,17 @@ export default function IncidentDetail() {
 
 function Dot() {
   return <span className="text-ink-faint/50">·</span>;
+}
+
+function Divider() {
+  return <div className="h-px bg-glass-border" />;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-[11px] text-ink-faint font-medium">{label}</div>
+      <div className="mt-1 text-[13px] text-ink-soft leading-snug">{children}</div>
+    </div>
+  );
 }
