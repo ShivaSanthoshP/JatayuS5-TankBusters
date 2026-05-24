@@ -226,10 +226,10 @@ Data sources, LLM providers, and remediation profiles are all interface-driven. 
 | Platform | Status | Surface |
 |:---|:---:|:---|
 | **AWS CloudWatch** | **Connected · live** | EC2 · RDS · ELB metrics + CloudWatch Logs |
-| **Azure Monitor** | First-class adapter | VM · SQL · App Service |
-| **GCP Cloud Monitoring** | First-class adapter | Compute Engine · Cloud SQL |
-| **Prometheus** | First-class adapter | PromQL · Node Exporter |
-| **Docker** | First-class adapter | Container stats via daemon API |
+| **Azure Monitor** | Ready to configure | VM · SQL · App Service |
+| **GCP Cloud Monitoring** | Ready to configure | Compute Engine · Cloud SQL |
+| **Prometheus** | Ready to configure | PromQL · Node Exporter |
+| **Docker** | Ready to configure | Container stats via daemon API |
 | **Built-in Simulator** | Active | Full multi-tier fleet with realistic diurnal patterns |
 | **Custom JSON Push** | Active | Ingest metrics from anywhere over a single REST endpoint |
 
