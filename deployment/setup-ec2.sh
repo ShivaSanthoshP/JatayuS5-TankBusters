@@ -123,34 +123,19 @@ echo "[6/8] Configuring nginx..."
 # Remove the default server block that ships with nginx on AL2023
 sudo rm -f /etc/nginx/conf.d/default.conf
 
-sudo tee /etc/nginx/conf.d/itops.conf > /dev/null << 'NGINXEOF'
+# Fresh bootstrap is HTTP-only (HTTPS is added later by acme.sh once a cert is
+# issued — see docs). After acme.sh installs a cert into /etc/nginx/ssl/, the
+# next CI deploy will overwrite this file with deployment/nginx.conf from the
+# repo, which contains the full :80 redirect + :443 ssl server blocks.
+sudo cp "$(dirname "$0")/nginx.conf" /etc/nginx/conf.d/itops.conf 2>/dev/null \
+  || sudo tee /etc/nginx/conf.d/itops.conf > /dev/null << 'NGINXEOF'
 server {
-    listen 80;
+    listen 80 default_server;
     server_name _;
 
-    # Serve the built React app
     root /opt/itops/frontend/dist;
     index index.html;
 
-    # gzip the chatty payloads — JS/CSS/JSON drop ~70% over the wire.
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 256;
-    gzip_proxied any;
-    gzip_comp_level 5;
-    gzip_types
-        application/javascript
-        application/json
-        application/xml
-        application/xml+rss
-        application/wasm
-        image/svg+xml
-        text/css
-        text/javascript
-        text/plain
-        text/xml;
-
-    # WebSocket — live metrics stream
     location /ws/ {
         proxy_pass         http://127.0.0.1:8000;
         proxy_http_version 1.1;
@@ -161,7 +146,6 @@ server {
         proxy_send_timeout 3600s;
     }
 
-    # REST API
     location /api/ {
         proxy_pass         http://127.0.0.1:8000;
         proxy_set_header   Host              $host;
@@ -173,20 +157,11 @@ server {
         proxy_send_timeout    120s;
     }
 
-    # FastAPI built-in endpoints
     location ~ ^/(docs|redoc|openapi\.json|health)$ {
         proxy_pass       http://127.0.0.1:8000;
         proxy_set_header Host $host;
     }
 
-    # Hashed Vite assets — Cache forever (filenames are content-hashed).
-    location /assets/ {
-        access_log off;
-        add_header Cache-Control "public, max-age=31536000, immutable";
-        try_files $uri =404;
-    }
-
-    # React Router fallback — serve index.html for all client-side routes
     location / {
         try_files $uri $uri/ /index.html;
     }
