@@ -128,6 +128,71 @@ def _aws_source_from_settings() -> dict | None:
     }
 
 
+def _azure_source_from_settings() -> dict | None:
+    """Synthesize an Azure source record from persisted settings, if configured."""
+    from app.services.settings_service import settings as _s
+    if not _s.azure_client_id and _s.azure_status != "connected":
+        return None
+    rg = _s.azure_resource_group or ""
+    sub = _s.azure_subscription_id or ""
+    tail = _key_tail(_s.azure_client_id)
+    summary_bits = []
+    if rg:
+        summary_bits.append(rg)
+    if sub:
+        summary_bits.append(f"sub...{_key_tail(sub)}")
+    if tail:
+        summary_bits.append(f"app...{tail}")
+    return {
+        "id": "azure-monitor",
+        "provider": "azure",
+        "name": "Azure Monitor",
+        "enabled": True,
+        "status": _s.azure_status or "configured",
+        "error": _s.azure_error,
+        "summary": " | ".join(summary_bits) or "configured",
+        "config": {
+            "tenant_id": _s.azure_tenant_id,
+            "client_id": _s.azure_client_id,
+            "client_secret": _REDACTED if _s.azure_client_secret else "",
+            "subscription_id": _s.azure_subscription_id,
+            "resource_group": rg,
+        },
+        "created_at": utc_now().isoformat(),
+    }
+
+
+def _gcp_source_from_settings() -> dict | None:
+    """Synthesize a GCP source record from persisted settings, if configured."""
+    from app.services.settings_service import settings as _s
+    if not _s.gcp_project_id and _s.gcp_status != "connected":
+        return None
+    project = _s.gcp_project_id or ""
+    zone = _s.gcp_zone or ""
+    summary_bits = []
+    if project:
+        summary_bits.append(project)
+    if zone:
+        summary_bits.append(zone)
+    if _s.gcp_service_account_json:
+        summary_bits.append("service-account set")
+    return {
+        "id": "gcp-monitoring",
+        "provider": "gcp",
+        "name": "GCP Cloud Monitoring",
+        "enabled": True,
+        "status": _s.gcp_status or "configured",
+        "error": _s.gcp_error,
+        "summary": " | ".join(summary_bits) or "configured",
+        "config": {
+            "project_id": project,
+            "credentials_json": _REDACTED if _s.gcp_service_account_json else "",
+            "zone": zone,
+        },
+        "created_at": utc_now().isoformat(),
+    }
+
+
 def _live_sources() -> list[dict]:
     """Build the live sources list. Simulator is always on; AWS is derived
     from settings so it survives restarts and stays in sync with the live
@@ -147,9 +212,15 @@ def _live_sources() -> list[dict]:
     aws = _aws_source_from_settings()
     if aws:
         out.append(aws)
-    # Pick up any other providers stored in the in-memory list (azure/gcp/etc).
+    azure = _azure_source_from_settings()
+    if azure:
+        out.append(azure)
+    gcp = _gcp_source_from_settings()
+    if gcp:
+        out.append(gcp)
+    # Pick up any other providers stored in the in-memory list.
     for s in _configured_sources:
-        if s["provider"] in ("simulated", "aws"):
+        if s["provider"] in ("simulated", "aws", "azure", "gcp"):
             continue
         out.append(_public_source(s))
     return out
@@ -297,6 +368,85 @@ async def _activate_aws(config: dict) -> tuple[str, str | None]:
         return "error", msg
 
 
+async def _activate_azure(config: dict) -> tuple[str, str | None]:
+    """Bridge the Azure form into settings_service and connect the live adapter."""
+    from app.services.settings_service import settings as _s
+
+    updates: dict = {}
+    for source_key, target_key in (
+        ("tenant_id", "azure_tenant_id"),
+        ("client_id", "azure_client_id"),
+        ("subscription_id", "azure_subscription_id"),
+        ("resource_group", "azure_resource_group"),
+    ):
+        val = config.get(source_key)
+        if val:
+            updates[target_key] = str(val).strip()
+    client_secret = config.get("client_secret")
+    if client_secret and client_secret != _REDACTED:
+        updates["azure_client_secret"] = client_secret
+    if config.get("poll_interval_seconds"):
+        try:
+            updates["azure_poll_interval_seconds"] = int(config["poll_interval_seconds"])
+        except (TypeError, ValueError):
+            pass
+    if updates:
+        _s.update(**updates)
+
+    from app.data_sources.azure_monitor import AzureMonitorDataSource
+    from app.data_sources.base import registry
+    from app.api.routes.settings import _spawn_cloud_task, _poll_cloud_adapter
+
+    adapter = AzureMonitorDataSource()
+    try:
+        await adapter.connect()
+        registry.register(adapter)
+        _spawn_cloud_task(_poll_cloud_adapter(adapter))
+        return "connected", None
+    except Exception as exc:
+        msg = str(exc)[:300]
+        _s.update(azure_status="error", azure_error=msg)
+        return "error", msg
+
+
+async def _activate_gcp(config: dict) -> tuple[str, str | None]:
+    """Bridge the GCP form into settings_service and connect the live adapter."""
+    from app.services.settings_service import settings as _s
+
+    updates: dict = {}
+    project = config.get("project_id")
+    if project:
+        updates["gcp_project_id"] = str(project).strip()
+    zone = config.get("zone")
+    if zone:
+        updates["gcp_zone"] = str(zone).strip()
+    credentials_json = config.get("credentials_json")
+    if credentials_json and credentials_json != _REDACTED:
+        updates["gcp_service_account_json"] = credentials_json
+    if config.get("poll_interval_seconds"):
+        try:
+            updates["gcp_poll_interval_seconds"] = int(config["poll_interval_seconds"])
+        except (TypeError, ValueError):
+            pass
+    if updates:
+        _s.update(**updates)
+
+    from app.data_sources.gcp_monitoring import GCPMonitoringDataSource
+    from app.data_sources.base import registry
+    from app.api.routes.settings import _spawn_cloud_task, _poll_cloud_adapter
+
+    adapter = GCPMonitoringDataSource()
+    try:
+        await adapter.connect()
+        registry.register(adapter)
+        _spawn_cloud_task(_poll_cloud_adapter(adapter))
+        return "connected", None
+    except Exception as exc:
+        msg = str(exc)[:300]
+        _s.update(gcp_status="error", gcp_error=msg)
+        return "error", msg
+
+
 @router.post("/configure")
 async def configure_datasource(body: DataSourceConfig):
     """Add or update a data source configuration.
@@ -308,6 +458,10 @@ async def configure_datasource(body: DataSourceConfig):
     error: str | None = None
     if body.provider == "aws" and body.enabled:
         status, error = await _activate_aws(body.config)
+    if body.provider == "azure" and body.enabled:
+        status, error = await _activate_azure(body.config)
+    if body.provider == "gcp" and body.enabled:
+        status, error = await _activate_gcp(body.config)
 
     existing = next((s for s in _configured_sources if s["provider"] == body.provider), None)
     if existing:
@@ -371,7 +525,65 @@ def test_connection(body: ConnectionTestRequest):
         except Exception as exc:
             return {"success": False, "message": f"CloudWatch test failed: {str(exc)[:300]}"}
 
-    if body.provider in ("azure", "gcp", "prometheus", "docker", "logfile"):
+    if body.provider == "azure":
+        from app.services.settings_service import settings as _s
+        from app.data_sources.azure_monitor import AzureMonitorDataSource
+        cfg = dict(body.config or {})
+        updates = {
+            "azure_tenant_id": cfg.get("tenant_id") or _s.azure_tenant_id,
+            "azure_client_id": cfg.get("client_id") or _s.azure_client_id,
+            "azure_subscription_id": cfg.get("subscription_id") or _s.azure_subscription_id,
+            "azure_resource_group": cfg.get("resource_group") or _s.azure_resource_group,
+        }
+        client_secret = cfg.get("client_secret")
+        updates["azure_client_secret"] = (
+            client_secret if client_secret and client_secret != _REDACTED else _s.azure_client_secret
+        )
+        if not all([updates["azure_tenant_id"], updates["azure_client_id"], updates["azure_client_secret"], updates["azure_subscription_id"]]):
+            return {"success": False, "message": "Missing Azure credentials"}
+        original = _s.snapshot(include_secrets=True)
+        try:
+            _s.update(**updates)
+            t0 = time.time()
+            out = AzureMonitorDataSource().test_connection()
+            return {"success": bool(out.get("ok")), "message": out.get("message", ""), "latency_ms": int((time.time() - t0) * 1000)}
+        finally:
+            _s.update(
+                azure_tenant_id=original["azure_tenant_id"],
+                azure_client_id=original["azure_client_id"],
+                azure_client_secret=original["azure_client_secret"],
+                azure_subscription_id=original["azure_subscription_id"],
+                azure_resource_group=original["azure_resource_group"],
+            )
+
+    if body.provider == "gcp":
+        from app.services.settings_service import settings as _s
+        from app.data_sources.gcp_monitoring import GCPMonitoringDataSource
+        cfg = dict(body.config or {})
+        updates = {
+            "gcp_project_id": cfg.get("project_id") or _s.gcp_project_id,
+            "gcp_zone": cfg.get("zone") or _s.gcp_zone,
+        }
+        credentials_json = cfg.get("credentials_json")
+        updates["gcp_service_account_json"] = (
+            credentials_json if credentials_json and credentials_json != _REDACTED else _s.gcp_service_account_json
+        )
+        if not updates["gcp_project_id"] or not updates["gcp_service_account_json"]:
+            return {"success": False, "message": "Missing GCP credentials"}
+        original = _s.snapshot(include_secrets=True)
+        try:
+            _s.update(**updates)
+            t0 = time.time()
+            out = GCPMonitoringDataSource().test_connection()
+            return {"success": bool(out.get("ok")), "message": out.get("message", ""), "latency_ms": int((time.time() - t0) * 1000)}
+        finally:
+            _s.update(
+                gcp_project_id=original["gcp_project_id"],
+                gcp_service_account_json=original["gcp_service_account_json"],
+                gcp_zone=original["gcp_zone"],
+            )
+
+    if body.provider in ("prometheus", "docker", "logfile"):
         missing = [f["key"] for f in _get_required_fields(body.provider) if f["key"] not in body.config]
         if missing:
             return {"success": False, "message": f"Missing required fields: {', '.join(missing)}"}
@@ -401,6 +613,30 @@ def remove_datasource(provider: str):
             cloudwatch_error=None,
         )
         registry._sources.pop("aws", None)
+    if provider == "azure":
+        from app.services.settings_service import settings as _s
+        from app.data_sources.base import registry
+        _s.update(
+            azure_tenant_id="",
+            azure_client_id="",
+            azure_client_secret="",
+            azure_subscription_id="",
+            azure_resource_group="",
+            azure_status="disconnected",
+            azure_error=None,
+        )
+        registry._sources.pop("azure", None)
+    if provider == "gcp":
+        from app.services.settings_service import settings as _s
+        from app.data_sources.base import registry
+        _s.update(
+            gcp_project_id="",
+            gcp_service_account_json="",
+            gcp_zone="",
+            gcp_status="disconnected",
+            gcp_error=None,
+        )
+        registry._sources.pop("gcp", None)
     _configured_sources = [s for s in _configured_sources if s["provider"] != provider]
     return {"message": f"Removed {provider}"}
 
