@@ -136,8 +136,8 @@ function CreateModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
       }
       onCreated();
       onClose();
-    } catch (e: any) {
-      setError(e.message || 'Failed to create simulator');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create simulator');
     } finally {
       setCreating(false);
     }

@@ -12,6 +12,7 @@ import AutoPipelinePanel from '../components/pipeline/AutoPipelinePanel';
 import PipelineResultView from '../components/pipeline/PipelineResultView';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
+import type { RunPipelineAllSummary } from '../services/api';
 import type { InfraNode, PipelineResult, PipelineRunStatus } from '../types';
 import { palette } from '../lib/theme';
 import { easing } from '../lib/motion';
@@ -59,16 +60,41 @@ const NODE_TYPE_ICONS: Record<string, string> = {
 
 const STORAGE_KEY = 'itops_pipeline_state';
 
-function savePipelineState(state: Record<string, any>) {
+type PipelineLogEntry = {
+  timestamp: number;
+  message: string;
+  type: 'info' | 'success' | 'error' | 'agent';
+};
+
+// The "run all nodes" endpoint returns a fleet-level summary that lives
+// in the same UI slot as a single-node PipelineResult. Keeping both in
+// one union lets the result panel render either shape without an extra
+// state field.
+type PipelineResultOrSummary = PipelineResult | RunPipelineAllSummary;
+
+function isRunAllSummary(r: PipelineResultOrSummary | null): r is RunPipelineAllSummary {
+  return r !== null && (r as RunPipelineAllSummary).total_nodes !== undefined;
+}
+
+interface PersistedPipelineState {
+  selectedNode?: string;
+  result?: PipelineResultOrSummary | null;
+  error?: string | null;
+  pipelineRun?: PipelineRunStatus | null;
+  elapsedMs?: number;
+  logs?: PipelineLogEntry[];
+}
+
+function savePipelineState(state: PersistedPipelineState) {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch { /* ignore quota errors */ }
 }
 
-function loadPipelineState(): Record<string, any> | null {
+function loadPipelineState(): PersistedPipelineState | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? (JSON.parse(raw) as PersistedPipelineState) : null;
   } catch {
     return null;
   }
@@ -89,7 +115,7 @@ export default function Pipeline() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<PipelineResult | null>(saved.current?.result || null);
+  const [result, setResult] = useState<PipelineResultOrSummary | null>(saved.current?.result || null);
   const [error, setError] = useState<string | null>(saved.current?.error || null);
   const [runId, setRunId] = useState<string | null>(null);
   const [pipelineRun, setPipelineRun] = useState<PipelineRunStatus | null>(saved.current?.pipelineRun || null);
@@ -125,10 +151,16 @@ export default function Pipeline() {
     clearPipelineState();
   }, []);
 
-  const nodeList = nodes || [];
+  // Wrapped in useMemo so the `|| []` fallback identity stays stable
+  // across renders — otherwise every downstream useMemo that depends
+  // on `nodeList` would recompute even when `nodes` hasn't changed.
+  const nodeList = useMemo(() => nodes || [], [nodes]);
   const completedAgents = useMemo(
     () => {
-      const agents = new Set((result?.agent_trace ?? []).map((trace) => String(trace.agent)));
+      // agent_trace is only present on single-node runs, not the fleet
+      // summary returned by /pipeline/run-all.
+      const trace = result && !isRunAllSummary(result) ? result.agent_trace : [];
+      const agents = new Set(trace.map((entry) => String(entry.agent)));
       for (const event of pipelineRun?.progress_events ?? []) {
         if (event.phase === 'completed' && event.agent !== 'pipeline') {
           agents.add(String(event.agent));
@@ -162,13 +194,18 @@ export default function Pipeline() {
   // Source = the data adapter feeding the node (simulator vs aws cloudwatch, etc).
   // Matches the same field used on the Fleet page so the two filters
   // stay in sync; falls back to provider when older nodes haven't been re-tagged.
-  const sourceOf = (n: typeof nodeList[number]) =>
-    (n.metadata_?.data_source as string | undefined) ?? n.provider;
+  // useCallback keeps the identity stable so downstream useMemos that
+  // close over it don't recompute every render.
+  const sourceOf = useCallback(
+    (n: typeof nodeList[number]) =>
+      (n.metadata_?.data_source as string | undefined) ?? n.provider,
+    [],
+  );
 
   const nodeSources = useMemo(() => {
     const sources = new Set(nodeList.map(sourceOf));
     return ['all', ...Array.from(sources)];
-  }, [nodeList]);
+  }, [nodeList, sourceOf]);
 
   // Filter nodes based on status, type, and source filters
   const filteredNodes = useMemo(() => {
@@ -178,7 +215,7 @@ export default function Pipeline() {
       if (sourceFilter !== 'all' && sourceOf(n) !== sourceFilter) return false;
       return true;
     });
-  }, [nodeList, statusFilter, typeFilter, sourceFilter]);
+  }, [nodeList, statusFilter, typeFilter, sourceFilter, sourceOf]);
 
   // Selected node object
   const selectedNodeObj = useMemo(
@@ -246,9 +283,9 @@ export default function Pipeline() {
         }
 
         nextPoll = setTimeout(poll, 1000);
-      } catch (e: any) {
+      } catch (e) {
         if (cancelled) return;
-        setError(e.message || 'Failed to fetch pipeline progress');
+        setError(e instanceof Error ? e.message : 'Failed to fetch pipeline progress');
         setRunning(false);
         setRunId(null);
       }
@@ -283,8 +320,8 @@ export default function Pipeline() {
     try {
       const started = await api.startPipelineRun({ node_name: selectedNode });
       setRunId(started.run_id);
-    } catch (e: any) {
-      setError(e.message || 'Pipeline execution failed');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Pipeline execution failed');
       setPipelineRun(null);
       setRunning(false);
     }
@@ -309,11 +346,12 @@ export default function Pipeline() {
         message: `All-nodes pipeline completed in ${formatElapsed(elapsed)}`,
         type: 'success',
       }]);
-    } catch (e: any) {
-      setError(e.message || 'Pipeline execution failed');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Pipeline execution failed';
+      setError(msg);
       setLogs(prev => [...prev, {
         timestamp: Date.now() - startTimeRef.current,
-        message: `Pipeline failed: ${e.message}`,
+        message: `Pipeline failed: ${msg}`,
         type: 'error',
       }]);
     } finally {
@@ -748,10 +786,10 @@ export default function Pipeline() {
           >
             {/* Summary card */}
             {(() => {
-              const isRunAll = (result as any).total_nodes !== undefined;
-              const anomaliesDetected = Number((result as any).anomalies_detected ?? 0);
-              const incidentsCreated = Number((result as any).incidents_created ?? 0);
-              const totalNodes = Number((result as any).total_nodes ?? 0);
+              const isRunAll = isRunAllSummary(result);
+              const anomaliesDetected = isRunAll ? result.anomalies_detected : 0;
+              const incidentsCreated = isRunAll ? result.incidents_created : 0;
+              const totalNodes = isRunAll ? result.total_nodes : 0;
               const hasAnomaly = isRunAll ? anomaliesDetected > 0 : Boolean(result.is_anomaly);
               const aggregateStatus = isRunAll
                 ? (anomaliesDetected > 0 ? 'critical' : 'healthy')
@@ -826,7 +864,8 @@ export default function Pipeline() {
             {/* 5-section agent pipeline view — only for single-node runs
                 where we have the full per-agent payload. Run-All shows
                 just the aggregate summary above. */}
-            {result.monitoring_result && Object.keys(result.monitoring_result).length > 0 && (
+            {!isRunAllSummary(result) && result.monitoring_result &&
+              Object.keys(result.monitoring_result).length > 0 && (
               <div className="glass p-5 sm:p-7 gpu">
                 <PipelineResultView
                   monitoring={result.monitoring_result}

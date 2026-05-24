@@ -251,11 +251,14 @@ export default function Settings() {
         api.getSettings(),
         api.getOllamaModels(),
       ]);
-      setSettings(settingsData);
+      // The backend Pydantic model carries every SettingsData key; the
+      // api.ts return type is intentionally open so this page (and only
+      // this page) holds the strict shape.
+      setSettings(settingsData as unknown as SettingsData);
       setOllamaModels(modelsData.models || []);
       setError(null);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load settings');
     } finally {
       setLoading(false);
     }
@@ -265,6 +268,9 @@ export default function Settings() {
 
   // Fetch the live model list for the active primary online provider.
   // Only Gemini calls a live API; the others get a curated static list.
+  // We intentionally key on the two fields that actually invalidate the
+  // model list — adding `settings` itself would refetch on every settings
+  // edit (temperature slider, etc.) and hammer the model-list endpoint.
   useEffect(() => {
     if (!settings) return;
     const provider = normalizeProvider(settings.online_provider_name);
@@ -274,6 +280,7 @@ export default function Settings() {
     }).catch(() => {
       setOnlineModels([]);
     }).finally(() => setOnlineModelsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.online_provider_name, settings?.gemini_api_key_set]);
 
   useEffect(() => {
@@ -285,6 +292,7 @@ export default function Settings() {
     }).catch(() => {
       setFallbackModels([]);
     }).finally(() => setFallbackModelsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.fallback_provider_name, settings?.fallback_api_key_set]);
 
   const save = async (partial: Partial<SettingsData>) => {
@@ -293,12 +301,12 @@ export default function Settings() {
     setSaved(false);
     try {
       const updated = await api.updateSettings(partial);
-      setSettings(updated);
+      setSettings(updated as unknown as SettingsData);
       setSaved(true);
       setError(null);
       setTimeout(() => setSaved(false), 2000);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -322,11 +330,11 @@ export default function Settings() {
     setTestingPrimary(true);
     setTestPrimaryResult(null);
     try {
-      const body: any = { provider: 'gemini', key_slot: 'gemini_api_key' };
+      const body: Parameters<typeof api.testLlmProvider>[0] = { provider: 'gemini' };
       if (primaryKeyDraft.trim()) body.api_key = primaryKeyDraft.trim();
       setTestPrimaryResult(await api.testLlmProvider(body));
-    } catch (e: any) {
-      setTestPrimaryResult({ ok: false, message: e.message });
+    } catch (e) {
+      setTestPrimaryResult({ ok: false, message: e instanceof Error ? e.message : 'Test failed' });
     } finally {
       setTestingPrimary(false);
     }
@@ -336,11 +344,11 @@ export default function Settings() {
     setTestingFallback(true);
     setTestFallbackResult(null);
     try {
-      const body: any = { provider: 'gemini', key_slot: 'fallback_api_key' };
+      const body: Parameters<typeof api.testLlmProvider>[0] = { provider: 'gemini' };
       if (fallbackKeyDraft.trim()) body.api_key = fallbackKeyDraft.trim();
       setTestFallbackResult(await api.testLlmProvider(body));
-    } catch (e: any) {
-      setTestFallbackResult({ ok: false, message: e.message });
+    } catch (e) {
+      setTestFallbackResult({ ok: false, message: e instanceof Error ? e.message : 'Test failed' });
     } finally {
       setTestingFallback(false);
     }
@@ -351,8 +359,8 @@ export default function Settings() {
     setTestOllamaResult(null);
     try {
       setTestOllamaResult(await api.testLlmProvider({ provider: 'ollama' }));
-    } catch (e: any) {
-      setTestOllamaResult({ ok: false, message: e.message });
+    } catch (e) {
+      setTestOllamaResult({ ok: false, message: e instanceof Error ? e.message : 'Test failed' });
     } finally {
       setTestingOllama(false);
     }

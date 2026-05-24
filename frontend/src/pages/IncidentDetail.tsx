@@ -23,12 +23,18 @@ export default function IncidentDetail() {
   const [remediationLoading, setRemediationLoading] = useState(false);
 
   useEffect(() => {
+    // Reset the incident state on every id change — the warning here is
+    // about cascading renders, but this is the intentional "show loading
+    // sentinel while the new fetch resolves" pattern, and the resets are
+    // guarded by the id check or terminate the effect.
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (!validId) {
       setIncident(null);
       return;
     }
     let cancelled = false;
     setIncident(undefined);
+    /* eslint-enable react-hooks/set-state-in-effect */
     api
       .getIncident(idNum)
       .then((inc) => {
@@ -45,6 +51,9 @@ export default function IncidentDetail() {
   useEffect(() => {
     if (!validId) return;
     let cancelled = false;
+    // Same reset-before-fetch intent as the incident effect above —
+    // clearing the previous payload while the new one loads.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRemediation(undefined);
     setRemediationLoading(true);
     api

@@ -68,8 +68,8 @@ export default function DataSources() {
     try {
       const res = await api.testDataSource({ provider: provider.id, config: formData });
       setTestResult(res);
-    } catch (e: any) {
-      setTestResult({ success: false, message: e.message });
+    } catch (e) {
+      setTestResult({ success: false, message: e instanceof Error ? e.message : 'Test failed' });
     } finally { setTesting(false); }
   };
 
@@ -107,7 +107,9 @@ export default function DataSources() {
         latency_ms: +ingestData.latency_ms,
       });
       setIngestMsg(`Ingested for node ${res.node_name} (ID: ${res.node_id})`);
-    } catch (e: any) { setIngestMsg(e.message); }
+    } catch (e) {
+      setIngestMsg(e instanceof Error ? e.message : 'Ingest failed');
+    }
   };
 
   return (
@@ -369,7 +371,7 @@ export default function DataSources() {
               </p>
 
               <div className="grid grid-cols-2 gap-3">
-                {[
+                {([
                   { key: 'node_name', label: 'Node Name', full: true },
                   { key: 'node_type', label: 'Node Type' },
                   { key: 'cpu_percent', label: 'CPU %', type: 'number' },
@@ -377,12 +379,12 @@ export default function DataSources() {
                   { key: 'disk_percent', label: 'Disk %', type: 'number' },
                   { key: 'error_rate', label: 'Error Rate %', type: 'number' },
                   { key: 'latency_ms', label: 'Latency ms', type: 'number' },
-                ].map(f => (
-                  <div key={f.key} className={f.full ? 'col-span-2' : ''}>
+                ] as const).map(f => (
+                  <div key={f.key} className={'full' in f && f.full ? 'col-span-2' : ''}>
                     <label className="text-xs text-ink-mute block mb-1">{f.label}</label>
                     <input
-                      type={f.type || 'text'}
-                      value={(ingestData as any)[f.key]}
+                      type={'type' in f ? f.type : 'text'}
+                      value={ingestData[f.key]}
                       onChange={e => setIngestData({ ...ingestData, [f.key]: e.target.value })}
                       className="w-full bg-[var(--color-surface-strong)] border border-hairline-strong rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                     />

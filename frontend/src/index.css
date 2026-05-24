@@ -363,9 +363,12 @@ button {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  font-size: 11px;
+  /* Sized to match the Argus pop pill so every tab reads as a peer
+     control of the same weight. The pop variant only changes colour
+     and adds the gradient halo — no longer a different geometry. */
+  gap: 8px;
+  padding: 8px 18px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;
   border-radius: var(--radius-pill);
@@ -386,12 +389,11 @@ button {
    tab IS the button; the .argus-tab-halo span renders the gradient + glow
    behind the text so the icon and label float above. */
 .glass-nav-tab-pop {
+  /* Base tab already sets the geometry; pop only overrides colour/weight
+     so Argus reads as the filled accent CTA in an otherwise calm row. */
   color: #ffffff;
   background: transparent;
   font-weight: 700;
-  font-size: 12px;
-  padding: 8px 18px;
-  gap: 8px;
   transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }

@@ -19,7 +19,8 @@ export default function Incidents() {
     8000,
     [],
   );
-  const incidentList = incidents || [];
+  // Wrapped so the `|| []` fallback has a stable identity across renders.
+  const incidentList = useMemo(() => incidents || [], [incidents]);
 
   // ── Summary stats ────────────────────────────────────────
   const stats = useMemo(() => {
@@ -82,6 +83,10 @@ export default function Incidents() {
   }, [orderedList, currentPage]);
 
   useEffect(() => {
+    // Snap back to page 1 when the total page count shrinks below the
+    // current page (e.g. after filtering). This setState is intentional
+    // and safe — guarded so it only fires when the page is invalid.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (currentPage > totalPages) setCurrentPage(1);
   }, [totalPages, currentPage]);
 

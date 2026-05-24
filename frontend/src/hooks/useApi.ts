@@ -11,8 +11,8 @@ export function useApi<T>(fetcher: () => Promise<T>, deps: unknown[] = []) {
     try {
       const result = await fetcher();
       setData(result);
-    } catch (e: any) {
-      setError(e.message || 'Request failed');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Request failed');
     } finally {
       setLoading(false);
     }

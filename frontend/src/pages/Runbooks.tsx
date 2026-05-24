@@ -180,8 +180,8 @@ export default function Runbooks() {
     try {
       const res = await api.purgeSelfEmittedLogs();
       setPurgeMsg(`Purged ${res.deleted} self-emitted log lines.`);
-    } catch (e: any) {
-      setPurgeMsg(`Failed: ${e?.message ?? e}`);
+    } catch (e) {
+      setPurgeMsg(`Failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setPurging(false);
     }
@@ -209,7 +209,8 @@ export default function Runbooks() {
   const PAGE_SIZE = 50;
   const [rbPage, setRbPage] = useState(1);
 
-  const allRunbooks = runbooks || [];
+  // Wrapped so the `|| []` fallback identity stays stable across renders.
+  const allRunbooks = useMemo(() => runbooks || [], [runbooks]);
 
   // Derive filtered + sorted list
   const filteredSorted = useMemo(() => {

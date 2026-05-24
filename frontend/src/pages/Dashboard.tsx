@@ -205,12 +205,17 @@ export default function Dashboard() {
   const { data: wsEvents, connected } = useMetricsStream();
   const chartData = useChartHistory(wsEvents);
 
-  const safeStats: DashboardStats = stats || {
-    total_nodes: 0, healthy_nodes: 0, degraded_nodes: 0, critical_nodes: 0,
-    total_incidents: 0, open_incidents: 0, resolved_incidents: 0,
-    total_remediations: 0, success_rate: 0, memory_incidents_stored: 0, memory_runbooks_stored: 0,
-    embedding_provider: 'google', gemini_embedding_model: 'models/text-embedding-004', ollama_embedding_model: 'nomic-embed-text',
-  };
+  // Memoised so the empty-defaults object isn't reinstantiated on every
+  // render — keeps downstream useMemos (headline, etc.) from churning.
+  const safeStats = useMemo<DashboardStats>(
+    () => stats || {
+      total_nodes: 0, healthy_nodes: 0, degraded_nodes: 0, critical_nodes: 0,
+      total_incidents: 0, open_incidents: 0, resolved_incidents: 0,
+      total_remediations: 0, success_rate: 0, memory_incidents_stored: 0, memory_runbooks_stored: 0,
+      embedding_provider: 'google', gemini_embedding_model: 'models/text-embedding-004', ollama_embedding_model: 'nomic-embed-text',
+    },
+    [stats],
+  );
 
   const fleet = useMemo(() => wsEvents.slice(0, 12), [wsEvents]);
   const recentIncidents = (incidents ?? []).slice(0, 8);
