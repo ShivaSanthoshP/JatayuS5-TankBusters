@@ -32,7 +32,7 @@ const GlassNavbar: React.FC<GlassNavbarProps> = ({ children, className = '', con
           backdropFilter: `blur(${blur}px) saturate(180%)`,
           WebkitBackdropFilter: `blur(${blur}px) saturate(180%)`,
         }}
-        className={`glass-navbar-pill w-full max-w-7xl flex items-center justify-between px-3 sm:px-5 pointer-events-auto gpu ${className}`}
+        className={`glass-navbar-pill w-full max-w-[1500px] flex items-center justify-between px-3 sm:px-5 pointer-events-auto gpu ${className}`}
       >
         {children}
       </motion.header>

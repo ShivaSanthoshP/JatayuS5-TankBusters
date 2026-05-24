@@ -123,28 +123,35 @@ export default function Layout() {
           </div>
         </button>
 
-        {/* Desktop branding — non-clickable */}
-        <div className="hidden xl:flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
+        {/* Desktop branding — non-clickable.
+            At xl (1280–1535 px) the brand collapses to the logo only so
+            the nine-tab strip plus the wordmark don't fight for the same
+            1208 px of usable navbar interior. The full wordmark returns
+            at 2xl (≥ 1536 px) where there's room for both. */}
+        <div className="hidden xl:flex items-center gap-2 2xl:gap-3 shrink-0 min-w-0">
           <div
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden flex items-center justify-center gpu shrink-0"
+            className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center gpu shrink-0"
             style={{
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.78), 0 6px 16px -8px rgba(21,25,26,0.22)',
             }}
           >
             <img src="/virtusa-logo.jpg" alt="Virtusa" className="block w-full h-full object-cover" />
           </div>
-          <div className="flex flex-col leading-tight min-w-0">
-            <span className="font-display font-semibold text-[15px] sm:text-[17px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+          <div className="hidden 2xl:flex flex-col leading-tight min-w-0">
+            <span className="font-display font-semibold text-[17px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
               Dynamic <span className="text-[var(--color-accent)] italic">IT</span>
             </span>
-            <span className="font-display font-semibold text-[15px] sm:text-[17px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+            <span className="font-display font-semibold text-[17px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
               Operations Orchestrator
             </span>
           </div>
         </div>
 
-        {/* Desktop nav tabs (visible xl+) */}
-        <nav className="hidden xl:flex items-center gap-0.5 mx-auto">
+        {/* Desktop nav tabs (visible xl+). gap-2 (8 px) so every pill reads
+            as its own destination — anything tighter and the row collapses
+            into a single slab. Combined with the per-pill hover background
+            this gives a clear pointer-target for each item. */}
+        <nav className="hidden xl:flex items-center gap-2 mx-auto">
           {NAV.map((item) => (
             <GlassTab
               key={item.to}

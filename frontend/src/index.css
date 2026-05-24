@@ -363,26 +363,35 @@ button {
   position: relative;
   display: inline-flex;
   align-items: center;
-  /* Compact base geometry — sized to fit all nine tabs (Argus + 8) in the
-     navbar pill on a 1280-px laptop without overflow. The clamp() values
-     scale every dimension fluidly between 1280 px and 1536 px so the row
-     gains breathing room on wider displays without any breakpoint jumps.
-     The pop variant inherits this geometry; it only overrides colour. */
-  gap: clamp(5px, 0.45vw, 8px);
-  padding: clamp(6px, 0.55vw, 8px) clamp(10px, 1.15vw, 18px);
-  font-size: clamp(10.5px, 0.85vw, 12px);
+  /* Pill geometry — sized to fit all nine tabs (Argus + 8) in the navbar
+     on a 1280-px laptop without overflow. The padding scales gently
+     between 1280 px and 1536 px so the row gains breathing room on
+     wider displays without any breakpoint jumps. The pop variant
+     inherits this geometry; it only overrides colour. */
+  gap: 7px;
+  padding: 7px clamp(11px, 0.95vw, 16px);
+  font-size: clamp(10.75px, 0.78vw, 11.75px);
   font-weight: 600;
   letter-spacing: 0.05em;
   border-radius: var(--radius-pill);
   color: var(--color-ink-mute);
-  transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .glass-nav-tab:hover:not(.glass-nav-tab-active) {
-  color: var(--color-ink-soft);
+  color: var(--color-ink);
+  background-color: rgba(21, 25, 26, 0.04);
+}
+
+/* Keyboard focus — instant, no transition. Sits inside the pill so it
+   reads as a focused tab, not a tab next to a focus marker. */
+.glass-nav-tab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* "Pop" tab — the Argus entry, styled as a filled CTA pill that matches
@@ -425,20 +434,26 @@ button {
   will-change: filter;
 }
 
-/* Active-tab state — soft accent-tinted pill, not a competing CTA.
-   The only filled-CTA pill on the strip is Argus; the active indicator
-   reads as "you are here" without shouting. */
+/* Active-tab state — a calm but unmistakable "you are here". The only
+   filled-CTA pill on the strip is Argus, so this indicator reads as
+   secondary by hue (accent-tinted, not gradient) while still carrying
+   enough weight that a glance lands on it before the inactive tabs. */
 .glass-nav-tab-active {
   color: var(--color-accent);
   font-weight: 700;
 }
 
 .glass-nav-tab-indicator {
-  background: rgba(53, 53, 140, 0.10);
+  background: linear-gradient(
+    180deg,
+    rgba(53, 53, 140, 0.16) 0%,
+    rgba(53, 53, 140, 0.22) 100%
+  );
   border-radius: var(--radius-pill);
   box-shadow:
-    inset 0 0 0 1px rgba(53, 53, 140, 0.18),
-    0 1px 2px rgba(21, 25, 26, 0.04);
+    inset 0 0 0 1px rgba(53, 53, 140, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 2px 6px -2px rgba(53, 53, 140, 0.25);
 }
 
 /* ───────────────────────────────────────────────────────────────────
