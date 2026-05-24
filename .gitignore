@@ -1,5 +1,8 @@
 .DS_Store
 .claude/
+.hallmark/
+CLAUDE.md
+/test_api.py
 
 backend/.env
 backend/venv/
