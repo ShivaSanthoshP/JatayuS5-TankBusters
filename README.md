@@ -43,7 +43,7 @@
 
 ## 🛰️ Live — and watching real cloud infrastructure right now
 
-**This is not a slide deck, a mock-up, or a canned dataset.** The platform you can open above is connected to **real AWS CloudWatch** in **Mumbai (`ap-south-1`)** and is monitoring a **production EC2 instance — the very host it is deployed on.**
+This platform is connected to **real AWS CloudWatch** in **Mumbai (`ap-south-1`)** and is monitoring a **production EC2 instance — the very host it is deployed on.**
 
 It reads that instance's live CPU, network, and status-check metrics straight from CloudWatch, tails its real log groups (`/itops/ec2/syslog`, `/itops/ec2/auth`), and runs the full five-agent pipeline against what it actually observes. In other words: **the orchestrator watches the infrastructure it lives on, and would diagnose and draft a fix for its own host the moment something drifts.**
 
