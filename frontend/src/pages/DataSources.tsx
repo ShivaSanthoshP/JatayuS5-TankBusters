@@ -222,7 +222,7 @@ export default function DataSources() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={e => e.stopPropagation()}
-              className="glass-modal w-full max-w-lg p-6 space-y-5"
+              className="glass-modal w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto"
             >
               {(() => {
                 const existing = sources.find(s => s.provider === configuring.id);
@@ -355,7 +355,7 @@ export default function DataSources() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={e => e.stopPropagation()}
-              className="glass-modal w-full max-w-lg p-6 space-y-5"
+              className="glass-modal w-full max-w-lg p-6 space-y-5 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-ink">Push Metrics via API</h2>
