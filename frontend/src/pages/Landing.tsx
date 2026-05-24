@@ -2,19 +2,22 @@
  * theme: iTOps brand (preserved · indigo accent + spark green on white) · enrichment: E0 aurora
  * tone: business proposal — impactful, restrained, honest copy (README facts only)
  * motion: aurora · fadeUp · stagger
- * route: /pitch · standalone (no app navbar)
+ * route: / (and /landing alias) · standalone (no app navbar)
  * pre-emit critique: P5 H5 E4 S5 R5 V4
  */
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, ArrowUpRight, Activity, TrendingUp, Search, Wrench,
+  ArrowRight, Activity, TrendingUp, Search, Wrench,
   FileText, Wand2, ShieldCheck, Cpu, Cloud, Database, Code2,
 } from 'lucide-react';
 import { useRef } from 'react';
 import { AuroraBackground } from '@/components/ui/aurora-background';
 
-const LIVE_APP_URL = 'https://dynamic-it-ops.tankbusters.duckdns.org/';
+// The landing page now lives on the same domain as the app, so every
+// "open the platform" CTA is an internal SPA navigation. /app is the
+// dashboard route — kept short so the URL stays clean.
+const APP_PATH = '/app';
 const REPO_URL = 'https://github.com/ShivaSanthoshP/itops';
 
 const AGENTS = [
@@ -101,10 +104,8 @@ export default function Landing() {
             </p>
 
             <div className="mt-10 flex flex-wrap items-center gap-3">
-              <a
-                href={LIVE_APP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to={APP_PATH}
                 className="group inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-[14px] font-semibold text-[var(--color-surface)]"
                 style={{
                   background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dim) 100%)',
@@ -113,11 +114,11 @@ export default function Landing() {
                 }}
               >
                 Open the live platform
-                <ArrowUpRight
+                <ArrowRight
                   size={16}
-                  className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  className="transition-transform duration-200 group-hover:translate-x-1"
                 />
-              </a>
+              </Link>
               <a
                 href="#how"
                 className="group inline-flex items-center gap-2 rounded-full px-6 py-3.5 text-[14px] font-semibold text-[var(--color-ink)] bg-white/85 backdrop-blur ring-1 ring-[rgba(21,25,26,0.10)] hover:bg-white transition-colors"
@@ -126,7 +127,7 @@ export default function Landing() {
                 <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-1" />
               </a>
               <Link
-                to="/"
+                to={APP_PATH}
                 className="ml-2 inline-flex items-center gap-1.5 text-[13px] text-[var(--color-ink-mute)] hover:text-[var(--color-ink-soft)] transition-colors"
               >
                 or jump straight to the dashboard
@@ -294,10 +295,8 @@ export default function Landing() {
                   ))}
                 </div>
               </div>
-              <a
-                href={`${LIVE_APP_URL}copilot`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/copilot"
                 className="group inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-[13px] font-semibold whitespace-nowrap shrink-0"
                 style={{
                   background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-canvas-soft) 100%)',
@@ -306,11 +305,11 @@ export default function Landing() {
                 }}
               >
                 Talk to Argus
-                <ArrowUpRight
+                <ArrowRight
                   size={15}
-                  className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  className="transition-transform duration-200 group-hover:translate-x-1"
                 />
-              </a>
+              </Link>
             </div>
           </motion.div>
         </div>
@@ -340,17 +339,15 @@ export default function Landing() {
               own host the moment anything drifts.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <a
-                href={LIVE_APP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to={APP_PATH}
                 className="group inline-flex items-center gap-2 text-[14px] font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-dim)] transition-colors"
               >
                 See it for yourself
-                <ArrowUpRight size={15} className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              </a>
+                <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-1" />
+              </Link>
               <a
-                href={`${LIVE_APP_URL}health`}
+                href="/health"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-[14px] font-mono text-[var(--color-ink-mute)] hover:text-[var(--color-ink-soft)] transition-colors"
@@ -457,10 +454,8 @@ export default function Landing() {
               incident the platform resolves makes it smarter. The knowledge base grows itself.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <a
-                href={LIVE_APP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to={APP_PATH}
                 className="group inline-flex items-center gap-2 rounded-full px-7 py-4 text-[15px] font-semibold text-white"
                 style={{
                   background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dim) 100%)',
@@ -468,11 +463,11 @@ export default function Landing() {
                 }}
               >
                 Open the live platform
-                <ArrowUpRight
+                <ArrowRight
                   size={16}
-                  className="transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  className="transition-transform duration-200 group-hover:translate-x-1"
                 />
-              </a>
+              </Link>
               <a
                 href={REPO_URL}
                 target="_blank"

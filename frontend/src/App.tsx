@@ -17,12 +17,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public landing page — standalone, no app navbar. Shareable as the
-            project's business-proposal URL. */}
-        <Route path="/pitch" element={<Landing />} />
+        {/* Public landing page — standalone, no app navbar. Lives on the
+            root path so the canonical URL is the project home; /landing
+            is kept as a shareable alias. */}
+        <Route path="/" element={<Landing />} />
+        <Route path="/landing" element={<Landing />} />
 
         <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/app" element={<Dashboard />} />
           <Route path="/workflow" element={<Pipeline />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/incidents/:id" element={<IncidentDetail />} />

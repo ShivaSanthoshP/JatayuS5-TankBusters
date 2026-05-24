@@ -656,7 +656,7 @@ textarea::placeholder {
    ═══════════════════════════════════════════════════════════════════ */
 
 @theme {
-  /* ── Aurora hero tokens (landing /pitch only) ────────────── */
+  /* ── Aurora hero tokens (landing page only) ───────────────── */
   --aurora-transparent: transparent;
   --aurora-white:       #ffffff;
   --aurora-blue-500:    #3b82f6;

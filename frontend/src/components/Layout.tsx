@@ -15,7 +15,7 @@ import GlobalRunbookForm from './runbooks/GlobalRunbookForm';
 const NAV: { to: string; icon: LucideIcon; label: string; pop?: boolean }[] = [
   // Argus sits leftmost and is "popped" — the accent CTA of the nav.
   { to: '/copilot', icon: Wand2, label: 'Argus', pop: true },
-  { to: '/', icon: LayoutDashboard, label: 'DASHBOARD' },
+  { to: '/app', icon: LayoutDashboard, label: 'DASHBOARD' },
   { to: '/fleet', icon: Boxes, label: 'FLEET' },
   { to: '/sources', icon: Activity, label: 'SOURCES' },
   { to: '/workflow', icon: Workflow, label: 'WORKFLOW' },
@@ -33,7 +33,7 @@ export default function Layout() {
   const isCopilot = location.pathname === '/copilot';
   // The Dashboard has its own Copilot promo card, so the floating launcher
   // is suppressed there to avoid a duplicate call-to-action.
-  const isDashboard = location.pathname === '/';
+  const isDashboard = location.pathname === '/app';
   const mainRef = useRef<HTMLElement>(null);
   const [condense, setCondense] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
