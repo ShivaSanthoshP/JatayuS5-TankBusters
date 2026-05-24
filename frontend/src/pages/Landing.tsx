@@ -9,7 +9,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Activity, TrendingUp, Search, Wrench,
-  FileText, Wand2, ShieldCheck, Cpu, Cloud, Database, Code2,
+  FileText, Wand2, ShieldCheck, Cpu, Cloud, Database, Code2, ChevronDown,
 } from 'lucide-react';
 import { useRef } from 'react';
 import { AuroraBackground } from '@/components/ui/aurora-background';
@@ -45,6 +45,9 @@ export default function Landing() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroParallax = useTransform(scrollYProgress, [0, 1], ['0%', '15%']);
+  // Scroll-cue fades out as the user enters the second section so it
+  // only signals "there is more below" while the hero is dominant.
+  const scrollCueOpacity = useTransform(scrollYProgress, [0, 0.25], [1, 0]);
 
   return (
     <main className="min-h-screen bg-[var(--color-canvas)] text-[var(--color-ink)]">
@@ -135,6 +138,31 @@ export default function Landing() {
               <span>RAG · ChromaDB memory</span>
             </div>
           </motion.div>
+
+          {/* Scroll cue — pinned bottom-right of the hero. Hides on tiny
+              screens (no room) and fades out as soon as the user starts
+              to scroll past the hero. Clicking jumps to the next section. */}
+          <motion.a
+            href="#how"
+            aria-label="Scroll to explore the rest of the page"
+            className="hidden sm:flex absolute right-6 sm:right-10 bottom-8 sm:bottom-10 z-[2] group items-center gap-2 px-3 py-2 rounded-full text-[10.5px] font-mono uppercase tracking-[0.18em] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] transition-colors"
+            style={{
+              opacity: scrollCueOpacity,
+              background: 'rgba(255,255,255,0.72)',
+              boxShadow: 'inset 0 0 0 1px rgba(21,25,26,0.08), 0 10px 24px -10px rgba(21,25,26,0.20)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <span>Scroll to explore</span>
+            <motion.span
+              aria-hidden
+              animate={{ y: [0, 3, 0] }}
+              transition={{ duration: 1.8, ease: 'easeInOut', repeat: Infinity }}
+              className="flex"
+            >
+              <ChevronDown size={14} />
+            </motion.span>
+          </motion.a>
         </AuroraBackground>
       </section>
 
