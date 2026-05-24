@@ -103,13 +103,12 @@ export default function Layout() {
           className="lg:hidden flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
         >
           <div
-            className="h-8 w-[70px] sm:h-9 sm:w-[78px] rounded-xl flex items-center justify-center gpu shrink-0 px-2"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden flex items-center justify-center gpu shrink-0"
             style={{
-              background: 'linear-gradient(180deg, rgba(255,253,248,0.92), rgba(241,235,222,0.74))',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.78), 0 6px 16px -8px rgba(21,25,26,0.22)',
             }}
           >
-            <img src="/virtusa-logo.svg" alt="Virtusa" className="block w-full h-auto" />
+            <img src="/virtusa-logo.jpg" alt="Virtusa" className="block w-full h-full object-cover" />
           </div>
           <div className="flex flex-col leading-tight min-w-0">
             <span className="font-display text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
@@ -124,13 +123,12 @@ export default function Layout() {
         {/* Desktop branding — non-clickable */}
         <div className="hidden lg:flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           <div
-            className="h-8 w-[74px] sm:h-9 sm:w-[84px] rounded-xl flex items-center justify-center gpu shrink-0 px-2"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden flex items-center justify-center gpu shrink-0"
             style={{
-              background: 'linear-gradient(180deg, rgba(255,253,248,0.92), rgba(241,235,222,0.74))',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.78), 0 6px 16px -8px rgba(21,25,26,0.22)',
             }}
           >
-            <img src="/virtusa-logo.svg" alt="Virtusa" className="block w-full h-auto" />
+            <img src="/virtusa-logo.jpg" alt="Virtusa" className="block w-full h-full object-cover" />
           </div>
           <div className="flex flex-col leading-tight min-w-0">
             <span className="font-display text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
