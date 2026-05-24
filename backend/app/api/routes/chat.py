@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.chat.confirm_store import store as confirm_store
-from app.chat.orchestrator import run_turn_streaming
+from app.chat.orchestrator import _friendly_llm_error, run_turn_streaming
 from app.chat.registry import registry as _global_registry
 from app.database.session import SessionLocal
 from app.services.settings_service import settings
@@ -99,7 +99,7 @@ async def chat_sse(body: ChatRequest, request: Request):
                 yield f"data: {json.dumps(evt)}\n\n"
         except Exception as exc:  # noqa: BLE001
             logger.exception("SSE generator crashed")
-            yield f"data: {json.dumps({'event': 'error', 'data': {'message': str(exc)[:300]}})}\n\n"
+            yield f"data: {json.dumps({'event': 'error', 'data': {'message': _friendly_llm_error(exc)}})}\n\n"
             yield f"data: {json.dumps({'event': 'done', 'data': {'terminated_reason': 'error'}})}\n\n"
         finally:
             db.close()

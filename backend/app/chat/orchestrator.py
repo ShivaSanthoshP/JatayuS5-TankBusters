@@ -18,13 +18,31 @@ from app.chat.prompt import SRE_COPILOT_SYSTEM_PROMPT
 from app.chat.registry import ToolRegistry, ToolExecutionError
 from app.chat.schemas import SafetyLevel
 from app.llm.provider import (
-    ChatWithToolsResponse, ToolCall, ToolDecl, chat_with_tools, chat_with_tools_stream,
+    ChatWithToolsResponse, ToolCall, ToolDecl, _is_rate_limit_error,
+    chat_with_tools, chat_with_tools_stream,
 )
 from app.services.settings_service import settings
 
 logger = logging.getLogger("itops.chat.orchestrator")
 
 MAX_TOOL_CALLS_PER_TURN = 8
+
+
+def _friendly_llm_error(exc: Exception) -> str:
+    """User-facing message for an LLM-call failure.
+
+    Rate-limit / quota errors get a clean, actionable message instead of the
+    raw multi-line SDK payload. Other failures fall back to a generic
+    try-again message; the full exception still goes to the server log.
+    """
+    if _is_rate_limit_error(exc):
+        return (
+            "Argus is temporarily unavailable — the configured Gemini API "
+            "key has hit its quota. Please rotate the primary or fallback "
+            "key on the Settings → LLM Provider page, or try again once the "
+            "quota window resets."
+        )
+    return "Argus couldn't reach the language model just now. Please try again in a moment."
 
 
 @dataclass
@@ -180,7 +198,7 @@ async def run_turn_streaming(
                 )
             except Exception as exc:
                 logger.exception("Gemini call failed during streaming turn")
-                yield {"event": "error", "data": {"message": f"LLM call failed: {exc}"}}
+                yield {"event": "error", "data": {"message": _friendly_llm_error(exc)}}
                 yield {"event": "done", "data": {"terminated_reason": "error"}}
                 return
             if not resp.tool_calls:
@@ -205,7 +223,7 @@ async def run_turn_streaming(
                         resp = item["response"]
             except Exception as exc:
                 logger.exception("Gemini call failed during streaming turn")
-                yield {"event": "error", "data": {"message": f"LLM call failed: {exc}"}}
+                yield {"event": "error", "data": {"message": _friendly_llm_error(exc)}}
                 yield {"event": "done", "data": {"terminated_reason": "error"}}
                 return
             if not resp.tool_calls:
