@@ -112,7 +112,7 @@ def _aws_source_from_settings() -> dict | None:
         "id": "aws-cloudwatch",
         "provider": "aws",
         "name": "AWS CloudWatch",
-        "enabled": True,
+        "enabled": _s.cloudwatch_status != "disconnected",
         "status": _s.cloudwatch_status or "configured",
         "error": _s.cloudwatch_error,
         "summary": " · ".join(summary_bits) or "configured",
@@ -147,7 +147,7 @@ def _azure_source_from_settings() -> dict | None:
         "id": "azure-monitor",
         "provider": "azure",
         "name": "Azure Monitor",
-        "enabled": True,
+        "enabled": _s.azure_status != "disconnected",
         "status": _s.azure_status or "configured",
         "error": _s.azure_error,
         "summary": " | ".join(summary_bits) or "configured",
@@ -180,7 +180,7 @@ def _gcp_source_from_settings() -> dict | None:
         "id": "gcp-monitoring",
         "provider": "gcp",
         "name": "GCP Cloud Monitoring",
-        "enabled": True,
+        "enabled": _s.gcp_status != "disconnected",
         "status": _s.gcp_status or "configured",
         "error": _s.gcp_error,
         "summary": " | ".join(summary_bits) or "configured",
@@ -447,6 +447,61 @@ async def _activate_gcp(config: dict) -> tuple[str, str | None]:
         return "error", msg
 
 
+def _deactivate_cloud_provider(provider: str, *, clear_settings: bool) -> None:
+    """Disconnect a cloud provider from the live registry, with optional settings cleanup."""
+    from app.services.settings_service import settings as _s
+    from app.data_sources.base import registry
+
+    if provider == "aws":
+        updates = {
+            "cloudwatch_status": "disconnected",
+            "cloudwatch_error": None,
+        }
+        if clear_settings:
+            updates.update(
+                cloudwatch_access_key_id="",
+                cloudwatch_secret_access_key="",
+                cloudwatch_region="",
+                cloudwatch_instance_ids=[],
+                cloudwatch_log_groups=[],
+            )
+        _s.update(**updates)
+        registry._sources.pop("aws", None)
+        return
+
+    if provider == "azure":
+        updates = {
+            "azure_status": "disconnected",
+            "azure_error": None,
+        }
+        if clear_settings:
+            updates.update(
+                azure_tenant_id="",
+                azure_client_id="",
+                azure_client_secret="",
+                azure_subscription_id="",
+                azure_resource_group="",
+            )
+        _s.update(**updates)
+        registry._sources.pop("azure", None)
+        return
+
+    if provider == "gcp":
+        updates = {
+            "gcp_status": "disconnected",
+            "gcp_error": None,
+        }
+        if clear_settings:
+            updates.update(
+                gcp_project_id="",
+                gcp_service_account_json="",
+                gcp_zone="",
+            )
+        _s.update(**updates)
+        registry._sources.pop("gcp", None)
+        return
+
+
 @router.post("/configure")
 async def configure_datasource(body: DataSourceConfig):
     """Add or update a data source configuration.
@@ -456,12 +511,24 @@ async def configure_datasource(body: DataSourceConfig):
     """
     status = "configured"
     error: str | None = None
-    if body.provider == "aws" and body.enabled:
-        status, error = await _activate_aws(body.config)
-    if body.provider == "azure" and body.enabled:
-        status, error = await _activate_azure(body.config)
-    if body.provider == "gcp" and body.enabled:
-        status, error = await _activate_gcp(body.config)
+    if body.provider == "aws":
+        if body.enabled:
+            status, error = await _activate_aws(body.config)
+        else:
+            _deactivate_cloud_provider("aws", clear_settings=False)
+            status = "disconnected"
+    if body.provider == "azure":
+        if body.enabled:
+            status, error = await _activate_azure(body.config)
+        else:
+            _deactivate_cloud_provider("azure", clear_settings=False)
+            status = "disconnected"
+    if body.provider == "gcp":
+        if body.enabled:
+            status, error = await _activate_gcp(body.config)
+        else:
+            _deactivate_cloud_provider("gcp", clear_settings=False)
+            status = "disconnected"
 
     existing = next((s for s in _configured_sources if s["provider"] == body.provider), None)
     if existing:
@@ -601,42 +668,8 @@ def remove_datasource(provider: str):
     global _configured_sources
     if provider == "simulated":
         raise HTTPException(400, "Cannot remove the built-in simulator")
-    if provider == "aws":
-        # Clear the persisted CloudWatch settings so it doesn't auto-reconnect
-        # on next restart. The running adapter is dropped from the registry.
-        from app.services.settings_service import settings as _s
-        from app.data_sources.base import registry
-        _s.update(
-            cloudwatch_access_key_id="",
-            cloudwatch_secret_access_key="",
-            cloudwatch_status="disconnected",
-            cloudwatch_error=None,
-        )
-        registry._sources.pop("aws", None)
-    if provider == "azure":
-        from app.services.settings_service import settings as _s
-        from app.data_sources.base import registry
-        _s.update(
-            azure_tenant_id="",
-            azure_client_id="",
-            azure_client_secret="",
-            azure_subscription_id="",
-            azure_resource_group="",
-            azure_status="disconnected",
-            azure_error=None,
-        )
-        registry._sources.pop("azure", None)
-    if provider == "gcp":
-        from app.services.settings_service import settings as _s
-        from app.data_sources.base import registry
-        _s.update(
-            gcp_project_id="",
-            gcp_service_account_json="",
-            gcp_zone="",
-            gcp_status="disconnected",
-            gcp_error=None,
-        )
-        registry._sources.pop("gcp", None)
+    if provider in {"aws", "azure", "gcp"}:
+        _deactivate_cloud_provider(provider, clear_settings=True)
     _configured_sources = [s for s in _configured_sources if s["provider"] != provider]
     return {"message": f"Removed {provider}"}
 

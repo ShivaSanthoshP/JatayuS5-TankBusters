@@ -105,3 +105,62 @@ def test_configure_datasource_gcp_connects_live_adapter():
         snap = settings.snapshot(include_secrets=True)
         assert snap["gcp_project_id"] == "proj-x"
         assert snap["gcp_service_account_json"] == '{"type":"service_account"}'
+
+
+def test_configure_datasource_disable_azure_disconnects_but_keeps_config():
+    with _restore_settings(), patch("app.data_sources.base.registry._sources", {"azure": object()}):
+        settings.update(
+            azure_tenant_id="tenant-x",
+            azure_client_id="client-x",
+            azure_client_secret="secret-x",
+            azure_subscription_id="sub-x",
+            azure_resource_group="rg-x",
+            azure_status="connected",
+            azure_error="old error",
+        )
+
+        resp = client.post("/api/datasources/configure", json={
+            "provider": "azure",
+            "enabled": False,
+            "config": {
+                "tenant_id": "tenant-x",
+                "client_id": "client-x",
+                "subscription_id": "sub-x",
+                "resource_group": "rg-x",
+            },
+        })
+
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["source"]["status"] == "disconnected"
+        snap = settings.snapshot(include_secrets=True)
+        assert snap["azure_status"] == "disconnected"
+        assert snap["azure_error"] is None
+        assert snap["azure_client_secret"] == "secret-x"
+        assert "azure" not in __import__("app.data_sources.base", fromlist=["registry"]).registry._sources
+
+
+def test_remove_datasource_clears_aws_runtime_settings():
+    with _restore_settings(), patch("app.data_sources.base.registry._sources", {"aws": object()}):
+        settings.update(
+            cloudwatch_access_key_id="AKIATEST1234",
+            cloudwatch_secret_access_key="secret-x",
+            cloudwatch_region="ap-south-1",
+            cloudwatch_instance_ids=["i-123", "i-456"],
+            cloudwatch_log_groups=["/itops/ec2/syslog"],
+            cloudwatch_status="connected",
+            cloudwatch_error="old error",
+        )
+
+        resp = client.delete("/api/datasources/aws")
+
+        assert resp.status_code == 200, resp.text
+        snap = settings.snapshot(include_secrets=True)
+        assert snap["cloudwatch_access_key_id"] == ""
+        assert snap["cloudwatch_secret_access_key"] == ""
+        assert snap["cloudwatch_region"] == ""
+        assert snap["cloudwatch_instance_ids"] == []
+        assert snap["cloudwatch_log_groups"] == []
+        assert snap["cloudwatch_status"] == "disconnected"
+        assert snap["cloudwatch_error"] is None
+        assert "aws" not in __import__("app.data_sources.base", fromlist=["registry"]).registry._sources
