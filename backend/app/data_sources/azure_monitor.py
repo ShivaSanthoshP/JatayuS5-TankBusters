@@ -2,9 +2,9 @@ from __future__ import annotations
 """
 Azure Monitor data source.
 
-Discovers VMs and App Services in the configured resource group and polls
-their metrics via azure-monitor-query. Provider-native values are carried
-in metadata["azure_monitor"].
+Discovers VMs, App Services, SQL Databases, and Application Gateways in the
+configured resource group and polls their metrics via azure-monitor-query.
+Provider-native values are carried in metadata["azure_monitor"].
 """
 
 import asyncio
@@ -26,6 +26,18 @@ _VM_METRICS = [
     "Available Memory Bytes",
 ]
 _APP_METRICS = ["CpuPercentage", "MemoryPercentage", "AverageResponseTime", "Http5xx", "Requests"]
+_SQL_METRICS = [
+    "cpu_percent",
+    "storage_percent",
+    "connection_successful",
+    "connection_failed",
+]
+_APP_GATEWAY_METRICS = [
+    "TotalRequests",
+    "FailedRequests",
+    "CurrentConnections",
+    "Throughput",
+]
 
 
 def _last_value(metric_result) -> float | None:
@@ -39,12 +51,32 @@ def _last_value(metric_result) -> float | None:
     return None
 
 
-def _vm_to_event(resource_id: str, vm_name: str, region: str, results) -> MetricEvent:
-    raw: dict = {}
-    for m in results.metrics:
-        val = _last_value(m)
+def _last_total(metric_result) -> float | None:
+    try:
+        for ts in metric_result.timeseries:
+            for dp in reversed(ts.data):
+                if dp.total is not None:
+                    return dp.total
+                if dp.count is not None:
+                    return dp.count
+    except Exception:
+        pass
+    return None
+
+
+def _raw_metrics(results) -> dict[str, float]:
+    raw: dict[str, float] = {}
+    for metric in getattr(results, "metrics", []):
+        val = _last_value(metric)
+        if val is None:
+            val = _last_total(metric)
         if val is not None:
-            raw[m.name] = val
+            raw[metric.name] = float(val)
+    return raw
+
+
+def _vm_to_event(resource_id: str, vm_name: str, region: str, results) -> MetricEvent:
+    raw = _raw_metrics(results)
 
     cpu = raw.get("Percentage CPU", 0.0)
     net_in_b = raw.get("Network In Total", 0.0)
@@ -70,16 +102,17 @@ def _vm_to_event(resource_id: str, vm_name: str, region: str, results) -> Metric
         request_rate=0.0,
         error_rate=0.0,
         latency_ms=0.0,
-        metadata={"azure_monitor": raw, "resource_id": resource_id},
+        metadata={
+            "data_source": "azure",
+            "measured_metrics": ["cpu_percent", "memory_percent", "network_in_mbps", "network_out_mbps"],
+            "azure_monitor": raw,
+            "resource_id": resource_id,
+        },
     )
 
 
 def _app_to_event(resource_id: str, app_name: str, region: str, results) -> MetricEvent:
-    raw: dict = {}
-    for m in results.metrics:
-        val = _last_value(m)
-        if val is not None:
-            raw[m.name] = val
+    raw = _raw_metrics(results)
 
     cpu = raw.get("CpuPercentage", 0.0)
     mem = raw.get("MemoryPercentage", 0.0)
@@ -102,12 +135,82 @@ def _app_to_event(resource_id: str, app_name: str, region: str, results) -> Metr
         request_rate=round(req, 2),
         error_rate=round(err_rate, 2),
         latency_ms=round(avg_resp * 1000, 2),
-        metadata={"azure_monitor": raw, "resource_id": resource_id},
+        metadata={
+            "data_source": "azure",
+            "measured_metrics": ["cpu_percent", "memory_percent", "request_rate", "error_rate", "latency_ms"],
+            "azure_monitor": raw,
+            "resource_id": resource_id,
+        },
+    )
+
+
+def _sql_to_event(resource_id: str, db_name: str, region: str, results) -> MetricEvent:
+    raw = _raw_metrics(results)
+
+    cpu = raw.get("cpu_percent", 0.0)
+    storage_pct = raw.get("storage_percent", 0.0)
+    conn_ok = raw.get("connection_successful", 0.0)
+    conn_failed = raw.get("connection_failed", 0.0)
+    total_conn = conn_ok + conn_failed
+    err_rate = (conn_failed / max(total_conn, 1.0)) * 100.0 if total_conn > 0 else 0.0
+
+    return MetricEvent(
+        node_name=db_name,
+        node_type="database",
+        provider="azure",
+        region=region,
+        ip_address="",
+        cpu_percent=round(cpu, 2),
+        memory_percent=0.0,
+        disk_percent=round(storage_pct, 2),
+        network_in_mbps=0.0,
+        network_out_mbps=0.0,
+        request_rate=round(conn_ok, 2),
+        error_rate=round(err_rate, 2),
+        latency_ms=0.0,
+        metadata={
+            "data_source": "azure",
+            "measured_metrics": ["cpu_percent", "disk_percent", "request_rate", "error_rate"],
+            "azure_monitor": raw,
+            "resource_id": resource_id,
+        },
+    )
+
+
+def _app_gateway_to_event(resource_id: str, gateway_name: str, region: str, results) -> MetricEvent:
+    raw = _raw_metrics(results)
+
+    req = raw.get("TotalRequests", 0.0)
+    failed = raw.get("FailedRequests", 0.0)
+    current_conn = raw.get("CurrentConnections", 0.0)
+    throughput = raw.get("Throughput", 0.0)
+    err_rate = (failed / max(req, 1.0)) * 100.0 if req > 0 else 0.0
+
+    return MetricEvent(
+        node_name=gateway_name,
+        node_type="load_balancer",
+        provider="azure",
+        region=region,
+        ip_address="",
+        cpu_percent=0.0,
+        memory_percent=0.0,
+        disk_percent=0.0,
+        network_in_mbps=round(throughput * 8 / 1e6, 2),
+        network_out_mbps=0.0,
+        request_rate=round(req, 2),
+        error_rate=round(err_rate, 2),
+        latency_ms=0.0,
+        metadata={
+            "data_source": "azure",
+            "measured_metrics": ["network_in_mbps", "request_rate", "error_rate"],
+            "azure_monitor": {**raw, "CurrentConnections": current_conn},
+            "resource_id": resource_id,
+        },
     )
 
 
 class AzureMonitorDataSource(DataSource):
-    """Polls Azure Monitor for VM and App Service metrics."""
+    """Polls Azure Monitor for VM, App Service, SQL DB, and gateway metrics."""
 
     def __init__(self) -> None:
         self._connected = False
@@ -147,18 +250,21 @@ class AzureMonitorDataSource(DataSource):
         try:
             from azure.mgmt.resource import ResourceManagementClient
             rc = ResourceManagementClient(credential, subscription_id)
-            for res in rc.resources.list_by_resource_group(
-                resource_group,
-                filter="resourceType eq 'Microsoft.Web/sites'",
-            ):
-                resources.append({
-                    "id": res.id,
-                    "name": res.name,
-                    "type": "app",
-                    "region": res.location or "unknown",
-                })
+            resource_filters = (
+                ("resourceType eq 'Microsoft.Web/sites'", "app"),
+                ("resourceType eq 'Microsoft.Sql/servers/databases'", "sql"),
+                ("resourceType eq 'Microsoft.Network/applicationGateways'", "app_gateway"),
+            )
+            for resource_filter, resource_type in resource_filters:
+                for res in rc.resources.list_by_resource_group(resource_group, filter=resource_filter):
+                    resources.append({
+                        "id": res.id,
+                        "name": res.name.split("/")[-1],
+                        "type": resource_type,
+                        "region": res.location or "unknown",
+                    })
         except Exception as exc:
-            logger.warning("Azure App Service discovery failed: %s", exc)
+            logger.warning("Azure resource discovery failed: %s", exc)
 
         return resources
 
@@ -206,6 +312,12 @@ class AzureMonitorDataSource(DataSource):
                 elif res["type"] == "app":
                     results = self._query_resource(res["id"], _APP_METRICS)
                     events.append(_app_to_event(res["id"], res["name"], res["region"], results))
+                elif res["type"] == "sql":
+                    results = self._query_resource(res["id"], _SQL_METRICS)
+                    events.append(_sql_to_event(res["id"], res["name"], res["region"], results))
+                elif res["type"] == "app_gateway":
+                    results = self._query_resource(res["id"], _APP_GATEWAY_METRICS)
+                    events.append(_app_gateway_to_event(res["id"], res["name"], res["region"], results))
             except Exception as exc:
                 logger.warning("Azure Monitor: failed to query %s: %s", res["name"], exc)
         return events
