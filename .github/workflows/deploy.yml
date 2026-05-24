@@ -108,6 +108,20 @@ jobs:
             frontend/dist/ \
             "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/opt/itops/frontend/dist/"
 
+      # Stage the nginx config to a user-writable location on EC2; the SSH
+      # step below copies it into /etc/nginx with sudo (narrowly allow-listed
+      # in /etc/sudoers.d/itops).
+      - name: Sync nginx config
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}" \
+            "mkdir -p /opt/itops/deployment"
+          rsync -az \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            deployment/nginx.conf \
+            "${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/opt/itops/deployment/nginx.conf"
+
       - name: Install Python deps & restart services
         run: |
           ssh -i ~/.ssh/deploy_key \
@@ -126,7 +140,8 @@ jobs:
           echo "=== Restarting backend service ==="
           sudo systemctl restart itops-backend
 
-          echo "=== Reloading nginx ==="
+          echo "=== Applying nginx config ==="
+          sudo /usr/bin/cp /opt/itops/deployment/nginx.conf /etc/nginx/conf.d/itops.conf
           sudo nginx -t && sudo systemctl reload nginx
 
           echo ""

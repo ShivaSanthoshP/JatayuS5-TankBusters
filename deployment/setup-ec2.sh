@@ -132,6 +132,24 @@ server {
     root /opt/itops/frontend/dist;
     index index.html;
 
+    # gzip the chatty payloads — JS/CSS/JSON drop ~70% over the wire.
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 256;
+    gzip_proxied any;
+    gzip_comp_level 5;
+    gzip_types
+        application/javascript
+        application/json
+        application/xml
+        application/xml+rss
+        application/wasm
+        image/svg+xml
+        text/css
+        text/javascript
+        text/plain
+        text/xml;
+
     # WebSocket — live metrics stream
     location /ws/ {
         proxy_pass         http://127.0.0.1:8000;
@@ -159,6 +177,13 @@ server {
     location ~ ^/(docs|redoc|openapi\.json|health)$ {
         proxy_pass       http://127.0.0.1:8000;
         proxy_set_header Host $host;
+    }
+
+    # Hashed Vite assets — Cache forever (filenames are content-hashed).
+    location /assets/ {
+        access_log off;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
     }
 
     # React Router fallback — serve index.html for all client-side routes
@@ -226,7 +251,8 @@ $EC2_USER ALL=(ALL) NOPASSWD: \
   /usr/bin/systemctl status itops-backend, \
   /usr/bin/systemctl reload nginx, \
   /usr/bin/systemctl daemon-reload, \
-  /usr/bin/nginx -t
+  /usr/bin/nginx -t, \
+  /usr/bin/cp /opt/itops/deployment/nginx.conf /etc/nginx/conf.d/itops.conf
 SUDOEOF
 sudo chmod 440 /etc/sudoers.d/itops
 echo "      Sudoers rule written."
