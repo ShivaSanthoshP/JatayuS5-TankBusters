@@ -6,34 +6,13 @@
 
 *Five autonomous AI agents and a conversational copilot that watch your fleet, predict failures before they land, diagnose root cause, draft safe fixes, and remember every resolution — so infrastructure heals itself and on-call engineers get their nights back.*
 
-<br />
+<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/status-live%20on%20AWS-00C853?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Live on AWS" /></a> <a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/AWS%20CloudWatch-connected%20%C2%B7%20live-FF9900?style=for-the-badge&logo=amazoncloudwatch&logoColor=white" alt="AWS CloudWatch connected and live" /></a> <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="CI/CD via GitHub Actions" />
 
-<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/status-live%20on%20AWS-00C853?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Live on AWS" /></a>
-<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/AWS%20CloudWatch-connected%20%C2%B7%20live-FF9900?style=for-the-badge&logo=amazoncloudwatch&logoColor=white" alt="AWS CloudWatch connected and live" /></a>
-<img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="CI/CD via GitHub Actions" />
-
-<br />
-
-<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">
-  <img src="https://img.shields.io/badge/%F0%9F%9A%80%20Launch%20the%20Live%20Platform-Open%20in%20a%20new%20tab-00C853?style=for-the-badge&labelColor=0d1117&logoColor=white" alt="Launch the live platform" height="48" />
-</a>
-
-<br /><br />
+<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/%F0%9F%9A%80%20Launch%20the%20Live%20Platform-Live%20Demo-00C853?style=for-the-badge&labelColor=0d1117&logoColor=white" alt="Launch the live platform" height="44" /></a>
 
 **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">Live App</a>** &nbsp;·&nbsp; **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/docs" target="_blank" rel="noopener noreferrer">Interactive API (Swagger)</a>** &nbsp;·&nbsp; **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/health" target="_blank" rel="noopener noreferrer">Component Health</a>**
 
-<br />
-
-<img src="https://img.shields.io/badge/Copilot-Argus%20(chat%20%2B%20voice)-7C4DFF?style=flat-square" />
-<img src="https://img.shields.io/badge/Agents-5%20Autonomous-00C853?style=flat-square" />
-<img src="https://img.shields.io/badge/Orchestration-LangGraph-00BFA5?style=flat-square" />
-<img src="https://img.shields.io/badge/LLM-Gemini%20%7C%20OpenAI%20%7C%20Ollama-4285F4?style=flat-square" />
-<img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" />
-<img src="https://img.shields.io/badge/Frontend-React%2019-61DAFB?style=flat-square&logo=react&logoColor=black" />
-<img src="https://img.shields.io/badge/Memory-RAG%20%C2%B7%20ChromaDB-FF6D00?style=flat-square" />
-<img src="https://img.shields.io/badge/Deploy-AWS%20EC2%20Graviton-FF9900?style=flat-square&logo=amazon-ec2&logoColor=white" />
-
-<br />
+<img src="https://img.shields.io/badge/Copilot-Argus%20(chat%20%2B%20voice)-7C4DFF?style=flat-square" /> <img src="https://img.shields.io/badge/Agents-5%20Autonomous-00C853?style=flat-square" /> <img src="https://img.shields.io/badge/Orchestration-LangGraph-00BFA5?style=flat-square" /> <img src="https://img.shields.io/badge/LLM-Gemini%20%7C%20OpenAI%20%7C%20Ollama-4285F4?style=flat-square" /> <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" /> <img src="https://img.shields.io/badge/Frontend-React%2019-61DAFB?style=flat-square&logo=react&logoColor=black" /> <img src="https://img.shields.io/badge/Memory-RAG%20%C2%B7%20ChromaDB-FF6D00?style=flat-square" /> <img src="https://img.shields.io/badge/Deploy-AWS%20EC2%20Graviton-FF9900?style=flat-square&logo=amazon-ec2&logoColor=white" />
 
 **Team Tank Busters** · P. Shiva Santhosh · N. S. J. S. Dhanush · P. Shikhar
 
