@@ -165,11 +165,11 @@ export default function RunbookFormModal({ initial, prefill, onClose, onSaved }:
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass w-full max-w-2xl my-auto max-h-[92vh] overflow-y-auto"
+        className="glass-modal w-full max-w-2xl my-auto max-h-[92vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-glass-border sticky top-0 bg-surface/95 backdrop-blur z-10">
+        <div className="flex items-center justify-between p-4 border-b border-glass-border sticky top-0 bg-white z-10">
           <h2 className="text-base font-semibold text-ink">
             {editing ? 'Edit runbook' : 'Seed a runbook'}
           </h2>
@@ -350,7 +350,7 @@ export default function RunbookFormModal({ initial, prefill, onClose, onSaved }:
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 p-4 border-t border-glass-border sticky bottom-0 bg-surface/95 backdrop-blur">
+        <div className="flex items-center justify-end gap-2 p-4 border-t border-glass-border sticky bottom-0 bg-white">
           <button onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm text-ink-soft hover:bg-ink/5">
             Cancel
