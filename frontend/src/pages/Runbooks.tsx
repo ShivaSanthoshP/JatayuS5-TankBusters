@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, Search, Hash, ChevronRight, ChevronLeft,
-  X, ExternalLink, Trash2, Plus, Sparkles, GraduationCap, Target,
+  X, ExternalLink, Trash2, Plus, Sparkles, GraduationCap,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import Loader from '../components/ui/Loader';
@@ -14,7 +14,7 @@ import type { RunbookEntry } from '../types';
 import { palette } from '../lib/theme';
 
 type SeedFilter = 'all' | 'seeded' | 'auto';
-type SortKey = 'effectiveness' | 'usage' | 'newest';
+type SortKey = 'newest' | 'title';
 
 interface SearchResult {
   document?: string;
@@ -34,26 +34,6 @@ function relevanceLabel(pct: number): { label: string; color: string } {
   if (pct >= 75) return { label: 'Best match', color: palette.success };
   if (pct >= 40) return { label: 'Strong match', color: palette.warning };
   return { label: 'Possible match', color: palette.inkFaint };
-}
-
-/* ── effectiveness bar ───────────────────────────────────────── */
-function EffectivenessBar({ score }: { score: number }) {
-  const pct = Math.min(100, Math.max(0, (score / 10) * 100));
-  const color = pct >= 70 ? palette.success : pct >= 40 ? palette.warning : palette.critical;
-  return (
-    <div
-      className="flex items-center gap-1.5"
-      title={`Effectiveness: ${score.toFixed(1)} / 10 — how well this runbook has resolved past incidents`}
-    >
-      <div className="w-14 h-1.5 rounded-full bg-ink/10 overflow-hidden">
-        <div
-          className="h-full rounded-full transition-[width] duration-500 ease-out"
-          style={{ width: `${pct}%`, background: color }}
-        />
-      </div>
-      <span className="text-xs font-mono text-ink-soft">{score.toFixed(1)}</span>
-    </div>
-  );
 }
 
 /* ── search result card ──────────────────────────────────────── */
@@ -179,15 +159,6 @@ function RunbookRow({
               <Hash size={10} />{rb.source_incident_id}
             </span>
           )}
-          <div className="hidden sm:block">
-            <EffectivenessBar score={rb.effectiveness_score} />
-          </div>
-          <span
-            className="hidden sm:inline text-xs text-ink-mute"
-            title="How many times this runbook has been retrieved or applied"
-          >
-            {rb.times_used} {rb.times_used === 1 ? 'apply' : 'applies'}
-          </span>
           <ChevronRight size={14} className="text-ink-faint" />
         </div>
       </div>
@@ -223,7 +194,7 @@ export default function Runbooks() {
 
   // List controls
   const [seedFilter, setSeedFilter] = useState<SeedFilter>('all');
-  const [sortKey, setSortKey] = useState<SortKey>('effectiveness');
+  const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [titleFilter, setTitleFilter] = useState('');
 
   // The runbook form is a single global modal (mounted in Layout) so it can
@@ -254,8 +225,7 @@ export default function Runbooks() {
       );
     }
     const sorted = [...list];
-    if (sortKey === 'effectiveness') sorted.sort((a, b) => b.effectiveness_score - a.effectiveness_score);
-    if (sortKey === 'usage')         sorted.sort((a, b) => b.times_used - a.times_used);
+    if (sortKey === 'title') sorted.sort((a, b) => a.title.localeCompare(b.title));
     if (sortKey === 'newest') {
       sorted.sort((a, b) => {
         const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -282,17 +252,6 @@ export default function Runbooks() {
     seeded: allRunbooks.filter(rb => rb.is_seeded).length,
     auto:   allRunbooks.filter(rb => !rb.is_seeded).length,
   };
-
-  const avgEffectiveness = useMemo(() => {
-    if (allRunbooks.length === 0) return 0;
-    const sum = allRunbooks.reduce((acc, rb) => acc + (rb.effectiveness_score || 0), 0);
-    return sum / allRunbooks.length;
-  }, [allRunbooks]);
-
-  const totalApplies = useMemo(
-    () => allRunbooks.reduce((acc, rb) => acc + (rb.times_used || 0), 0),
-    [allRunbooks],
-  );
 
   // Search-result jump now navigates to the standalone detail page.
   const jumpToRunbook = useCallback((runbookId: number) => {
@@ -359,7 +318,7 @@ export default function Runbooks() {
       {/* ── Stats masthead ──────────────────────────────────────
           Anchors the page so the list below reads as a library of
           known fixes, not a generic dropdown. */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <RbStat
           icon={<BookOpen size={14} className="text-ink-mute" />}
           label="Total"
@@ -377,12 +336,6 @@ export default function Runbooks() {
           label="Learned"
           value={counts.auto}
           hint="from incidents"
-        />
-        <RbStat
-          icon={<Target size={14} className="text-warning" />}
-          label="Avg effect."
-          value={`${avgEffectiveness.toFixed(1)} / 10`}
-          hint={`${totalApplies} ${totalApplies === 1 ? 'apply' : 'applies'} total`}
         />
       </div>
 
@@ -504,9 +457,8 @@ export default function Runbooks() {
               title="How to order the runbook list"
               className="bg-black/5 border border-glass-border rounded-lg px-2.5 py-1.5 text-[11.5px] text-ink-soft focus:outline-none focus:border-accent/40"
             >
-              <option value="effectiveness">Sort: Most effective</option>
-              <option value="usage">Sort: Most used</option>
               <option value="newest">Sort: Newest first</option>
+              <option value="title">Sort: Title (A–Z)</option>
             </select>
 
             {/* Title filter */}

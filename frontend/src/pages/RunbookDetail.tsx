@@ -9,11 +9,10 @@ import { runbookDraft } from '../hooks/useRunbookDraft';
 import { usePolling } from '../hooks/useApi';
 import * as api from '../services/api';
 import type { RunbookEntry } from '../types';
-import { palette } from '../lib/theme';
 
 /**
  * Full-page runbook view. Long-Document macrostructure: back link, big
- * display title, quiet meta row carrying badges + effectiveness + usage,
+ * display title, quiet meta row carrying badges + source incident,
  * Edit / Delete actions, then the existing detail body. There's no
  * single-runbook backend endpoint yet, so we read from the list (which
  * the page polls every 15s) and pick by :id.
@@ -114,12 +113,6 @@ export default function RunbookDetail() {
                         {rb.issue_type.replace(/_/g, ' ')}
                       </span>
                     )}
-                    <Dot />
-                    <EffectivenessInline score={rb.effectiveness_score} />
-                    <Dot />
-                    <span>
-                      {rb.times_used} {rb.times_used === 1 ? 'apply' : 'applies'}
-                    </span>
                     {rb.source_incident_id != null && (
                       <>
                         <Dot />
@@ -186,12 +179,6 @@ export default function RunbookDetail() {
 
               <Divider />
 
-              <Field label="Effectiveness">
-                <EffectivenessInline score={rb.effectiveness_score} />
-              </Field>
-              <Field label="Applies">
-                {rb.times_used} {rb.times_used === 1 ? 'time' : 'times'}
-              </Field>
               {rb.source_incident_id != null && (
                 <Field label="Source">
                   <Link
@@ -250,18 +237,3 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function EffectivenessInline({ score }: { score: number }) {
-  const pct = Math.min(100, Math.max(0, (score / 10) * 100));
-  const color = pct >= 70 ? palette.success : pct >= 40 ? palette.warning : palette.critical;
-  return (
-    <span
-      className="inline-flex items-center gap-1.5"
-      title={`Effectiveness: ${score.toFixed(1)} / 10 — how well this runbook has resolved past incidents`}
-    >
-      <span className="w-12 h-1 rounded-full bg-ink/10 overflow-hidden">
-        <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </span>
-      <span className="font-mono text-ink-soft">{score.toFixed(1)}</span>
-    </span>
-  );
-}
