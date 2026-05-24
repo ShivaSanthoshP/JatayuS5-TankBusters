@@ -220,6 +220,103 @@ def _provider_logs_cmd(service_name: str, provider: str) -> str:
     return f"journalctl -u {service_name} -n 100"
 
 
+# ── Deterministic last-resort plan ──────────────────────────────────
+# Per-issue diagnostic probes used only when there is NO seeded runbook
+# AND the LLM fallback is unavailable. They keep a downloadable
+# remediate.sh / rollback.sh present for every incident so the operator
+# is never left with an empty plan. {logs_cmd} is rendered per provider.
+_GENERIC_ISSUE_PROBES: dict[str, list[str]] = {
+    "memory_leak":                 ["free -h", "ps aux --sort=-%mem | head -n 10"],
+    "cpu_spike":                   ["uptime", "ps aux --sort=-%cpu | head -n 10"],
+    "disk_full":                   ["df -h", "du -xhd1 / 2>/dev/null | sort -rh | head -n 10"],
+    "network_saturation":          ["ss -s", "ss -tunp 2>/dev/null | head -n 20"],
+    "connection_pool_exhaustion":  ["ss -tan state established | wc -l", "{logs_cmd}"],
+    "latency_degradation":         ["uptime", "{logs_cmd}"],
+    "error_spike":                 ["{logs_cmd}"],
+    "cascading_failure":           ["systemctl --failed --no-pager 2>/dev/null || true", "{logs_cmd}"],
+}
+
+_SHEBANG = "#!/usr/bin/env bash\nset -euo pipefail\n\n"
+
+
+def _generic_remediation_plan(
+    issue_type: str, service_name: str, context: dict,
+) -> tuple[list[dict], str]:
+    """Build a sensible, provider-aware shell plan with no runbook and no LLM.
+
+    Returns (steps, summary). The step `script` / `rollback_script` fields are
+    aggregated into remediate.sh + rollback.sh by normalize_remediation_payload,
+    so the operator always gets downloadable artifacts to review.
+    """
+    pretty = issue_type.replace("_", " ")
+    probe_templates = _GENERIC_ISSUE_PROBES.get(issue_type, ["{logs_cmd}"])
+    probe_block = "\n".join(
+        _FORMATTER.vformat(p, (), context) for p in probe_templates
+    )
+    restart = context["restart_cmd"]
+
+    steps = [
+        {
+            "order": 1,
+            "action": f"Capture {pretty} diagnostics on {service_name}",
+            "action_type": "diagnostic",
+            "description": (
+                f"Snapshot the current state before any change so the {pretty} "
+                f"can be confirmed and compared after remediation."
+            ),
+            "script": (
+                f"{_SHEBANG}echo '== {pretty} diagnostics for {service_name} =='\n"
+                f"{probe_block}\n"
+                f"journalctl -u {service_name} -n 50 --no-pager 2>/dev/null || true\n"
+            ),
+            "rollback_script": "",
+            "risk_level": "low",
+            "estimated_duration_seconds": 15,
+            "validation_command": "echo 'diagnostics captured'",
+        },
+        {
+            "order": 2,
+            "action": f"Restart {service_name} to clear the {pretty}",
+            "action_type": "restart_service",
+            "description": (
+                "Restarting the service releases leaked or exhausted resources and "
+                "restores availability while a permanent fix is investigated."
+            ),
+            "script": f"{_SHEBANG}{restart}\n",
+            "rollback_script": (
+                f"{_SHEBANG}# A restart has no destructive change to undo; "
+                f"re-check service health instead.\n"
+                f"systemctl status {service_name} --no-pager 2>/dev/null || true\n"
+            ),
+            "risk_level": "medium",
+            "estimated_duration_seconds": 30,
+            "validation_command": f"systemctl is-active --quiet {service_name}",
+        },
+        {
+            "order": 3,
+            "action": f"Validate {service_name} recovery",
+            "action_type": "validation",
+            "description": f"Confirm the service is healthy and the {pretty} indicators have cleared.",
+            "script": (
+                f"{_SHEBANG}sleep 5\n"
+                f"systemctl is-active --quiet {service_name} && echo '{service_name} is active'\n"
+                f"{probe_block}\n"
+            ),
+            "rollback_script": "",
+            "risk_level": "low",
+            "estimated_duration_seconds": 15,
+            "validation_command": f"systemctl is-active --quiet {service_name}",
+        },
+    ]
+
+    summary = (
+        f"Deterministic {pretty} remediation for {service_name}: capture diagnostics, "
+        f"restart the service to clear the condition, then validate recovery. "
+        f"Generated without a seeded runbook or LLM — review before applying."
+    )
+    return steps, summary
+
+
 # ── Plan builder ────────────────────────────────────────────────────
 
 async def _build_plan(
@@ -269,7 +366,7 @@ async def _build_plan(
     except Exception as e:
         logger.warning(f"LLM remediation fallback failed: {e}")
 
-    # Final fallback: try the generic error_spike template if it's seeded.
+    # Next fallback: try the generic error_spike template if it's seeded.
     fallback = await asyncio.to_thread(_load_template, "error_spike")
     if fallback:
         steps, artifacts, summary = _render_template(
@@ -277,8 +374,11 @@ async def _build_plan(
         )
         return steps, artifacts, summary, True, past_context
 
-    # No template, no LLM — return an empty plan.
-    return [], [], "No remediation plan available — seed runbooks or enable LLM fallback.", False, past_context
+    # Last resort — no seeded runbook AND no LLM. Build a deterministic
+    # provider-aware shell plan so the operator always gets a reviewable,
+    # downloadable remediate.sh / rollback.sh instead of an empty plan.
+    steps, summary = _generic_remediation_plan(issue_type, service_name, context)
+    return steps, [], summary, False, past_context
 
 
 async def generate_remediation(diagnostic_data: dict, metrics: dict, log_history: str = "No logs available") -> dict:
