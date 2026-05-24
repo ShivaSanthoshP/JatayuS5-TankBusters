@@ -33,6 +33,23 @@ const SOURCE_LABELS: Record<string, string> = {
   prometheus: 'Prometheus',
 };
 
+// The data adapter feeding a node (simulator vs aws cloudwatch, etc.),
+// falling back to provider for older nodes. Pure functions of the node,
+// so they live at module scope and are shared by the list view
+// (Infrastructure) and the detail modal (NodeDetail).
+const sourceOf = (n: InfraNode): string =>
+  (n.metadata_?.data_source as string | undefined) ?? n.provider;
+
+const locationLine = (n: InfraNode): string => {
+  const parts = [n.node_type, SOURCE_LABELS[sourceOf(n)] ?? sourceOf(n), n.region];
+  if (n.ip_address) parts.push(n.ip_address);
+  else {
+    const resourceId = typeof n.metadata_?.resource_id === 'string' ? n.metadata_.resource_id : undefined;
+    if (resourceId) parts.push(resourceId);
+  }
+  return parts.filter(Boolean).join(' · ');
+};
+
 function FilterRow({
   label, values, counts, selected, onToggle, onClear, labelFor,
 }: {
@@ -75,20 +92,8 @@ export default function Infrastructure() {
   const all = nodes ?? [];
 
   // Filter values are derived from the data present, so empty dimensions
-  // (e.g. no Azure nodes) never render a dead pill.
-  const sourceOf = (n: InfraNode): string =>
-    (n.metadata_?.data_source as string | undefined) ?? n.provider;
-
-  const locationLine = (n: InfraNode): string => {
-    const parts = [n.node_type, SOURCE_LABELS[sourceOf(n)] ?? sourceOf(n), n.region];
-    if (n.ip_address) parts.push(n.ip_address);
-    else {
-      const resourceId = typeof n.metadata_?.resource_id === 'string' ? n.metadata_.resource_id : undefined;
-      if (resourceId) parts.push(resourceId);
-    }
-    return parts.filter(Boolean).join(' · ');
-  };
-
+  // (e.g. no Azure nodes) never render a dead pill. sourceOf / locationLine
+  // are module-scope helpers (shared with the detail modal).
   const statusValues = STATUS_ORDER.filter((s) => all.some((n) => n.status === s));
   const typeValues = [...new Set(all.map((n) => n.node_type))].sort();
   const sourceValues = [...new Set(all.map(sourceOf))].sort();
