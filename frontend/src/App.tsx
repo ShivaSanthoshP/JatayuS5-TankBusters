@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Pipeline from './pages/Pipeline';
 import Incidents from './pages/Incidents';
+import IncidentDetail from './pages/IncidentDetail';
 import Infrastructure from './pages/Infrastructure';
 import DataSources from './pages/DataSources';
 import Simulators from './pages/Simulators';
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/pipeline" element={<Pipeline />} />
           <Route path="/incidents" element={<Incidents />} />
+          <Route path="/incidents/:id" element={<IncidentDetail />} />
           <Route path="/infrastructure" element={<Infrastructure />} />
           <Route path="/datasources" element={<DataSources />} />
           <Route path="/simulators" element={<Simulators />} />
