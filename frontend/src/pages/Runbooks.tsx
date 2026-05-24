@@ -295,9 +295,9 @@ export default function Runbooks() {
             <button
               onClick={() => runbookDraft.openCreate()}
               className="rounded-lg px-3 py-1.5 text-xs font-medium bg-accent text-white hover:bg-accent-bright flex items-center gap-1.5"
-              title="Author a new canonical runbook"
+              title="Seed a new canonical runbook"
             >
-              <Plus size={13} /> New runbook
+              <Plus size={13} /> Seed a runbook
             </button>
             <button
               onClick={handlePurge}

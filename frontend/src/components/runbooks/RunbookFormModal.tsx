@@ -171,7 +171,7 @@ export default function RunbookFormModal({ initial, prefill, onClose, onSaved }:
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-glass-border sticky top-0 bg-surface/95 backdrop-blur z-10">
           <h2 className="text-base font-semibold text-ink">
-            {editing ? 'Edit runbook' : 'New canonical runbook'}
+            {editing ? 'Edit runbook' : 'Seed a runbook'}
           </h2>
           <button onClick={onClose} className="p-1.5 rounded hover:bg-ink/5" title="Close">
             <X size={16} className="text-ink-mute" />
@@ -357,7 +357,7 @@ export default function RunbookFormModal({ initial, prefill, onClose, onSaved }:
           </button>
           <button onClick={submit} disabled={!canSave}
             className="px-5 py-2 rounded-lg text-sm font-medium bg-accent text-white hover:bg-accent-bright disabled:opacity-40 disabled:cursor-not-allowed">
-            {saving ? 'Saving…' : editing ? 'Save changes' : 'Create runbook'}
+            {saving ? 'Saving…' : editing ? 'Save changes' : 'Seed runbook'}
           </button>
         </div>
       </motion.div>
