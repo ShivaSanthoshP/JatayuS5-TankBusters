@@ -20,27 +20,6 @@
 
 ---
 
-## 2-Minute Judge Path
-
-If you only have a few minutes, evaluate these in order:
-
-| Signal | What to open or run | What it proves |
-|:---|:---|:---|
-| **Live product** | <a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">Live App</a> | The full stack is deployed and usable, not just a local prototype |
-| **Runtime health** | <a href="https://dynamic-it-ops.tankbusters.duckdns.org/health" target="_blank" rel="noopener noreferrer">`/health`</a> | Database, vector memory, background services, and tool registry report component-level status |
-| **API contract** | <a href="https://dynamic-it-ops.tankbusters.duckdns.org/docs" target="_blank" rel="noopener noreferrer">Swagger UI</a> | FastAPI schemas and endpoints are documented and directly testable |
-| **Frontend quality gate** | `cd frontend && npm run build && npm run lint` | TypeScript build and ESLint pass before deploy |
-| **Backend quality gate** | `cd backend && python3 -m pytest -q` | Focused API, chat, tool, guardrail, and LLM-provider regression tests |
-| **Deployment evidence** | `.github/workflows/deploy.yml` and `deployment/` | CI/CD, nginx, systemd, environment sample, and EC2 bootstrap are included |
-
-### Demo script
-
-1. Open the live app and show the **Dashboard** health summary.
-2. Go to **Sources** and show the connected AWS CloudWatch source plus simulator/custom-source options.
-3. Go to **Workflow**, run the agent pipeline on a degraded or simulated node, and show live progress across Monitor → Predict → Diagnose → Remediate → Report.
-4. Open the created **Incident** and show root cause, blast radius, remediation plan, and downloadable rollback-ready artifacts.
-5. Open **Argus**, ask “which nodes are critical right now?”, then ask it to draft a runbook. Show the confirmation/review flow before saving.
-6. Open **Health** or Swagger to close with production readiness.
 
 ## 🛰️ Live — Monitoring Real Cloud Infrastructure in Real Time
 
