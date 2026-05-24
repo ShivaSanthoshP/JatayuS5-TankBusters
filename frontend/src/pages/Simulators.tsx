@@ -503,25 +503,29 @@ function SimulatorCard({
 
   return (
     <motion.div layout className={`glass p-5 space-y-3 bg-gradient-to-b ${meta.gradient}`}>
-      {/* Header */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
+      {/* Header — uses min-w-0 on the title side and a compact icon-only
+          live-log action so the simulator name never gets clipped or
+          overlapped, even when 4 cards share a narrow row. */}
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${meta.iconColor}18` }}>
             <Icon size={20} style={{ color: meta.iconColor }} />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-ink truncate">{sim.name}</h3>
-            <p className="text-xs text-ink-faint">{meta.label}</p>
+            <h3 className="text-sm font-semibold text-ink truncate" title={sim.name}>
+              {sim.name}
+            </h3>
+            <p className="text-xs text-ink-faint truncate">{meta.label}</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => onViewLogs(sim)}
             title="Open live log terminal"
-            className="group relative inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[var(--color-term-bg-soft)] hover:bg-[var(--color-term-bg)] text-[var(--color-term-info)] hover:text-[var(--color-term-mint)] ring-1 ring-white/10 hover:ring-[var(--color-term-info)]/40 transition-colors shadow-sm text-[11px] font-mono font-medium"
+            aria-label="View live logs"
+            className="group relative inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[var(--color-term-bg-soft)] hover:bg-[var(--color-term-bg)] text-[var(--color-term-info)] hover:text-[var(--color-term-mint)] ring-1 ring-white/10 hover:ring-[var(--color-term-info)]/40 transition-colors shadow-sm"
           >
             <Terminal size={12} />
-            <span>View Logs</span>
             {sim.status === 'running' && (
               <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
