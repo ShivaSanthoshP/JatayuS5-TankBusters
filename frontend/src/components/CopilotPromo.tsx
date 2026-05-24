@@ -17,7 +17,7 @@ export default function CopilotPromo() {
         to="/copilot"
         aria-label="Open Argus, the fleet chat assistant"
         className="group block rounded-[22px] outline-none
-          focus-visible:ring-2 focus-visible:ring-[var(--color-warning)]
+          focus-visible:ring-2 focus-visible:ring-[var(--color-spark)]
           focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-canvas)]"
       >
         <motion.div
@@ -28,7 +28,7 @@ export default function CopilotPromo() {
             px-5 py-5 sm:px-7 sm:py-6 cursor-pointer"
           style={{
             background: 'linear-gradient(135deg, var(--color-accent-bright) 0%, var(--color-accent) 46%, var(--color-accent-dim) 100%)',
-            boxShadow: '0 18px 40px -18px rgba(27,54,53,0.65)',
+            boxShadow: '0 18px 40px -18px rgba(28,28,74,0.62)',
           }}
         >
           {/* Oversized watermark mark, clipped by the card — no floating orbs. */}
@@ -43,16 +43,16 @@ export default function CopilotPromo() {
             <div
               className="shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center"
               style={{
-                background: 'linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-ink-strong) 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.38), 0 8px 22px -6px rgba(192,138,62,0.6)',
+                background: 'linear-gradient(135deg, #01f965 0%, #00c24e 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.45), 0 8px 22px -6px rgba(1,249,101,0.55)',
               }}
             >
-              <Wand2 size={22} className="text-[var(--color-surface)]" />
+              <Wand2 size={22} className="text-[var(--color-accent-dim)]" />
             </div>
 
             {/* Copy */}
             <div className="flex-1 min-w-0">
-              <span className="label-eyebrow !text-[9.5px]" style={{ color: 'rgba(222,182,124,0.95)' }}>
+              <span className="label-eyebrow !text-[9.5px]" style={{ color: 'rgba(1,249,101,0.95)' }}>
                 Meet Argus
               </span>
               <h2 className="font-display text-[20px] sm:text-[25px] leading-[1.16] mt-1.5 text-[var(--color-surface)]">

@@ -87,7 +87,7 @@ const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
           }
 
           .btn-liquid-text {
-            text-shadow: 0 1px 2px oklch(from var(--background, #fbf8f1) l c h / 30%);
+            text-shadow: 0 1px 2px oklch(from var(--background, #ffffff) l c h / 30%);
             transition: color 400ms cubic-bezier(1, 0.0, 0.4, 1);
           }
 

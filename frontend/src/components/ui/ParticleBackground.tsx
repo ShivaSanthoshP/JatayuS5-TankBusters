@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 
-// Whisper-quiet warm dust — ivory & teal flecks on cream
+// Whisper-quiet indigo dust on white — flecks in the Virtusa brand indigo
 const COLORS = [
-    'rgba(36, 71, 69, 0.10)',    // Faint Teal
-    'rgba(192, 138, 62, 0.10)',  // Faint Amber
-    'rgba(21, 25, 26, 0.06)',    // Faint Ink
-    'rgba(255, 253, 247, 0.50)', // Ivory Highlight
+    'rgba(53, 53, 140, 0.10)',   // Faint Indigo
+    'rgba(70, 70, 184, 0.08)',   // Soft Indigo
+    'rgba(43, 45, 97, 0.09)',    // Deep Indigo
+    'rgba(21, 25, 26, 0.05)',    // Faint Ink
 ];
 
 class Particle {

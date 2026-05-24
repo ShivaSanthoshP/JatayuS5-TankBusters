@@ -33,7 +33,7 @@ const PROVIDER_COLORS: Record<string, { bg: string; accent: string; glow: string
   gcp:        { bg: 'from-[rgba(197,82,77,0.10)] to-transparent',   accent: palette.critical,      glow: '0 0 30px rgba(197,82,77,0.10)' },
   prometheus: { bg: 'from-[rgba(192,138,62,0.10)] to-transparent',  accent: palette.warningStrong, glow: '0 0 30px rgba(176,122,46,0.10)' },
   docker:     { bg: 'from-[rgba(58,111,106,0.10)] to-transparent',  accent: palette.accentBright,  glow: '0 0 30px rgba(58,111,106,0.10)' },
-  logfile:    { bg: 'from-[rgba(36,71,69,0.08)] to-transparent',    accent: palette.accent,        glow: '0 0 30px rgba(36,71,69,0.10)' },
+  logfile:    { bg: 'from-[rgba(53,53,140,0.08)] to-transparent',    accent: palette.accent,        glow: '0 0 30px rgba(53,53,140,0.10)' },
   custom:     { bg: 'from-[rgba(102,71,116,0.10)] to-transparent',  accent: palette.plum,          glow: '0 0 30px rgba(102,71,116,0.10)' },
 };
 

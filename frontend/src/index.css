@@ -3,14 +3,14 @@
 
 /* ───────────────────────────────────────────────────────────────────
    ITOPS · DYNAMIC IT OPERATIONS ORCHESTRATOR — DESIGN TOKENS
-   Warm cream canvas · deep-teal ink · liquid frosted glass
+   White canvas · deep-indigo accent · electric-green spark · liquid glass
    ─────────────────────────────────────────────────────────────────── */
 @theme {
-  /* ── Surfaces (warm cream) ───────────────────────────────── */
-  --color-canvas:        #ece6d8;
-  --color-canvas-soft:   #f1ebde;
-  --color-surface:       #fbf8f1;
-  --color-surface-strong:#fffdf8;  /* warm white — never pure #fff */
+  /* ── Surfaces (white) ────────────────────────────────────── */
+  --color-canvas:        #f7f8fb;
+  --color-canvas-soft:   #eef1f6;
+  --color-surface:       #ffffff;
+  --color-surface-strong:#ffffff;
 
   /* ── Ink ─────────────────────────────────────────────────── */
   --color-ink:        #15191a;
@@ -18,12 +18,16 @@
   --color-ink-mute:   #6f7470;
   --color-ink-faint:  #a4a8a1;
 
-  /* ── Brand accent — deep forest teal ─────────────────────── */
-  --color-accent:        #244745;
-  --color-accent-bright: #3a6f6a;
-  --color-accent-dim:    #1b3635;
-  --color-accent-glow:   rgba(36, 71, 69, 0.18);
-  --color-accent-ink:    #1c3837;  /* readable accent text on a tint */
+  /* ── Brand accent — deep indigo (Virtusa) ────────────────── */
+  --color-accent:        #35358c;
+  --color-accent-bright: #4646b8;
+  --color-accent-dim:    #2b2d61;
+  --color-accent-glow:   rgba(53, 53, 140, 0.18);
+  --color-accent-ink:    #2b2d61;  /* readable accent text on a tint */
+
+  /* ── Electric "spark" — the Virtusa green. Used very sparingly:
+     live pulse, Argus aura, the Argus promo badge. Never text on white. */
+  --color-spark:         #01f965;
 
   /* ── Semantic — desaturated, editorial ───────────────────── */
   --color-success:  #3d7d65;
@@ -41,7 +45,7 @@
   --color-info-ink:     #2d4660;
 
   /* Keyboard focus ring colour — accent at ~55% alpha. */
-  --color-focus-ring:   rgba(36, 71, 69, 0.55);
+  --color-focus-ring:   rgba(53, 53, 140, 0.55);
 
   /* ── Categorical accent (data-viz / agent / source encoding) ─ */
   --color-plum:  #664774;  /* diagnostic agent · db source · net-out series */
@@ -100,9 +104,9 @@ body::before {
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 80% 55% at 85% -10%, rgba(36, 71, 69, 0.08), transparent 60%),
-    radial-gradient(ellipse 60% 50% at -10% 110%, rgba(192, 138, 62, 0.06), transparent 60%),
-    radial-gradient(ellipse 100% 70% at 50% 120%, rgba(36, 71, 69, 0.04), transparent 70%);
+    radial-gradient(ellipse 80% 55% at 85% -10%, rgba(53, 53, 140, 0.08), transparent 60%),
+    radial-gradient(ellipse 60% 50% at -10% 110%, rgba(53, 53, 140, 0.05), transparent 60%),
+    radial-gradient(ellipse 100% 70% at 50% 120%, rgba(53, 53, 140, 0.04), transparent 70%);
 }
 
 /* Microscopic grain — gives the "paper" feel of the reference */
@@ -194,7 +198,7 @@ button {
 .glass {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 253, 247, 0.78), rgba(252, 248, 240, 0.55));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(247, 249, 252, 0.55));
   backdrop-filter: blur(28px) saturate(150%);
   -webkit-backdrop-filter: blur(28px) saturate(150%);
   border: 1px solid var(--color-hairline);
@@ -223,7 +227,7 @@ button {
 .glass-sm {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 253, 247, 0.72), rgba(252, 248, 240, 0.50));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(247, 249, 252, 0.50));
   backdrop-filter: blur(22px) saturate(140%);
   -webkit-backdrop-filter: blur(22px) saturate(140%);
   border: 1px solid var(--color-hairline);
@@ -251,7 +255,7 @@ button {
 .glass-modal {
   position: relative;
   background:
-    linear-gradient(180deg, rgb(255, 253, 247), rgb(252, 248, 240));
+    linear-gradient(180deg, rgb(255, 255, 255), rgb(247, 249, 252));
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-card);
   box-shadow:
@@ -303,8 +307,8 @@ button {
    PULSE
    ─────────────────────────────────────────────────────────────────── */
 @keyframes pulse-accent {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(36, 71, 69, 0.42); }
-  50%      { box-shadow: 0 0 0 6px rgba(36, 71, 69, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(1, 249, 101, 0.50); }
+  50%      { box-shadow: 0 0 0 6px rgba(1, 249, 101, 0); }
 }
 .pulse-live { animation: pulse-accent 2s ease-in-out infinite; }
 
@@ -332,7 +336,7 @@ button {
    ─────────────────────────────────────────────────────────────────── */
 .glass-navbar-pill {
   background:
-    linear-gradient(180deg, rgba(255, 253, 247, 0.55), rgba(250, 246, 237, 0.40));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(244, 246, 251, 0.40));
   backdrop-filter: blur(42px) saturate(180%);
   -webkit-backdrop-filter: blur(42px) saturate(180%);
   border: 1px solid var(--color-hairline);
@@ -405,7 +409,7 @@ button {
   border-radius: 9999px;
   pointer-events: none;
   z-index: 0;
-  background-color: rgba(36, 71, 69, 0.06);
+  background-color: rgba(53, 53, 140, 0.06);
   backdrop-filter: blur(8px) url(#liquid-glass-nav) saturate(150%);
   -webkit-backdrop-filter: blur(8px) saturate(150%);
   box-shadow:
@@ -432,10 +436,10 @@ button {
 }
 
 .glass-nav-tab-indicator {
-  background: rgba(36, 71, 69, 0.10);
+  background: rgba(53, 53, 140, 0.10);
   border-radius: var(--radius-pill);
   box-shadow:
-    inset 0 0 0 1px rgba(36, 71, 69, 0.18),
+    inset 0 0 0 1px rgba(53, 53, 140, 0.18),
     0 1px 2px rgba(21, 25, 26, 0.04);
 }
 
@@ -444,7 +448,7 @@ button {
    ─────────────────────────────────────────────────────────────────── */
 .glass-dropdown {
   background:
-    linear-gradient(180deg, rgba(255, 253, 247, 0.92), rgba(250, 246, 237, 0.85));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(244, 246, 251, 0.85));
   backdrop-filter: blur(48px) saturate(180%);
   -webkit-backdrop-filter: blur(48px) saturate(180%);
   border: 1px solid var(--color-hairline-strong);
@@ -478,11 +482,11 @@ button {
   padding: 1px;
   background: conic-gradient(from var(--liquid-angle),
     rgba(255, 255, 255, 0.0) 0%,
-    rgba(36, 71, 69, 0.55) 18%,
+    rgba(53, 53, 140, 0.55) 18%,
     rgba(255, 255, 255, 0.0) 32%,
-    rgba(192, 138, 62, 0.40) 55%,
+    rgba(53, 53, 140, 0.30) 55%,
     rgba(255, 255, 255, 0.0) 70%,
-    rgba(36, 71, 69, 0.45) 88%,
+    rgba(53, 53, 140, 0.45) 88%,
     rgba(255, 255, 255, 0.0) 100%);
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
@@ -520,13 +524,13 @@ button {
 
 .btn-pill-ghost {
   color: var(--color-ink-soft);
-  background: rgba(255, 253, 247, 0.7);
+  background: rgba(255, 255, 255, 0.7);
   border: 1px solid var(--color-hairline);
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 .btn-pill-ghost:hover {
-  background: rgba(255, 253, 247, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   border-color: var(--color-hairline-strong);
   color: var(--color-ink);
 }
@@ -589,7 +593,7 @@ button {
   transition: background-color var(--duration-fast, 180ms) var(--ease-out-soft, ease);
 }
 .hover-row:hover {
-  background-color: rgba(252, 248, 240, 0.55);
+  background-color: rgba(247, 249, 252, 0.55);
 }
 
 /* Terminal pane — dark surface that respects the warm palette */
@@ -597,7 +601,7 @@ button {
   background: #0e1112;
   color: #d9d4c8;
 }
-.terminal-pane::selection { background: rgba(252, 248, 240, 0.20); }
+.terminal-pane::selection { background: rgba(247, 249, 252, 0.20); }
 
 /* Focus ring is defined once, lower in this file (FOCUS RING — keyboard
    friendly). It appears instantly — never transitioned. */
@@ -612,7 +616,7 @@ input, select, textarea {
 input:not([type="checkbox"]):not([type="radio"]),
 select,
 textarea {
-  background: rgba(255, 253, 247, 0.55);
+  background: rgba(255, 255, 255, 0.55);
   border: 1px solid var(--color-hairline);
   border-radius: 10px;
   color: var(--color-ink);
@@ -624,8 +628,8 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--color-accent-bright);
-  background: rgba(255, 253, 247, 0.85);
-  box-shadow: 0 0 0 3px rgba(36, 71, 69, 0.10);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 3px rgba(53, 53, 140, 0.10);
 }
 
 /* The Argus chat input opts out of the frosted-glass form styling above —
@@ -648,7 +652,7 @@ textarea::placeholder {
    SELECTION
    ─────────────────────────────────────────────────────────────────── */
 ::selection {
-  background: rgba(36, 71, 69, 0.18);
+  background: rgba(53, 53, 140, 0.18);
   color: var(--color-ink);
 }
 
@@ -698,7 +702,7 @@ textarea::placeholder {
 .glass-vibrant {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 252, 244, 0.32));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(252, 253, 255, 0.32));
   backdrop-filter: blur(18px) saturate(170%);
   -webkit-backdrop-filter: blur(18px) saturate(170%);
   border: 1px solid var(--color-hairline);
@@ -712,7 +716,7 @@ textarea::placeholder {
 .glass-frost {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 253, 247, 0.78), rgba(252, 248, 240, 0.55));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(247, 249, 252, 0.55));
   backdrop-filter: blur(28px) saturate(160%);
   -webkit-backdrop-filter: blur(28px) saturate(160%);
   border: 1px solid var(--color-hairline);
@@ -726,7 +730,7 @@ textarea::placeholder {
 .glass-mica {
   position: relative;
   background:
-    linear-gradient(180deg, rgba(255, 253, 247, 0.92), rgba(248, 244, 234, 0.85));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(242, 245, 250, 0.85));
   backdrop-filter: blur(48px) saturate(180%);
   -webkit-backdrop-filter: blur(48px) saturate(180%);
   border: 1px solid var(--color-hairline-strong);
@@ -816,7 +820,7 @@ textarea::placeholder {
   top: 3px;
   bottom: 3px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 1.0), rgba(255, 252, 244, 0.94));
+    linear-gradient(180deg, rgba(255, 255, 255, 1.0), rgba(252, 253, 255, 0.94));
   border-radius: 9px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
@@ -897,7 +901,7 @@ textarea::placeholder {
   align-items: center;
   justify-content: center;
   color: var(--color-ink-soft);
-  background: rgba(255, 253, 247, 0.6);
+  background: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   touch-action: manipulation;
   border: 1px solid var(--color-hairline);
@@ -911,7 +915,7 @@ textarea::placeholder {
 }
 .icon-btn:hover {
   color: var(--color-ink);
-  background: rgba(255, 253, 247, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   border-color: var(--color-hairline-strong);
 }
 
@@ -929,7 +933,7 @@ textarea::placeholder {
 
 .sheet-pane {
   background:
-    linear-gradient(180deg, rgba(255, 253, 247, 0.96), rgba(248, 244, 234, 0.92));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(242, 245, 250, 0.92));
   backdrop-filter: blur(48px) saturate(180%);
   -webkit-backdrop-filter: blur(48px) saturate(180%);
   border: 1px solid var(--color-hairline-strong);
@@ -1018,7 +1022,7 @@ textarea::placeholder {
   inset: -5px;
   border-radius: 9999px;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(47, 230, 207, 0.7), rgba(143, 245, 230, 0.7));
+  background: linear-gradient(135deg, rgba(1, 249, 101, 0.75), rgba(120, 255, 185, 0.7));
   filter: blur(6px);
   animation: argus-halo 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   will-change: opacity;
@@ -1040,9 +1044,9 @@ textarea::placeholder {
   border-radius: 50%;
   pointer-events: none;
   background: radial-gradient(circle,
-    rgba(47, 230, 207, 0.85) 0%,
-    rgba(47, 230, 207, 0.55) 55%,
-    rgba(47, 230, 207, 0) 85%);
+    rgba(1, 249, 101, 0.85) 0%,
+    rgba(1, 249, 101, 0.55) 55%,
+    rgba(1, 249, 101, 0) 85%);
   animation: argus-ping 1.9s cubic-bezier(0, 0, 0.2, 1) infinite;
   will-change: transform, opacity;
 }

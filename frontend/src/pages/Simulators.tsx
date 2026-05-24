@@ -23,7 +23,7 @@ const TYPE_META: Record<string, { icon: React.ElementType; label: string; gradie
   cache:         { icon: HardDrive, label: 'Cache (Redis)',  gradient: 'from-[rgba(197,82,77,0.10)] to-transparent',   iconColor: palette.critical },
   load_balancer: { icon: Globe,     label: 'Load Balancer',  gradient: 'from-[rgba(192,138,62,0.10)] to-transparent',  iconColor: palette.warning },
   queue:         { icon: Radio,     label: 'Message Queue',  gradient: 'from-[rgba(61,125,101,0.10)] to-transparent',  iconColor: palette.success },
-  metrics:       { icon: BarChart2, label: 'Fleet Metrics',  gradient: 'from-[rgba(36,71,69,0.08)] to-transparent',    iconColor: palette.accent },
+  metrics:       { icon: BarChart2, label: 'Fleet Metrics',  gradient: 'from-[rgba(53,53,140,0.08)] to-transparent',    iconColor: palette.accent },
 };
 
 const METRIC_DEFS: { key: keyof SimulatorMetrics; label: string; unit: string; max: number; color: string }[] = [

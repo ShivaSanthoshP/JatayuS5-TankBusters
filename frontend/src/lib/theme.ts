@@ -9,20 +9,23 @@
  * only reach for this module when a literal colour string is unavoidable.
  */
 export const palette = {
-  canvas:       '#ece6d8',
-  canvasSoft:   '#f1ebde',
-  surface:      '#fbf8f1',
-  surfaceStrong:'#fffdf8',
+  canvas:       '#f7f8fb',
+  canvasSoft:   '#eef1f6',
+  surface:      '#ffffff',
+  surfaceStrong:'#ffffff',
 
   ink:          '#15191a',
   inkSoft:      '#3d4341',
   inkMute:      '#6f7470',
   inkFaint:     '#a4a8a1',
 
-  accent:       '#244745',
-  accentBright: '#3a6f6a',
-  accentDim:    '#1b3635',
-  accentInk:    '#1c3837',
+  accent:       '#35358c',
+  accentBright: '#4646b8',
+  accentDim:    '#2b2d61',
+  accentInk:    '#2b2d61',
+
+  /* Electric "spark" — Virtusa green, used very sparingly. */
+  spark:        '#01f965',
 
   success:      '#3d7d65',
   successInk:   '#2d5e4c',

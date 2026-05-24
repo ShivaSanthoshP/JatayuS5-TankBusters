@@ -356,7 +356,7 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
                       <YAxis hide domain={['auto', 'auto']} />
                       <Tooltip
                         contentStyle={{
-                          background: 'rgba(255,253,247,0.95)',
+                          background: 'rgba(255,255,255,0.95)',
                           border: '1px solid rgba(21,25,26,0.10)',
                           borderRadius: 8,
                           fontSize: 11,
