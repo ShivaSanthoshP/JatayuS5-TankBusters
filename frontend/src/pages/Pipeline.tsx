@@ -3,16 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, TrendingUp, Search, Wrench, FileText, Play, Loader2,
   Filter, ChevronDown, AlertTriangle, CheckCircle2,
-  XCircle, Clock, Server, Activity, RefreshCw, Terminal, RotateCcw,
+  XCircle, Clock, Server, RefreshCw, Terminal, RotateCcw,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import StatusBadge from '../components/ui/StatusBadge';
 import Loader from '../components/ui/Loader';
-import ArtifactViewer from '../components/remediation/ArtifactViewer';
 import AutoPipelinePanel from '../components/pipeline/AutoPipelinePanel';
+import PipelineResultView from '../components/pipeline/PipelineResultView';
 import { useApi } from '../hooks/useApi';
 import * as api from '../services/api';
-import type { InfraNode, PipelineResult, RemediationArtifact, PipelineRunStatus } from '../types';
+import type { InfraNode, PipelineResult, PipelineRunStatus } from '../types';
 import { palette } from '../lib/theme';
 import { easing } from '../lib/motion';
 
@@ -126,9 +126,6 @@ export default function Pipeline() {
   }, []);
 
   const nodeList = nodes || [];
-  const remediationArtifacts = ((result?.remediation_result?.artifacts as RemediationArtifact[] | undefined) ?? []);
-  const diagnosticReasons = ((result?.diagnostic_result?.reasons as string[] | undefined) ?? []);
-  const remediationSteps = ((result?.remediation_result?.steps as Array<Record<string, any>> | undefined) ?? []);
   const completedAgents = useMemo(
     () => {
       const agents = new Set((result?.agent_trace ?? []).map((trace) => String(trace.agent)));
@@ -826,150 +823,26 @@ export default function Pipeline() {
               );
             })()}
 
-            {/* Agent detail cards (only for single-node runs) */}
+            {/* 5-section agent pipeline view — only for single-node runs
+                where we have the full per-agent payload. Run-All shows
+                just the aggregate summary above. */}
             {result.monitoring_result && Object.keys(result.monitoring_result).length > 0 && (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {/* Monitoring */}
-                <AgentResultCard
-                  agent="Monitoring"
-                  icon={Eye}
-                  color={palette.info}
-                  items={[
-                    { label: 'Anomaly Type', value: result.monitoring_result?.anomaly_type as string },
-                    { label: 'Severity', value: result.monitoring_result?.severity as string, badge: true },
-                    { label: 'Description', value: result.monitoring_result?.description as string },
-                    { label: 'Log Evidence', value: result.monitoring_result?.log_evidence as string },
-                  ]}
+              <div className="glass p-5 sm:p-7 gpu">
+                <PipelineResultView
+                  monitoring={result.monitoring_result}
+                  prediction={result.prediction_result}
+                  diagnostic={result.diagnostic_result}
+                  remediation={result.remediation_result}
+                  reporting={result.reporting_result}
+                  meta={{
+                    status: result.status,
+                    severity: result.severity ?? undefined,
+                    detected_at: result.started_at,
+                    resolved_at: result.completed_at,
+                    incident_id: result.incident_id,
+                  }}
                 />
-
-                {/* Predictive */}
-                <AgentResultCard
-                  agent="Predictive"
-                  icon={TrendingUp}
-                  color={palette.accentBright}
-                  items={[
-                    { label: 'Failure Probability', value: result.prediction_result?.failure_probability != null ? `${Math.round((result.prediction_result.failure_probability as number) * 100)}%` : undefined },
-                    { label: 'Escalation Risk', value: result.prediction_result?.escalation_risk as string, badge: true },
-                    { label: 'Time to Failure', value: result.prediction_result?.estimated_time_to_failure as string },
-                    { label: 'Urgency', value: result.prediction_result?.recommended_urgency as string },
-                  ]}
-                />
-
-                {/* Diagnostic */}
-                <AgentResultCard
-                  agent="Diagnostic"
-                  icon={Search}
-                  color={palette.plum}
-                  items={[
-                    { label: 'Root Cause', value: result.diagnostic_result?.root_cause as string },
-                    { label: 'Issue Type', value: result.diagnostic_result?.issue_type as string },
-                    { label: 'Confidence', value: result.diagnostic_result?.confidence != null ? `${Math.round((result.diagnostic_result.confidence as number) * 100)}%` : undefined },
-                    { label: 'Blast Radius', value: (result.diagnostic_result?.blast_radius as string[])?.join(', ') },
-                  ]}
-                />
-
-                {/* Remediation */}
-                <AgentResultCard
-                  agent="Remediation"
-                  icon={Wrench}
-                  color={palette.warning}
-                  items={[
-                    { label: 'Plan', value: result.remediation_result?.plan_summary as string },
-                    { label: 'Service', value: result.remediation_result?.service_name as string },
-                    { label: 'Steps', value: remediationSteps.length ? `${remediationSteps.length} steps` : undefined },
-                    { label: 'Canary Compatible', value: result.remediation_result?.canary_compatible ? 'Yes' : 'No' },
-                    { label: 'Requires Downtime', value: result.remediation_result?.requires_downtime ? 'Yes' : 'No' },
-                  ]}
-                />
-
-                {/* Reporting */}
-                <AgentResultCard
-                  agent="Reporting"
-                  icon={FileText}
-                  color={palette.success}
-                  items={[
-                    { label: 'Summary', value: result.reporting_result?.executive_summary as string },
-                    { label: 'Runbook', value: result.reporting_result?.runbook_title as string },
-                  ]}
-                />
-
-                {/* Trace timeline */}
-                {result.agent_trace && result.agent_trace.length > 0 && (
-                  <GlassCard hover={false} className="md:col-span-2 xl:col-span-1">
-                    <h3 className="text-xs font-semibold text-ink-soft mb-3 flex items-center gap-2">
-                      <Activity size={14} className="text-accent" />
-                      Agent Trace
-                    </h3>
-                    <div className="space-y-2">
-                      {result.agent_trace.map((t, i) => {
-                        const start = new Date(t.started_at);
-                        const end = new Date(t.completed_at);
-                        const dur = Math.max(0, end.getTime() - start.getTime());
-                        return (
-                          <div key={i} className="flex items-center gap-2 text-xs">
-                            <span className="w-2 h-2 rounded-full bg-accent" />
-                            <span className="text-ink-soft font-medium capitalize w-20">{t.agent}</span>
-                            <span className="text-ink-faint flex-1">
-                              {dur > 0 ? `${(dur / 1000).toFixed(1)}s` : '<1s'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </GlassCard>
-                )}
               </div>
-            )}
-
-            {(diagnosticReasons.length > 0 || remediationSteps.length > 0) && (
-              <div className="grid lg:grid-cols-2 gap-4">
-                {diagnosticReasons.length > 0 && (
-                  <GlassCard hover={false}>
-                    <h3 className="text-xs font-semibold text-ink-soft mb-3 flex items-center gap-2">
-                      <Search size={14} className="text-accent" />
-                      Why This Happened
-                    </h3>
-                    <div className="space-y-2">
-                      {diagnosticReasons.map((reason, index) => (
-                        <div key={index} className="rounded-lg bg-accent/8 border border-accent/15 px-3 py-2 text-xs text-ink-soft leading-relaxed">
-                          {reason}
-                        </div>
-                      ))}
-                    </div>
-                  </GlassCard>
-                )}
-
-                {remediationSteps.length > 0 && (
-                  <GlassCard hover={false}>
-                    <h3 className="text-xs font-semibold text-ink-soft mb-3 flex items-center gap-2">
-                      <Wrench size={14} className="text-warning" />
-                      Simple Fix Steps
-                    </h3>
-                    <div className="space-y-2">
-                      {remediationSteps.map((step, index) => (
-                        <div key={index} className="rounded-lg bg-warning/8 border border-warning/20 px-3 py-2">
-                          <div className="text-xs font-medium text-ink-soft">
-                            {index + 1}. {String(step['action'] || `Step ${index + 1}`)}
-                          </div>
-                          {step['description'] && (
-                            <div className="text-xs text-ink-mute mt-1 leading-relaxed">
-                              {String(step['description'])}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </GlassCard>
-                )}
-              </div>
-            )}
-
-            {remediationArtifacts.length > 0 && (
-              <ArtifactViewer
-                artifacts={remediationArtifacts}
-                title="Generated Remediation Scripts"
-                emptyLabel="No remediation scripts were generated for this pipeline run."
-              />
             )}
           </motion.div>
         )}
@@ -981,41 +854,6 @@ export default function Pipeline() {
   );
 }
 
-
-/* ── Helper: Agent result card ─────────────────────────────── */
-function AgentResultCard({
-  agent, icon: Icon, color, items,
-}: {
-  agent: string;
-  icon: React.ElementType;
-  color: string;
-  items: { label: string; value?: string; badge?: boolean }[];
-}) {
-  return (
-    <GlassCard hover={false}>
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}15` }}>
-          <Icon size={14} style={{ color }} />
-        </div>
-        <h3 className="text-xs font-semibold text-ink-soft">{agent}</h3>
-      </div>
-      <div className="space-y-2">
-        {items.map(({ label, value, badge }) =>
-          value ? (
-            <div key={label} className="text-xs">
-              <span className="text-ink-faint">{label}: </span>
-              {badge ? (
-                <StatusBadge status={value} />
-              ) : (
-                <span className="text-ink-soft">{value}</span>
-              )}
-            </div>
-          ) : null,
-        )}
-      </div>
-    </GlassCard>
-  );
-}
 
 /* ── Helper: 3-stage progress stepper ──────────────────────────
    Gives a new user constant orientation — "I'm on stage 2 of 3". */

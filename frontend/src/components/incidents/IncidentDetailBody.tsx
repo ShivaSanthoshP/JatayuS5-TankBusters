@@ -1,9 +1,4 @@
-import {
-  Activity, Brain, FileCheck, Shield, TrendingUp, Wrench, Loader2,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import ArtifactViewer from '../remediation/ArtifactViewer';
-import StatusBadge from '../ui/StatusBadge';
+import PipelineResultView from '../pipeline/PipelineResultView';
 import * as api from '../../services/api';
 import type { Incident, RemediationDetail } from '../../types';
 
@@ -14,413 +9,62 @@ interface IncidentDetailBodyProps {
 }
 
 /**
- * Five-section pipeline view of one incident: Monitoring → Prediction →
- * Diagnosis → Remediation → Reporting, in the order the agents ran.
- * Each section uses a numbered mono prefix + display label + icon. The
- * Monitoring + Reporting sections are honest about the data the backend
- * currently persists (description, timestamps only); the others render
- * the full agent payload.
+ * Adapter that maps the persisted Incident shape onto PipelineResultView.
+ * The Incident row only carries prediction_details + diagnostic_details
+ * (plus monitoring's description/severity and timestamps); the full
+ * monitoring + reporting payloads aren't stored yet, so the Monitoring
+ * and Reporting sections render only what we have.
  */
 export default function IncidentDetailBody({
   incident,
   remediation,
   remediationLoading,
 }: IncidentDetailBodyProps) {
-  const diagnostic = (incident.diagnostic_details || {}) as {
-    causal_chain?: string[];
-    blast_radius?: string[];
-    reasons?: string[];
-    issue_type?: string;
-    confidence?: number;
-    // Backend returns either bare strings or rich objects keyed by
-    // {action, type, priority, description}. Accept both.
-    recommended_actions?: Array<string | {
-      action?: string;
-      type?: string;
-      priority?: string;
-      description?: string;
-    }>;
+  // Reconstruct a thin monitoring object from the fields we DO persist.
+  const monitoring = {
+    description: incident.description ?? '',
+    severity: incident.severity,
+    anomaly_type:
+      (incident.diagnostic_details as Record<string, unknown> | undefined)?.['issue_type'] ?? '',
   };
-  const prediction = (incident.prediction_details || {}) as {
-    failure_probability?: number;
-    escalation_risk?: string;
-    recommended_urgency?: string;
-    predicted_impact?: string;
-    reasoning?: string;
-    // Predictive agent returns this as bare minutes (5, 10, 15, 30…),
-    // but older runs may have stored a string — accept both.
-    estimated_time_to_failure?: number | string | null;
+
+  // Diagnostic carries the root_cause separately on the incident row,
+  // so fold it back into the diagnostic payload for the shared view.
+  const diagnostic = {
+    ...(incident.diagnostic_details as Record<string, unknown> | undefined),
+    root_cause: incident.root_cause ?? undefined,
   };
 
   return (
-    <div className="space-y-14">
-      {/* 01 — Monitoring */}
-      <PipelineSection step="01" label="Monitoring" icon={Activity}>
-        {incident.description ? (
-          <p className="text-[13px] text-ink-mute leading-relaxed bg-canvas-soft rounded-lg px-4 py-3">
-            {incident.description}
-          </p>
-        ) : (
-          <Note>Monitoring narrative is not persisted for older incidents.</Note>
-        )}
-        <KeyValueRow>
-          <KV label="Severity"><StatusBadge status={incident.severity} /></KV>
-          <KV label="Anomaly type">{diagnostic.issue_type || '—'}</KV>
-          <KV label="Detected">
-            {incident.detected_at ? new Date(incident.detected_at).toLocaleString() : '—'}
-          </KV>
-        </KeyValueRow>
-      </PipelineSection>
-
-      {/* 02 — Prediction */}
-      <PipelineSection step="02" label="Prediction" icon={TrendingUp}>
-        {prediction.failure_probability !== undefined ? (
-          <>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <PredictionStat
-                value={`${(prediction.failure_probability * 100).toFixed(0)}%`}
-                label="Failure prob."
-              />
-              <PredictionStat
-                value={prediction.escalation_risk || '—'}
-                label="Escalation"
-              />
-              <PredictionStat
-                value={prediction.recommended_urgency || '—'}
-                label="Urgency"
-              />
-            </div>
-            {prediction.predicted_impact && (
-              <Subblock label="Predicted impact">
-                <p className="text-[13px] text-ink-mute leading-relaxed">
-                  {toText(prediction.predicted_impact)}
-                </p>
-              </Subblock>
-            )}
-            {prediction.estimated_time_to_failure !== undefined &&
-             prediction.estimated_time_to_failure !== null && (
-              <Subblock label="Estimated time to failure">
-                <p className="text-[13px] text-ink-mute leading-relaxed">
-                  {formatMinutes(prediction.estimated_time_to_failure)}
-                </p>
-              </Subblock>
-            )}
-            {prediction.reasoning && (
-              <Subblock label="Model reasoning">
-                <p className="text-[12px] text-ink-faint leading-relaxed">
-                  {toText(prediction.reasoning)}
-                </p>
-              </Subblock>
-            )}
-          </>
-        ) : (
-          <Note>The predictive agent produced no output for this incident.</Note>
-        )}
-      </PipelineSection>
-
-      {/* 03 — Diagnosis */}
-      <PipelineSection step="03" label="Diagnosis" icon={Brain}>
-        {incident.root_cause && (
-          <Subblock label="Root cause">
-            <p className="text-[13px] text-ink-mute leading-relaxed bg-canvas-soft rounded-lg px-4 py-3">
-              {incident.root_cause}
-            </p>
-          </Subblock>
-        )}
-
-        {diagnostic.reasons && diagnostic.reasons.length > 0 && (
-          <Subblock label="Why this happened">
-            <div className="space-y-1.5">
-              {diagnostic.reasons.map((reason, i) => (
-                <div
-                  key={i}
-                  className="text-[13px] text-ink-mute flex items-start gap-2 bg-canvas-soft rounded-lg px-3 py-2"
-                >
-                  <span className="w-1.5 h-1.5 mt-2 rounded-full bg-warning/70 shrink-0" />
-                  <span className="leading-relaxed">{toText(reason)}</span>
-                </div>
-              ))}
-            </div>
-          </Subblock>
-        )}
-
-        {diagnostic.causal_chain && diagnostic.causal_chain.length > 0 && (
-          <Subblock label="Causal chain">
-            <ol className="space-y-1.5">
-              {diagnostic.causal_chain.map((step, i) => (
-                <li
-                  key={i}
-                  className="text-[13px] text-ink-mute flex items-start gap-2 leading-relaxed"
-                >
-                  <span className="text-[11px] font-mono text-ink-faint w-5 shrink-0 mt-0.5">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <span>{toText(step)}</span>
-                </li>
-              ))}
-            </ol>
-          </Subblock>
-        )}
-
-        {diagnostic.blast_radius && diagnostic.blast_radius.length > 0 && (
-          <Subblock label="Blast radius">
-            <div className="flex flex-wrap gap-1.5">
-              {diagnostic.blast_radius.map((s, i) => (
-                <span
-                  key={i}
-                  className="px-2 py-0.5 rounded bg-critical/10 text-critical text-xs"
-                >
-                  {toText(s)}
-                </span>
-              ))}
-            </div>
-          </Subblock>
-        )}
-
-        {diagnostic.recommended_actions && diagnostic.recommended_actions.length > 0 && (
-          <Subblock label="Recommended actions">
-            <ul className="space-y-2">
-              {diagnostic.recommended_actions.map((raw, i) => {
-                const action =
-                  typeof raw === 'string'
-                    ? { action: raw, description: '', type: '', priority: '' }
-                    : {
-                        action: String(raw.action || ''),
-                        description: String(raw.description || ''),
-                        type: String(raw.type || ''),
-                        priority: String(raw.priority || ''),
-                      };
-                return (
-                  <li
-                    key={i}
-                    className="text-[13px] text-ink-mute flex items-start gap-2 leading-relaxed bg-canvas-soft rounded-lg px-3 py-2"
-                  >
-                    <Shield size={12} className="text-info shrink-0 mt-1" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-ink-soft font-medium">{action.action}</span>
-                        {action.type && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-info/10 text-info uppercase tracking-wide">
-                            {action.type}
-                          </span>
-                        )}
-                        {action.priority && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning uppercase tracking-wide">
-                            {action.priority}
-                          </span>
-                        )}
-                      </div>
-                      {action.description && (
-                        <p className="mt-1 text-ink-mute">{action.description}</p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </Subblock>
-        )}
-      </PipelineSection>
-
-      {/* 04 — Remediation */}
-      <PipelineSection step="04" label="Remediation" icon={Wrench}>
-        {remediationLoading && (
-          <div className="flex items-center gap-2 text-xs text-ink-faint">
-            <Loader2 size={12} className="animate-spin" />
-            Loading remediation…
-          </div>
-        )}
-
-        {!remediationLoading && remediation && (
-          <>
-            {remediation.plan_summary && (
-              <div className="grid sm:grid-cols-2 gap-3 text-xs">
-                <div className="bg-canvas-soft rounded-lg p-3">
-                  <div className="text-ink-faint mb-1">Plan summary</div>
-                  <div className="text-ink-soft leading-relaxed">
-                    {remediation.plan_summary}
-                  </div>
-                </div>
-                <div className="bg-canvas-soft rounded-lg p-3">
-                  <div className="text-ink-faint mb-1">Delivery strategy</div>
-                  <div className="text-ink-soft capitalize">
-                    {remediation.strategy || 'shell'}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {((remediation.steps as Array<Record<string, unknown>>) || []).length > 0 && (
-              <Subblock label="Simple fix steps">
-                <div className="space-y-2">
-                  {((remediation.steps as Array<Record<string, unknown>>) || []).map((step, index) => {
-                    const action = String(step['action'] || `Step ${index + 1}`);
-                    const description = String(step['description'] || '');
-                    return (
-                      <div
-                        key={index}
-                        className="rounded-lg bg-warning/8 border border-warning/20 px-3 py-2"
-                      >
-                        <div className="text-xs font-medium text-ink-soft">
-                          {index + 1}. {action}
-                        </div>
-                        {description && (
-                          <div className="text-xs text-ink-mute mt-1 leading-relaxed">
-                            {description}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </Subblock>
-            )}
-
-            <Subblock label="Generated files">
-              <ArtifactViewer
-                artifacts={remediation.artifacts || []}
-                title=""
-                emptyLabel="This incident has a remediation record, but no downloadable scripts were generated."
-                downloadUrlBuilder={(artifact) =>
-                  api.getIncidentRemediationArtifactDownloadUrl(incident.id, artifact.id)
-                }
-              />
-            </Subblock>
-          </>
-        )}
-
-        {!remediationLoading && remediation === null && (
-          <Note>No remediation record was produced for this incident.</Note>
-        )}
-      </PipelineSection>
-
-      {/* 05 — Reporting */}
-      <PipelineSection step="05" label="Reporting" icon={FileCheck}>
-        <KeyValueRow>
-          <KV label="Status"><StatusBadge status={incident.status} /></KV>
-          <KV label="Resolved">
-            {incident.resolved_at ? new Date(incident.resolved_at).toLocaleString() : '—'}
-          </KV>
-          <KV label="Filed">
-            {incident.created_at ? new Date(incident.created_at).toLocaleString() : '—'}
-          </KV>
-        </KeyValueRow>
-        <Note>
+    <PipelineResultView
+      monitoring={monitoring}
+      prediction={incident.prediction_details as Record<string, unknown> | null}
+      diagnostic={diagnostic}
+      remediation={remediation}
+      remediationLoading={remediationLoading}
+      reporting={null}
+      meta={{
+        status: incident.status,
+        severity: incident.severity,
+        detected_at: incident.detected_at,
+        resolved_at: incident.resolved_at,
+        created_at: incident.created_at,
+        incident_id: incident.id,
+      }}
+      artifactDownloadUrl={(artifact) =>
+        api.getIncidentRemediationArtifactDownloadUrl(incident.id, artifact.id)
+      }
+      reportingNote={
+        <>
           The reporting agent's full output (executive summary, runbook title,
           MTTR estimate, SLA impact, timeline) is generated at pipeline runtime
-          but isn't persisted to the incident record yet. Add a
-          <code className="font-mono text-[12px] mx-1 px-1 rounded bg-canvas-soft">reporting_details</code>
+          but isn't persisted to the incident record yet. Add a{' '}
+          <code className="font-mono text-[12px] mx-1 px-1 rounded bg-canvas-soft">
+            reporting_details
+          </code>
           JSON column to enable it here.
-        </Note>
-      </PipelineSection>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────── */
-
-function PipelineSection({
-  step,
-  label,
-  icon: Icon,
-  children,
-}: {
-  step: string;
-  label: string;
-  icon: LucideIcon;
-  children: React.ReactNode;
-}) {
-  return (
-    <section>
-      <div className="flex items-center gap-2.5 mb-4">
-        <span className="font-mono text-[11px] text-ink-faint tabular-nums tracking-wide">
-          {step}
-        </span>
-        <span className="text-ink-faint/60">/</span>
-        <h2 className="font-display text-[17px] sm:text-[19px] leading-none text-ink">
-          {label}
-        </h2>
-        <Icon size={15} className="text-ink-mute ml-1" />
-      </div>
-      <div className="space-y-4">{children}</div>
-    </section>
-  );
-}
-
-function Subblock({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h3 className="text-[12px] font-semibold text-ink-soft mb-1.5">{label}</h3>
-      {children}
-    </div>
-  );
-}
-
-function KeyValueRow({ children }: { children: React.ReactNode }) {
-  return (
-    <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[12px]">
-      {children}
-    </dl>
-  );
-}
-
-function KV({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="bg-canvas-soft rounded-lg px-3 py-2">
-      <dt className="text-ink-faint mb-1">{label}</dt>
-      <dd className="text-ink-soft flex items-center gap-1.5 flex-wrap">{children}</dd>
-    </div>
-  );
-}
-
-function Note({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[12px] text-ink-faint leading-relaxed italic">{children}</p>
-  );
-}
-
-/**
- * Coerce any backend field to a renderable string. The agents sometimes
- * return objects where the schema implies strings (e.g. a `reasons`
- * entry shaped {text, source}); rendering those would throw React #31.
- */
-function toText(v: unknown): string {
-  if (v === null || v === undefined) return '';
-  if (typeof v === 'string') return v;
-  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
-  if (Array.isArray(v)) return v.map(toText).join(' · ');
-  if (typeof v === 'object') {
-    const o = v as Record<string, unknown>;
-    // Prefer the most descriptive field we usually see from the agents.
-    for (const key of ['text', 'message', 'description', 'action', 'reason', 'value', 'name']) {
-      if (typeof o[key] === 'string' && o[key]) return o[key] as string;
-    }
-    try { return JSON.stringify(v); } catch { return ''; }
-  }
-  return '';
-}
-
-/**
- * Format the predictive agent's bare-minute output as human-readable
- * duration. e.g. 5 -> "~5 min", 60 -> "~1 h", 90 -> "~1 h 30 min".
- */
-function formatMinutes(v: number | string | null | undefined): string {
-  if (v === null || v === undefined || v === '') return '—';
-  if (typeof v === 'string' && /[a-zA-Z]/.test(v)) return v; // already has units
-  const n = Number(v);
-  if (!Number.isFinite(n) || n <= 0) return '—';
-  if (n < 1) return '< 1 min';
-  if (n < 60) return `~${Math.round(n)} min`;
-  const h = Math.floor(n / 60);
-  const m = Math.round(n % 60);
-  return m ? `~${h} h ${m} min` : `~${h} h`;
-}
-
-function PredictionStat({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="bg-canvas-soft rounded-lg p-3 text-center">
-      <div className="text-lg font-bold text-ink leading-tight">{value}</div>
-      <div className="text-ink-faint mt-1">{label}</div>
-    </div>
+        </>
+      }
+    />
   );
 }
