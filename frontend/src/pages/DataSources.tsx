@@ -113,7 +113,7 @@ export default function DataSources() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
       <div>
-        <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Telemetry</h1>
+        <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Sources</h1>
         <p className="text-xs sm:text-sm text-ink-mute mt-1">
           Connect to cloud platforms, monitoring tools, or use simulated data
         </p>

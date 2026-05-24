@@ -34,7 +34,7 @@ This platform is connected to **real AWS CloudWatch** in **Mumbai (`ap-south-1`)
 
 **Multi-cloud by design.** The same first-class connector layer plugs straight into **Azure Monitor, GCP Cloud Monitoring, Prometheus, and Docker** — switchable from the UI with no code changes. AWS is simply the provider wired to a live account, so the entire loop is demonstrable today on genuine cloud telemetry.
 
-> **Connect your own cloud in under a minute** — add credentials on the **Telemetry** page, point it at your instances, and the agents begin reasoning over *your* fleet immediately.
+> **Connect your own cloud in under a minute** — add credentials on the **Sources** page, point it at your instances, and the agents begin reasoning over *your* fleet immediately.
 
 ---
 
@@ -274,7 +274,7 @@ A custom **glassmorphism** design system — built with React 19, Tailwind CSS 4
 - **Workflow** — run the full agent pipeline on any node and watch each step report progress live.
 - **Incidents** — complete history with root cause, blast radius, remediation playbooks, and per-artifact script downloads.
 - **Fleet** — node inventory with drill-down metric history and status at a glance.
-- **Telemetry** — connect a cloud provider in under a minute, test the connection, and watch nodes appear.
+- **Sources** — connect a cloud provider in under a minute, test the connection, and watch nodes appear.
 - **Simulation** — create, control, and fault-inject simulated nodes for demos and testing.
 - **Runbooks** — the growing knowledge base, fully browsable, searchable, and authorable.
 - **Argus** — the full-screen conversational copilot, with voice.

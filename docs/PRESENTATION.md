@@ -214,7 +214,7 @@ Argus is the platform's SRE copilot — named after the hundred-eyed watchman of
 
 **Pull-quote:** *"Not a mock dataset — genuine cloud telemetry, today."*
 
-**Visual:** screenshot of the Telemetry page showing "AWS CloudWatch — connected"; small AWS logo.
+**Visual:** screenshot of the Sources page showing "AWS CloudWatch — connected"; small AWS logo.
 **Talk track:** "If our own server started to drift right now, the platform would diagnose it and draft the fix — live, on stage."
 
 ---

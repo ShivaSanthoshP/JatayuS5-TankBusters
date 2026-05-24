@@ -22,7 +22,7 @@ export default function App() {
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/incidents/:id" element={<IncidentDetail />} />
           <Route path="/fleet" element={<Infrastructure />} />
-          <Route path="/telemetry" element={<DataSources />} />
+          <Route path="/sources" element={<DataSources />} />
           <Route path="/simulation" element={<Simulators />} />
           <Route path="/runbooks" element={<Runbooks />} />
           <Route path="/runbooks/:id" element={<RunbookDetail />} />

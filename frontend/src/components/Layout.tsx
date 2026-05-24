@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  LayoutDashboard, AlertTriangle, Server, Boxes, BookOpen, Activity, Workflow, FlaskConical, SlidersHorizontal, Wand2,
+  LayoutDashboard, AlertTriangle, Server, Boxes, BookOpen, Activity, Workflow, Cpu, SlidersHorizontal, Wand2,
   type LucideIcon,
 } from 'lucide-react';
 import GlassNavbar from './common/GlassNavbar';
@@ -17,11 +17,11 @@ const NAV: { to: string; icon: LucideIcon; label: string; pop?: boolean }[] = [
   { to: '/copilot', icon: Wand2, label: 'Argus', pop: true },
   { to: '/', icon: LayoutDashboard, label: 'DASHBOARD' },
   { to: '/fleet', icon: Boxes, label: 'FLEET' },
-  { to: '/telemetry', icon: Activity, label: 'TELEMETRY' },
+  { to: '/sources', icon: Activity, label: 'SOURCES' },
   { to: '/workflow', icon: Workflow, label: 'WORKFLOW' },
   { to: '/incidents', icon: AlertTriangle, label: 'INCIDENTS' },
   { to: '/runbooks', icon: BookOpen, label: 'RUNBOOKS' },
-  { to: '/simulation', icon: FlaskConical, label: 'SIMULATION' },
+  { to: '/simulation', icon: Cpu, label: 'SIMULATION' },
   { to: '/controls', icon: SlidersHorizontal, label: 'CONTROLS' },
 ];
 
