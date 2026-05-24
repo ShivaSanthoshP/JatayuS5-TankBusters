@@ -363,14 +363,16 @@ button {
   position: relative;
   display: inline-flex;
   align-items: center;
-  /* Sized to match the Argus pop pill so every tab reads as a peer
-     control of the same weight. The pop variant only changes colour
-     and adds the gradient halo — no longer a different geometry. */
-  gap: 8px;
-  padding: 8px 18px;
-  font-size: 12px;
+  /* Compact base geometry — sized to fit all nine tabs (Argus + 8) in the
+     navbar pill on a 1280-px laptop without overflow. The clamp() values
+     scale every dimension fluidly between 1280 px and 1536 px so the row
+     gains breathing room on wider displays without any breakpoint jumps.
+     The pop variant inherits this geometry; it only overrides colour. */
+  gap: clamp(5px, 0.45vw, 8px);
+  padding: clamp(6px, 0.55vw, 8px) clamp(10px, 1.15vw, 18px);
+  font-size: clamp(10.5px, 0.85vw, 12px);
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   border-radius: var(--radius-pill);
   color: var(--color-ink-mute);
   transition: color 0.3s cubic-bezier(0.16, 1, 0.3, 1);

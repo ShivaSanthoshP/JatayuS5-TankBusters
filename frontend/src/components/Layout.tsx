@@ -96,11 +96,14 @@ export default function Layout() {
       <ParticleBackground />
 
       <GlassNavbar condense={condense} className="liquid-glass">
-        {/* Left Branding — clickable on mobile to toggle menu */}
+        {/* Left Branding — clickable on tablets/small laptops to toggle menu.
+            The desktop tab strip only appears at xl+ (1280 px) because nine
+            tabs plus the brand block can't fit any narrower without crowding
+            or clipping. Below xl, this button opens the slide-down drawer. */}
         <button
           type="button"
           onClick={() => setMobileOpen((v) => !v)}
-          className="lg:hidden flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+          className="xl:hidden flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
         >
           <div
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden flex items-center justify-center gpu shrink-0"
@@ -121,7 +124,7 @@ export default function Layout() {
         </button>
 
         {/* Desktop branding — non-clickable */}
-        <div className="hidden lg:flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
+        <div className="hidden xl:flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           <div
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden flex items-center justify-center gpu shrink-0"
             style={{
@@ -140,8 +143,8 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Desktop nav tabs (visible lg+) */}
-        <nav className="hidden lg:flex items-center gap-0.5 mx-auto">
+        {/* Desktop nav tabs (visible xl+) */}
+        <nav className="hidden xl:flex items-center gap-0.5 mx-auto">
           {NAV.map((item) => (
             <GlassTab
               key={item.to}
@@ -165,7 +168,7 @@ export default function Layout() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="lg:hidden fixed inset-0 z-40 bg-[rgba(21,25,26,0.18)] backdrop-blur-sm"
+              className="xl:hidden fixed inset-0 z-40 bg-[rgba(21,25,26,0.18)] backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
             <motion.div
@@ -174,7 +177,7 @@ export default function Layout() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-              className="lg:hidden fixed top-[80px] inset-x-3 z-50 glass-mica p-3"
+              className="xl:hidden fixed top-[80px] inset-x-3 z-50 glass-mica p-3"
             >
               <nav className="flex flex-col gap-1">
                 {NAV.map((item) => (
