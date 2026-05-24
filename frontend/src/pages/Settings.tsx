@@ -470,7 +470,10 @@ export default function Settings() {
             </div>
             <div>
               <h2 className="text-lg font-semibold text-ink">LLM Provider</h2>
-              <p className="text-xs text-ink-mute">Configure the AI model that powers your AIOps agents</p>
+              <p className="text-xs text-ink-mute">
+                One model powers everything here — the AIOps remediation pipeline and the
+                Argus chat assistant both run on the provider you select below.
+              </p>
             </div>
           </div>
 
