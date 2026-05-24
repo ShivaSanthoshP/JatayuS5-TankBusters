@@ -125,44 +125,36 @@ The five agents run as nodes in a **LangGraph** graph — a stateful, fault-tole
 
 ```mermaid
 flowchart TB
-    telemetry(["Live telemetry stream — metrics + logs"]):::mon
-    done(["Resolved · back to watching"]):::ok
-    mem[("ChromaDB<br/>institutional memory")]:::mem
+    telemetry(["Live telemetry — metrics + logs"]):::src
+    idle(["No anomaly · keep watching"]):::ok
+    mem[("ChromaDB<br/>institutional memory · RAG")]:::mem
 
-    subgraph pipeline["LangGraph agent pipeline"]
+    subgraph pipeline["LangGraph Pipeline — stateful agent graph · A2A hand-off"]
+        direction LR
+        mon["① Monitor<br/>anomaly detection"]:::agent
+        pred["② Predict<br/>failure forecast"]:::agent
+        diag["③ Diagnose<br/>root cause"]:::agent
+        rem["④ Remediate<br/>fix + rollback"]:::agent
+        rep["⑤ Report<br/>summary + runbook"]:::agent
+        mon --> pred --> diag --> rem --> rep
+    end
+
+    subgraph reasoning["Decision policy — fast path first"]
         direction TB
-        mon["① Monitor<br/>detect anomaly"]:::agent
-        anomaly{"anomaly?"}:::dec
-        pred["② Predict<br/>failure probability · time-to-failure"]:::agent
-        diag["③ Diagnose<br/>root cause · blast radius"]:::agent
-        route{"known issue?"}:::dec
-        fast["Fast path<br/>pre-approved profile · deterministic · no LLM"]:::ok
-        llmcall["LLM reasoning<br/>augmented with RAG context"]:::llm
-        rem["④ Remediate<br/>runnable fix + rollback"]:::agent
-        rep["⑤ Report<br/>summary + new runbook"]:::agent
-
-        mon --> anomaly
-        anomaly -->|"yes"| pred
-        pred --> diag
-        diag --> route
-        route -->|"yes"| fast
-        route -->|"novel"| llmcall
-        fast --> rem
-        llmcall --> rem
-        rem --> rep
+        fast["Deterministic fast path<br/>pre-approved profiles · no LLM"]:::ok
+        llm["LLM reasoning<br/>augmented with RAG"]:::llm
     end
 
     telemetry --> mon
-    anomaly -->|"no · short-circuit"| done
-    rep --> done
-    diag -.->|"RAG lookup"| mem
-    mem -.->|"similar incidents + proven runbooks"| llmcall
+    mon -.->|"all healthy"| idle
+    diag -->|"known → fast · novel → LLM"| reasoning
+    rem --> reasoning
+    reasoning <-->|"retrieve similar incidents + proven runbooks"| mem
     rep -->|"writes new runbook"| mem
     mem -.->|"reused next time"| mon
 
-    classDef mon fill:#E4F0EA,stroke:#7FA99A,color:#244A40;
+    classDef src fill:#E4F0EA,stroke:#7FA99A,color:#244A40;
     classDef agent fill:#E8EEF4,stroke:#92A8BE,color:#2B3D4D;
-    classDef dec fill:#EFEDE6,stroke:#BCB7A6,color:#4C4A40;
     classDef llm fill:#F3EAD6,stroke:#C9B27D,color:#5E4A1E;
     classDef ok fill:#E6F0E2,stroke:#93B98A,color:#33572B;
     classDef mem fill:#ECE8F4,stroke:#A99CC9,color:#3D3366;
@@ -356,30 +348,14 @@ The whole production footprint is **one EC2 instance, one Elastic IP, one EBS vo
 Every push to `main` runs the same gated pipeline. A red build never reaches production, and the health gate confirms the box is serving before the deploy is called done.
 
 ```mermaid
-flowchart TB
-    push(["git push to main"]):::trigger --> ci
-
-    subgraph ci["① CI — build & verify"]
-        direction TB
-        b1["npm ci · tsc · vite build"]:::step
-        b2["pip install · import smoke test"]:::step
-        b1 --> b2
-    end
-
-    ci --> gate{"build & type-check green?"}:::dec
-    gate -->|"no"| blocked(["Deploy blocked — a red build never ships"]):::stop
-    gate -->|"yes"| cd
-
-    subgraph cd["② Deploy to EC2 · Mumbai"]
-        direction TB
-        d1["rsync app — skips DB · vectors · secrets"]:::step
-        d2["pip install · systemctl restart · nginx reload"]:::step
-        d1 --> d2
-    end
-
-    cd --> health{"GET /health — all components ok?"}:::dec
-    health -->|"503 degraded"| held(["Held back from rotation"]):::stop
-    health -->|"200 healthy"| shipped(["Shipped to production"]):::ok
+flowchart LR
+    push(["git push · main"]):::trigger --> ci["CI<br/>build · type-check · test"]:::step
+    ci --> gate{"green?"}:::dec
+    gate -->|"no"| blocked(["blocked"]):::stop
+    gate -->|"yes"| deploy["Deploy to EC2<br/>rsync · restart · reload"]:::step
+    deploy --> health{"/health"}:::dec
+    health -->|"503"| held(["held back"]):::stop
+    health -->|"200"| live(["live in production"]):::ok
 
     classDef trigger fill:#E8EEF4,stroke:#92A8BE,color:#2B3D4D;
     classDef step fill:#EEF1F4,stroke:#A7B2BD,color:#34404B;
