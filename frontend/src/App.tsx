@@ -8,6 +8,7 @@ import Infrastructure from './pages/Infrastructure';
 import DataSources from './pages/DataSources';
 import Simulators from './pages/Simulators';
 import Runbooks from './pages/Runbooks';
+import RunbookDetail from './pages/RunbookDetail';
 import Copilot from './pages/Copilot';
 import Settings from './pages/Settings';
 
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/datasources" element={<DataSources />} />
           <Route path="/simulators" element={<Simulators />} />
           <Route path="/runbooks" element={<Runbooks />} />
+          <Route path="/runbooks/:id" element={<RunbookDetail />} />
           <Route path="/copilot" element={<Copilot />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

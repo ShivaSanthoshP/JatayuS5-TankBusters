@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
-  BookOpen, Search, Hash, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-  X, Wrench, Shield, FileText, Copy, Check, ExternalLink, Trash2, Pencil, Plus,
+  BookOpen, Search, Hash, ChevronRight, ChevronLeft,
+  X, ExternalLink, Trash2, Plus,
 } from 'lucide-react';
 import GlassCard from '../components/ui/GlassCard';
 import Loader from '../components/ui/Loader';
@@ -33,18 +34,6 @@ function relevanceLabel(pct: number): { label: string; color: string } {
   if (pct >= 75) return { label: 'Best match', color: palette.success };
   if (pct >= 40) return { label: 'Strong match', color: palette.warning };
   return { label: 'Possible match', color: palette.inkFaint };
-}
-
-/* ── copy-to-clipboard hook ──────────────────────────────────── */
-function useCopy(timeoutMs = 1500) {
-  const [copied, setCopied] = useState(false);
-  const copy = useCallback((text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), timeoutMs);
-    });
-  }, [timeoutMs]);
-  return { copied, copy };
 }
 
 /* ── effectiveness bar ───────────────────────────────────────── */
@@ -125,63 +114,28 @@ function SearchResultCard({
   );
 }
 
-/* ── copy button ─────────────────────────────────────────────── */
-function CopyButton({ text, label = 'Copy steps' }: { text: string; label?: string }) {
-  const { copied, copy } = useCopy();
-  return (
-    <button
-      onClick={() => copy(text)}
-      title={label}
-      className="flex items-center gap-1 text-[10px] text-ink-faint hover:text-ink-soft transition-colors px-1.5 py-0.5 rounded hover:bg-ink/5"
-    >
-      {copied ? <Check size={10} className="text-success" /> : <Copy size={10} />}
-      {copied ? 'Copied!' : label}
-    </button>
-  );
-}
-
-/* ── runbook card ────────────────────────────────────────────── */
-function RunbookCard({
+/* ── runbook row (click-to-navigate) ─────────────────────────── */
+function RunbookRow({
   rb,
-  isOpen,
-  onToggle,
-  onEdit,
-  onDelete,
+  onOpen,
 }: {
   rb: RunbookEntry;
-  isOpen: boolean;
-  onToggle: () => void;
-  onEdit?: () => void;
-  onDelete?: () => void;
+  onOpen: () => void;
 }) {
-  const remediationSteps = (rb.remediation_steps ?? []) as Array<Record<string, unknown>>;
-  const recommendedActions = (rb.recommended_actions ?? []) as Array<Record<string, unknown>>;
-  const blastSeverityColor =
-    rb.blast_radius_severity === 'critical' ? palette.critical :
-    rb.blast_radius_severity === 'high'     ? palette.warning :
-    rb.blast_radius_severity === 'medium'   ? palette.warning :
-    palette.success;
-
-  // Build plain-text copy payload for fix steps
-  const fixStepsText = remediationSteps.length > 0
-    ? remediationSteps.map((s, i) =>
-        `${i + 1}. ${s['action'] ?? ''}${s['description'] ? '\n   ' + s['description'] : ''}`
-      ).join('\n')
-    : rb.solution_steps ?? '';
-
   return (
-    <motion.div
+    <motion.button
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass overflow-hidden"
+      type="button"
+      onClick={onOpen}
+      aria-label={`Open runbook: ${rb.title}`}
       id={`runbook-${rb.id}`}
+      className="glass overflow-hidden w-full text-left
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40
+        transition-colors"
     >
-      {/* Header row */}
-      <div
-        onClick={onToggle}
-        className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 cursor-pointer hover-row"
-      >
+      <div className="flex items-center gap-2 sm:gap-3 p-3 sm:p-4 hover-row">
         <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
           <BookOpen size={15} className="text-accent" />
         </div>
@@ -234,220 +188,19 @@ function RunbookCard({
           >
             {rb.times_used} {rb.times_used === 1 ? 'apply' : 'applies'}
           </span>
-          {onEdit && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onEdit(); }}
-              className="p-1 rounded hover:bg-accent/10"
-              title="Edit this runbook"
-            >
-              <Pencil size={12} className="text-ink-mute hover:text-accent" />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="p-1 rounded hover:bg-critical/10"
-              title="Delete this runbook"
-            >
-              <Trash2 size={12} className="text-critical/70 hover:text-critical" />
-            </button>
-          )}
-          {isOpen ? <ChevronUp size={14} className="text-ink-faint" /> : <ChevronDown size={14} className="text-ink-faint" />}
+          <ChevronRight size={14} className="text-ink-faint" />
         </div>
       </div>
-
-      {/* Expanded body */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4 border-t border-glass-border pt-4 space-y-4">
-              {/* Problem pattern */}
-              <div>
-                <span
-                  className="text-xs font-semibold text-ink-soft block mb-1"
-                  title="The pattern of symptoms or anomalies that triggers this runbook"
-                >
-                  Problem pattern
-                </span>
-                <p className="text-xs text-ink-mute bg-canvas-soft p-3 rounded-lg leading-relaxed">{rb.problem_pattern}</p>
-              </div>
-
-              {/* Root cause */}
-              {rb.root_cause && (
-                <div>
-                  <span className="text-xs font-semibold text-ink-soft block mb-1">Root cause</span>
-                  <p className="text-xs text-ink-mute bg-accent/8 p-3 rounded-lg leading-relaxed">{rb.root_cause}</p>
-                </div>
-              )}
-
-              {/* Causal chain */}
-              {rb.causal_chain && rb.causal_chain.length > 0 && (
-                <div>
-                  <span
-                    className="text-xs font-semibold text-ink-soft block mb-1"
-                    title="The sequence of events that leads to this issue"
-                  >
-                    Causal chain
-                  </span>
-                  <ol className="space-y-1.5">
-                    {rb.causal_chain.map((step, i) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-ink-soft">
-                        <span className="w-5 h-5 rounded-full bg-ink/8 flex items-center justify-center text-[10px] font-mono text-ink-mute shrink-0 mt-px">
-                          {i + 1}
-                        </span>
-                        <span className="leading-relaxed pt-0.5">{step}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-
-              {/* Blast radius */}
-              {rb.blast_radius && rb.blast_radius.length > 0 && (
-                <div>
-                  <span
-                    className="text-xs font-semibold text-ink-soft block mb-1.5"
-                    title="Systems and services that could be affected by this issue"
-                  >
-                    Blast radius
-                    {rb.blast_radius_severity && (
-                      <span
-                        className="ml-2 text-[10px] font-mono px-1.5 py-0.5 rounded"
-                        style={{
-                          background: `${blastSeverityColor}15`,
-                          color: blastSeverityColor,
-                          border: `1px solid ${blastSeverityColor}33`,
-                        }}
-                      >
-                        {rb.blast_radius_severity}
-                      </span>
-                    )}
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {rb.blast_radius.map((s, i) => (
-                      <span
-                        key={i}
-                        className="px-2 py-0.5 rounded-md text-[11px]"
-                        style={{
-                          background: `${blastSeverityColor}10`,
-                          color: blastSeverityColor,
-                          border: `1px solid ${blastSeverityColor}26`,
-                        }}
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recommended actions */}
-              {recommendedActions.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Shield size={12} className="text-accent" />
-                    <span className="text-xs font-semibold text-ink-soft">Recommended actions</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {recommendedActions.map((act, i) => {
-                      const action = String(act['action'] ?? `Action ${i + 1}`);
-                      const description = act['description'] ? String(act['description']) : '';
-                      return (
-                        <div key={i} className="bg-warning/8 border border-warning/20 rounded-lg px-3 py-2">
-                          <div className="text-xs font-medium text-ink-soft">{action}</div>
-                          {description && (
-                            <div className="text-[11.5px] text-ink-mute mt-1 leading-relaxed">{description}</div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Remediation summary */}
-              {rb.remediation_summary && (
-                <div>
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <Wrench size={12} className="text-warning" />
-                    <span className="text-xs font-semibold text-ink-soft">Fix summary</span>
-                  </div>
-                  <p className="text-xs text-ink-mute bg-warning/8 p-3 rounded-lg leading-relaxed">{rb.remediation_summary}</p>
-                </div>
-              )}
-
-              {/* Remediation steps */}
-              {remediationSteps.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-semibold text-ink-soft">Fix steps</span>
-                    {fixStepsText && <CopyButton text={fixStepsText} label="Copy steps" />}
-                  </div>
-                  <ol className="space-y-1.5">
-                    {remediationSteps.map((step, i) => {
-                      const action = String(step['action'] ?? `Step ${i + 1}`);
-                      const description = step['description'] ? String(step['description']) : '';
-                      return (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="w-5 h-5 rounded-full bg-warning/15 flex items-center justify-center text-[10px] font-mono text-warning shrink-0 mt-px">
-                            {i + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="text-xs font-medium text-ink-soft">{action}</div>
-                            {description && (
-                              <div className="text-[11.5px] text-ink-mute mt-0.5 leading-relaxed">{description}</div>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              )}
-
-              {/* Fallback raw solution_steps — only when structured fields are empty */}
-              {!rb.remediation_summary && remediationSteps.length === 0 && rb.solution_steps && (
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-1.5">
-                      <FileText size={12} className="text-ink-mute" />
-                      <span className="text-xs font-semibold text-ink-soft">Solution</span>
-                    </div>
-                    <CopyButton text={rb.solution_steps} label="Copy" />
-                  </div>
-                  <pre className="text-xs text-ink-mute bg-canvas-soft p-3 rounded-lg whitespace-pre-wrap font-sans leading-relaxed">
-                    {rb.solution_steps}
-                  </pre>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+    </motion.button>
   );
 }
 
 /* ── Page ────────────────────────────────────────────────────── */
 export default function Runbooks() {
+  const navigate = useNavigate();
   const { data: runbooks, loading, refetch } = usePolling<RunbookEntry[]>(api.getRunbooks, 15000);
   const [purgeMsg, setPurgeMsg] = useState<string | null>(null);
   const [purging, setPurging] = useState(false);
-
-  const handleDelete = async (id: number, title: string) => {
-    if (!confirm(`Delete runbook "${title}"?\n\nThis permanently removes it from the database and the search index.`)) return;
-    try {
-      await api.deleteRunbook(id);
-      refetch();
-    } catch (e: any) {
-      alert(`Delete failed: ${e?.message ?? e}`);
-    }
-  };
 
   const handlePurge = async () => {
     if (!confirm('Purge log entries emitted by iTOps itself?\n\nThis cleans up old self-emitted lines that were ingested before the loop fix, so the monitoring agent stops re-detecting them as critical.')) return;
@@ -472,7 +225,6 @@ export default function Runbooks() {
   const [seedFilter, setSeedFilter] = useState<SeedFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('effectiveness');
   const [titleFilter, setTitleFilter] = useState('');
-  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   // The runbook form is a single global modal (mounted in Layout) so it can
   // also be opened from an Argus chat draft. Refetch the list when it saves.
@@ -531,28 +283,10 @@ export default function Runbooks() {
     auto:   allRunbooks.filter(rb => !rb.is_seeded).length,
   };
 
-  // Jump from a search result to the actual runbook card
+  // Search-result jump now navigates to the standalone detail page.
   const jumpToRunbook = useCallback((runbookId: number) => {
-    // Find where in filteredSorted this runbook lives
-    const idx = filteredSorted.findIndex(rb => rb.id === runbookId);
-    if (idx === -1) {
-      // It exists but may be filtered out — reset filters and try again on next render
-      setSeedFilter('all');
-      setTitleFilter('');
-      setExpandedId(runbookId);
-      return;
-    }
-    const targetPage = Math.floor(idx / PAGE_SIZE) + 1;
-    setRbPage(targetPage);
-    setExpandedId(runbookId);
-    // Scroll after state update
-    setTimeout(() => {
-      document.getElementById(`runbook-${runbookId}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    }, 120);
-  }, [filteredSorted, PAGE_SIZE]);
+    navigate(`/runbooks/${runbookId}`);
+  }, [navigate]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -750,13 +484,10 @@ export default function Runbooks() {
 
         <div className="space-y-3">
           {paginatedRunbooks.map(rb => (
-            <RunbookCard
+            <RunbookRow
               key={rb.id}
               rb={rb}
-              isOpen={expandedId === rb.id}
-              onToggle={() => setExpandedId(expandedId === rb.id ? null : rb.id)}
-              onEdit={() => runbookDraft.openEntry(rb)}
-              onDelete={() => handleDelete(rb.id, rb.title)}
+              onOpen={() => navigate(`/runbooks/${rb.id}`)}
             />
           ))}
 
