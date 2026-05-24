@@ -47,7 +47,9 @@ export default function IncidentDetailBody({
     recommended_urgency?: string;
     predicted_impact?: string;
     reasoning?: string;
-    estimated_time_to_failure?: string;
+    // Predictive agent returns this as bare minutes (5, 10, 15, 30…),
+    // but older runs may have stored a string — accept both.
+    estimated_time_to_failure?: number | string | null;
   };
 
   return (
@@ -95,10 +97,11 @@ export default function IncidentDetailBody({
                 </p>
               </Subblock>
             )}
-            {prediction.estimated_time_to_failure && (
+            {prediction.estimated_time_to_failure !== undefined &&
+             prediction.estimated_time_to_failure !== null && (
               <Subblock label="Estimated time to failure">
                 <p className="text-[13px] text-ink-mute leading-relaxed">
-                  {toText(prediction.estimated_time_to_failure)}
+                  {formatMinutes(prediction.estimated_time_to_failure)}
                 </p>
               </Subblock>
             )}
@@ -395,6 +398,22 @@ function toText(v: unknown): string {
     try { return JSON.stringify(v); } catch { return ''; }
   }
   return '';
+}
+
+/**
+ * Format the predictive agent's bare-minute output as human-readable
+ * duration. e.g. 5 -> "~5 min", 60 -> "~1 h", 90 -> "~1 h 30 min".
+ */
+function formatMinutes(v: number | string | null | undefined): string {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'string' && /[a-zA-Z]/.test(v)) return v; // already has units
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return '—';
+  if (n < 1) return '< 1 min';
+  if (n < 60) return `~${Math.round(n)} min`;
+  const h = Math.floor(n / 60);
+  const m = Math.round(n % 60);
+  return m ? `~${h} h ${m} min` : `~${h} h`;
 }
 
 function PredictionStat({ value, label }: { value: string; label: string }) {
