@@ -63,7 +63,7 @@ Every incident the platform resolves makes it smarter. The knowledge base grows 
 
 ---
 
-## Built to the Brief — Use Case 1
+## Built to the Brief
 
 > **Problem statement** — Enterprises struggle to manage complex IT infrastructure across multi-cloud environments in real time. Traditional monitoring tools fail to coordinate auto-remediation and predictive maintenance.
 >
