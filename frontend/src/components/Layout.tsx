@@ -111,10 +111,10 @@ export default function Layout() {
             <img src="/virtusa-logo.jpg" alt="Virtusa" className="block w-full h-full object-cover" />
           </div>
           <div className="flex flex-col leading-tight min-w-0">
-            <span className="font-display font-semibold text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+            <span className="font-display font-semibold text-[15px] sm:text-[17px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
               Dynamic <span className="text-[var(--color-accent)] italic">IT</span>
             </span>
-            <span className="font-display font-semibold text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+            <span className="font-display font-semibold text-[15px] sm:text-[17px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
               Operations Orchestrator
             </span>
           </div>
@@ -131,10 +131,10 @@ export default function Layout() {
             <img src="/virtusa-logo.jpg" alt="Virtusa" className="block w-full h-full object-cover" />
           </div>
           <div className="flex flex-col leading-tight min-w-0">
-            <span className="font-display font-semibold text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+            <span className="font-display font-semibold text-[15px] sm:text-[17px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
               Dynamic <span className="text-[var(--color-accent)] italic">IT</span>
             </span>
-            <span className="font-display font-semibold text-[13px] sm:text-[14px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
+            <span className="font-display font-semibold text-[15px] sm:text-[17px] text-[var(--color-ink)] leading-tight whitespace-nowrap">
               Operations Orchestrator
             </span>
           </div>
