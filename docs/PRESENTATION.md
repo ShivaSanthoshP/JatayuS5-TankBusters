@@ -27,9 +27,9 @@ Ready-to-paste deck content for Canva. Story-driven, technical, business-proposa
 **Tagline (italic):** *"When your infrastructure breaks at 3 AM — our agents are already fixing it."*
 
 **Team Tank Busters** · Faculty Mentor: **E. Pragnavi**
-- **N. S. J. S. Dhanush** — Project Lead & Integration Engineer
-- **P. Shiva Santhosh** — Backend & AI Engineer
-- **P. Shikhar** — Frontend & QA Engineer
+- **P. Shiva Santhosh**
+- **N. S. J. S. Dhanush**
+- **P. Shikhar**
 
 **University College of Engineering, Osmania University**
 
@@ -303,7 +303,7 @@ Argus is the platform's SRE copilot — named after the hundred-eyed watchman of
 **Try it now:** https://dynamic-it-ops.tankbusters.duckdns.org
 *Ask Argus: "Which nodes are critical right now?" → watch it diagnose and draft a fix.*
 
-**Close:** **Team Tank Busters** — N. S. J. S. Dhanush · P. Shiva Santhosh · P. Shikhar
+**Close:** **Team Tank Busters** — P. Shiva Santhosh · N. S. J. S. Dhanush · P. Shikhar
 University College of Engineering, Osmania University · Mentor: E. Pragnavi
 *Thank you.*
 
