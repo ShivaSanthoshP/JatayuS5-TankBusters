@@ -11,11 +11,16 @@ import Runbooks from './pages/Runbooks';
 import RunbookDetail from './pages/RunbookDetail';
 import Copilot from './pages/Copilot';
 import Settings from './pages/Settings';
+import Landing from './pages/Landing';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public landing page — standalone, no app navbar. Shareable as the
+            project's business-proposal URL. */}
+        <Route path="/pitch" element={<Landing />} />
+
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/workflow" element={<Pipeline />} />

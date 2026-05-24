@@ -32,7 +32,9 @@ function loadFromStorage(): ChartPoint[] {
       const parsed = JSON.parse(raw) as ChartPoint[];
       if (Array.isArray(parsed) && parsed.length) return parsed.slice(-CHART_MAX_STORED);
     }
-  } catch {}
+  } catch {
+    // localStorage may be unavailable in private browsing or locked-down webviews.
+  }
   return [];
 }
 
@@ -43,7 +45,11 @@ function useChartHistory(events: WsMetricEvent[], maxPoints = 60) {
   // Persist every change so the next reload picks it up instantly
   useEffect(() => {
     if (buf.length) {
-      try { localStorage.setItem(CHART_STORAGE_KEY, JSON.stringify(buf)); } catch {}
+      try {
+        localStorage.setItem(CHART_STORAGE_KEY, JSON.stringify(buf));
+      } catch {
+        // Keep the live chart working even if persistence is blocked.
+      }
     }
   }, [buf]);
 

@@ -656,6 +656,18 @@ textarea::placeholder {
    ═══════════════════════════════════════════════════════════════════ */
 
 @theme {
+  /* ── Aurora hero tokens (landing /pitch only) ────────────── */
+  --aurora-transparent: transparent;
+  --aurora-white:       #ffffff;
+  --aurora-blue-500:    #3b82f6;
+  --aurora-blue-400:    #60a5fa;
+  --aurora-blue-300:    #93c5fd;
+  --aurora-indigo-300:  #a5b4fc;
+  --aurora-violet-200:  #ddd6fe;
+  /* Tailwind v4 auto-generates `.animate-aurora` from this token, paired
+     with the @keyframes aurora block below. 60s loop reads as ambient. */
+  --animate-aurora: aurora 60s linear infinite;
+
   /* ── Apple-style easing & spring tokens (CSS) ─────────────── */
   --ease-emphasized:  cubic-bezier(0.32, 0.72, 0, 1);    /* iOS sheet open */
   --ease-out-soft:    cubic-bezier(0.16, 1, 0.3, 1);     /* hover/lift */
@@ -1053,4 +1065,10 @@ textarea::placeholder {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Aurora hero keyframe — paired with the --animate-aurora theme token. */
+@keyframes aurora {
+  from { background-position: 50% 50%, 50% 50%; }
+  to   { background-position: 350% 50%, 350% 50%; }
 }

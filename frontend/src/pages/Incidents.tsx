@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -81,7 +81,7 @@ export default function Incidents() {
     return orderedList.slice(start, start + PAGE_SIZE);
   }, [orderedList, currentPage]);
 
-  useMemo(() => {
+  useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(1);
   }, [totalPages, currentPage]);
 
