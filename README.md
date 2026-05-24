@@ -1,38 +1,37 @@
 <div align="center">
 
-# ITOps Orchestrator
+# DYNAMIC IT OPERATIONS ORCHESTRATOR
 
-### Autonomous Multi-Agent AIOps Platform for Self-Healing Infrastructure
+### Autonomous Multi-Agent AIOps Platform for Self-Healing Enterprise
 
-*A team of five autonomous AI agents that monitor, predict, diagnose, and remediate infrastructure failures across multi-cloud environments — in real time, with institutional memory.*
-
-<br />
-
-[![Status](https://img.shields.io/badge/status-live%20on%20AWS-00C853?style=for-the-badge&logo=amazonaws&logoColor=white)](https://dynamic-it-ops.tankbusters.duckdns.org/)
-[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)]()
-[![License](https://img.shields.io/badge/built%20for-Hackathon-FF6D00?style=for-the-badge)]()
+*Five autonomous AI agents and a conversational copilot that watch your fleet, predict failures before they land, diagnose root cause, draft safe fixes, and remember every resolution — so infrastructure heals itself and on-call engineers get their nights back.*
 
 <br />
 
-### Live Demo
+<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/status-live%20on%20AWS-00C853?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Live on AWS" /></a>
+<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/AWS%20CloudWatch-connected%20%C2%B7%20live-FF9900?style=for-the-badge&logo=amazoncloudwatch&logoColor=white" alt="AWS CloudWatch connected and live" /></a>
+<img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="CI/CD via GitHub Actions" />
+
+<br />
 
 <a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">
-  <img src="https://img.shields.io/badge/%F0%9F%9A%80%20Launch%20ITOps%20Orchestrator-Click%20to%20Open%20Live%20App-00C853?style=for-the-badge&labelColor=0d1117&logoColor=white" alt="Launch ITOps Orchestrator" height="48" />
+  <img src="https://img.shields.io/badge/%F0%9F%9A%80%20Launch%20the%20Live%20Platform-Open%20in%20a%20new%20tab-00C853?style=for-the-badge&labelColor=0d1117&logoColor=white" alt="Launch the live platform" height="48" />
 </a>
 
-<sub>Deployed on AWS EC2 · Updated automatically via GitHub Actions on every push to `main`</sub>
+<br /><br />
 
-**🔗 [`https://dynamic-it-ops.tankbusters.duckdns.org/`](https://dynamic-it-ops.tankbusters.duckdns.org/)** &nbsp;·&nbsp; **📘 [`/docs`](https://dynamic-it-ops.tankbusters.duckdns.org/docs) — Interactive API** &nbsp;·&nbsp; **💚 [`/health`](https://dynamic-it-ops.tankbusters.duckdns.org/health) — Component status**
+**<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">Live App</a>** &nbsp;·&nbsp; **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/docs" target="_blank" rel="noopener noreferrer">Interactive API (Swagger)</a>** &nbsp;·&nbsp; **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/health" target="_blank" rel="noopener noreferrer">Component Health</a>**
 
 <br />
 
+<img src="https://img.shields.io/badge/Copilot-Argus%20(chat%20%2B%20voice)-7C4DFF?style=flat-square" />
 <img src="https://img.shields.io/badge/Agents-5%20Autonomous-00C853?style=flat-square" />
 <img src="https://img.shields.io/badge/Orchestration-LangGraph-00BFA5?style=flat-square" />
 <img src="https://img.shields.io/badge/LLM-Gemini%20%7C%20OpenAI%20%7C%20Ollama-4285F4?style=flat-square" />
 <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white" />
 <img src="https://img.shields.io/badge/Frontend-React%2019-61DAFB?style=flat-square&logo=react&logoColor=black" />
-<img src="https://img.shields.io/badge/Memory-RAG%20%2B%20Vector%20Store-FF6D00?style=flat-square" />
-<img src="https://img.shields.io/badge/Deploy-AWS%20EC2-FF9900?style=flat-square&logo=amazon-ec2&logoColor=white" />
+<img src="https://img.shields.io/badge/Memory-RAG%20%C2%B7%20ChromaDB-FF6D00?style=flat-square" />
+<img src="https://img.shields.io/badge/Deploy-AWS%20EC2%20Graviton-FF9900?style=flat-square&logo=amazon-ec2&logoColor=white" />
 
 <br />
 
@@ -42,159 +41,234 @@
 
 ---
 
+## 🛰️ Live — and watching real cloud infrastructure right now
+
+**This is not a slide deck, a mock-up, or a canned dataset.** The platform you can open above is connected to **real AWS CloudWatch** in **Mumbai (`ap-south-1`)** and is monitoring a **production EC2 instance — the very host it is deployed on.**
+
+It reads that instance's live CPU, network, and status-check metrics straight from CloudWatch, tails its real log groups (`/itops/ec2/syslog`, `/itops/ec2/auth`), and runs the full five-agent pipeline against what it actually observes. In other words: **the orchestrator watches the infrastructure it lives on, and would diagnose and draft a fix for its own host the moment something drifts.**
+
+That same first-class connector layer plugs straight into **Azure Monitor, GCP Cloud Monitoring, Prometheus, and Docker** — switchable from the UI, no code changes. AWS is simply the one we wired to a live account so you can watch the whole loop work today, on genuine cloud telemetry.
+
+> Connect your own cloud in under a minute: drop in credentials on the **Data Sources** page, point it at your instances, and the agents start reasoning over *your* fleet immediately.
+
+---
+
 ## The Problem
 
-Modern enterprises run thousands of services across AWS, GCP, Azure, and on-prem clusters. When an incident strikes at 3 AM:
+Modern enterprises run thousands of services across AWS, GCP, Azure, and on-prem clusters. The tooling that watches them was built to **alert**, not to **act**. So when something breaks at 3 AM:
 
-- Alerts fire from a dozen siloed tools — none of them coordinate.
-- An on-call engineer manually triages, searches Slack for the last person who saw this, and digs through stale runbooks.
-- A trivial fix that took 5 minutes last quarter takes 45 minutes today because **no system remembers**.
-- By the time a human acts, the blast radius has already grown.
+- A dozen siloed monitors all fire at once — none of them coordinate, and the on-call engineer drowns in **alert fatigue** before the real signal surfaces.
+- Triage is manual archaeology: scroll dashboards, grep logs, hunt Slack for whoever last touched this service, dig through a runbook that's six months stale.
+- A trivial fix that took five minutes last quarter takes forty-five tonight, because **no system remembers** how it was solved. Institutional knowledge walks out the door with every engineer who leaves.
+- By the time a human understands what's happening, the blast radius has already spread — and that translates directly into **SLA breaches, lost revenue, and burned-out teams.**
 
-**One AI model alone can't fix this.** Monitoring, prediction, root-cause analysis, and safe remediation are fundamentally different reasoning tasks. They demand specialized agents that talk to each other — an *agentic* architecture.
+The cost isn't only technical. It's the pager that goes off during dinner, the weekend that evaporates, the slow erosion of a team that never gets to stop firefighting. **Mean-time-to-resolution (MTTR) is a human problem dressed up as a metric.**
+
+And here's the deeper truth: **one AI model alone can't fix this.** Detecting an anomaly, forecasting a failure, reasoning about root cause, and producing a *safe* remediation are fundamentally different cognitive tasks. They need specialized agents that collaborate — an **agentic architecture** — not a single prompt doing everything badly.
 
 ## The Solution
 
-ITOps Orchestrator deploys **five autonomous agents** coordinated by a LangGraph state machine. They observe the fleet continuously, forecast failures before they happen, diagnose root cause using memory of past incidents, generate executable remediation with rollback, and capture every resolution as a runbook the system will use the next time.
+**Dynamic IT Operations Orchestrator** is an autonomous **AIOps** platform that closes the loop from *detection* to *resolution* to *memory*.
 
-```
-   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌─────────────┐    ┌──────────┐
-   │ Monitor  │───▶│ Predict  │───▶│ Diagnose │───▶│ Remediate   │───▶│ Report   │
-   │  Agent   │    │  Agent   │    │  Agent   │    │   Agent     │    │  Agent   │
-   └──────────┘    └──────────┘    └────┬─────┘    └──────┬──────┘    └────┬─────┘
-    Anomaly         Failure              │                 │                │
-    Detection       Forecasting          │  ┌──────────┐   │                │
-                                         ├─▶│          │◀──┘                │
-                                         │  │ Vector   │                    │
-                                    READ │  │   DB     │ READ               │
-                                         │  │  (RAG)   │                    │
-                                         └─▶│          │◀───────────────────┘
-                                            │ Past     │           WRITE
-                                            │ Incidents│     (every resolved
-                                            │ Runbooks │      incident is saved)
-                                            └──────────┘
-```
+Five specialized agents — coordinated by a **LangGraph** state machine — observe the fleet continuously, forecast failures before impact, diagnose root cause using **retrieval-augmented memory** of every past incident, generate production-grade remediation playbooks with rollback safety, and capture each resolution as a reusable runbook. Sitting on top of all of it is **Argus**, a conversational copilot you can *talk* to: ask anything about your fleet, or tell it to act, in plain English or with your voice.
 
-Every resolved incident **enriches institutional memory**. The platform gets smarter with every failure it sees.
+Every incident the platform resolves makes it smarter. The knowledge base grows itself. The 3 AM page becomes a 3 AM **non-event** — handled, documented, and already understood by the time anyone wakes up.
+
+**That's the real deliverable: not a dashboard, but peace of mind.**
 
 ---
 
-## Why This Wins
+## Meet Argus — Your Fleet, in Plain Words
 
-| Traditional Monitoring | **ITOps Orchestrator** |
-|:---|:---|
-| Detects anomalies, pages a human | Detects, diagnoses, **and remediates** autonomously |
-| Siloed dashboards, no coordination | 5 agents communicating via LangGraph state machine |
-| Reactive — fires after failure | **Predictive** — forecasts time-to-failure before impact |
-| Static runbooks, manual lookup | Auto-generated remediation scripts with rollback safety |
-| No memory of past solutions | **RAG-powered institutional memory** — learns every incident |
-| Locked into one cloud or one LLM | Pluggable data sources · Gemini · OpenAI · Ollama — switchable at runtime |
+> *"Stop reading dashboards. Start asking Argus."*
 
----
+**Argus** is the platform's conversational SRE copilot — named after **Argus Panoptes**, the hundred-eyed watchman of Greek myth who never fully slept. You reach the entire platform through a single, natural conversation: **type it, or just speak it.**
 
-## Live Architecture
+- **Anyone on the team can drive it.** You don't need to know which dashboard to open, which metric to chart, or a single CLI flag. You ask in your own words — *"Which nodes are critical right now?"*, *"Why is prod-api-2 unhealthy?"*, *"Run the pipeline on every degraded node and walk me through it"* — and Argus does the rest. An incident commander, a team lead, or someone in their first week can operate the fleet with equal confidence.
+- **It doesn't just answer — it acts.** Argus is backed by **24 real tools** spanning the whole platform: fleet health and metrics, live logs, incidents, the agent pipeline, runbooks, data-source connections, simulators, and runtime settings. It reads live state and *performs operations* on your behalf.
+- **Safe by design — review-first.** Anything that changes state (deleting a runbook, reconnecting a data source, stopping a simulator) is shown to you as a **confirmation card** *before* a single thing runs. Nothing irreversible happens behind your back. Every action Argus takes is written to a tamper-evident **audit log**, and repeated calls within a turn are **idempotent** — so a fix can never accidentally double-fire.
+- **Speak naturally — even the jargon.** Push-to-talk voice input is tuned for the way engineers actually talk: it auto-corrects the SRE and cloud terms speech recognizers mangle (*"cube cuddle" → `kubectl`*, *"easy two" → `EC2`*, *"post grass" → `Postgres`*) and is calibrated for Indian-English speakers out of the box.
+- **It knows the craft, not just your data.** Beyond your fleet, Argus answers general SRE/DevOps questions — what an OOM kill means, how to think about a connection-pool exhaustion, what MTTR really measures — and politely declines anything off-topic, so it stays a focused operations expert.
+- **It writes runbooks *with* you.** Ask Argus to author a runbook and it drafts the whole thing — problem pattern, root cause, causal chain, blast radius, remediation steps with shell scripts and rollback — then hands you a pre-filled form to review, edit, and save. You stay in control; Argus does the typing.
 
-```
-                                   ┌──────────────────────┐
-                                   │   React 19 + Vite    │
-                                   │  Glassmorphism UI    │
-                                   └──────────┬───────────┘
-                                              │  HTTPS · WebSocket
-                                              ▼
-                ┌─────────────────────────────────────────────────────┐
-                │                  Nginx Reverse Proxy                │
-                │           / → SPA · /api → API · /ws → WS           │
-                └─────────────────────────────┬───────────────────────┘
-                                              │
-                                              ▼
-                ┌─────────────────────────────────────────────────────┐
-                │           FastAPI · Uvicorn (systemd)               │
-                │                                                     │
-                │  ┌───────────────────────────────────────────────┐  │
-                │  │      LangGraph Multi-Agent Orchestrator       │  │
-                │  │   Monitor → Predict → Diagnose → Remediate    │  │
-                │  │                       ↓ HITL → Report         │  │
-                │  └───────────────────────────────────────────────┘  │
-                │                                                     │
-                │  ┌──────────┐  ┌──────────────┐  ┌──────────────┐   │
-                │  │ Postgres │  │ Vector Store │  │  LLM Bridge  │   │
-                │  │ + ORM    │  │ (NumPy+JSON) │  │  Gemini /    │   │
-                │  │          │  │  + Ollama    │  │  OpenAI /    │   │
-                │  │          │  │  embeddings  │  │  Ollama      │   │
-                │  └──────────┘  └──────────────┘  └──────────────┘   │
-                │                                                     │
-                │  ┌───────────────────────────────────────────────┐  │
-                │  │  Pluggable Data Sources                       │  │
-                │  │  AWS CW · GCP · Azure · Prometheus · Docker   │  │
-                │  │  · Built-in Simulator · Custom API Push       │  │
-                │  └───────────────────────────────────────────────┘  │
-                └─────────────────────────────────────────────────────┘
-                                              ▲
-                                              │  git push main
-                ┌─────────────────────────────┴───────────────────────┐
-                │     GitHub Actions · Build · Type-check · Deploy    │
-                │              → rsync → systemd restart              │
-                └─────────────────────────────────────────────────────┘
-```
+Argus is the leftmost, highlighted item in the navigation for a reason: it's the fastest way to operate the entire platform.
 
 ---
 
-## The Five Agents
+## The Five Autonomous Agents
+
+A request flows through a **LangGraph** state machine — a stateful, fault-tolerant graph where each agent is a node and shared context accumulates as it executes. The graph short-circuits intelligently: if the Monitoring agent sees no anomaly, the pipeline ends immediately and nothing downstream wastes a cycle.
+
+```
+   ┌──────────┐   anomaly?  ┌──────────┐   ┌──────────┐   ┌─────────────┐   ┌──────────┐
+   │ Monitor  │────yes──────▶│ Predict  │──▶│ Diagnose │──▶│ Remediate   │──▶│ Report   │
+   │  Agent   │              │  Agent   │   │  Agent   │   │   Agent     │   │  Agent   │
+   └────┬─────┘              └──────────┘   └────┬─────┘   └──────┬──────┘   └────┬─────┘
+        │ no                                     │  RAG          │  RAG          │ writes
+        ▼                                        ▼               ▼               ▼
+       END                                  ┌─────────────────────────────────────────┐
+                                            │   ChromaDB — Institutional Memory (RAG)   │
+                                            │   past incidents · proven runbooks        │
+                                            └─────────────────────────────────────────┘
+```
 
 | Agent | Role | Intelligence Stack |
 |:---|:---|:---|
-| **Monitoring** | Real-time anomaly detection across CPU, memory, disk, network, latency, errors, and log pattern matching | Threshold engine · LLM fallback for context |
-| **Predictive** | Failure-probability forecasting, time-to-failure estimation, cascade-risk scoring | Trend analysis · LLM reasoning over metric history |
-| **Diagnostic** | Root cause analysis, causal chain mapping, blast radius assessment | Known-Issue Profiles · LLM · **RAG** over past incidents |
-| **Remediation** | Generates executable shell scripts with validation steps and rollback commands | Pre-approved templates · LLM · **RAG** over proven fixes |
-| **Reporting** | Executive summaries, SLA impact, auto-generated runbooks for the knowledge base | Structured summarization · writes to vector memory |
+| **Monitoring** | Real-time anomaly detection across CPU, memory, disk, network, latency, and error rate, correlated with live log-pattern signals | Deterministic threshold engine · log pattern matching · LLM for context |
+| **Predictive** | Failure-probability forecasting, time-to-failure estimation, escalation- and cascade-risk scoring | Trend analysis · EWMA scoring · LLM reasoning over metric history |
+| **Diagnostic** | Root-cause analysis, causal-chain mapping, blast-radius assessment | Known-issue profiles · **RAG** over past incidents · LLM causal reasoning |
+| **Remediation** | Generates executable, **reviewable** fix playbooks — shell scripts with validation steps and rollback commands, downloadable per artifact | Pre-approved templates · **RAG** over proven fixes · LLM |
+| **Reporting** | Executive summaries, incident timelines, SLA impact, and an **auto-generated runbook** written back to memory | Structured summarization · writes to the vector store |
 
-### Hybrid "Fast Path First, LLM When Needed"
+### Fast path first, LLM only when it earns its keep
 
-- **Frequent incidents** — memory leaks, CPU spikes, disk full, network saturation — are resolved **instantly** through pre-approved response profiles. No LLM latency.
-- **Novel anomalies** invoke the LLM, which receives **RAG context** retrieved from the most similar past incidents and proven runbooks.
-- **LLM unavailable?** The pipeline gracefully degrades to safe defaults — it *never breaks*.
-- **Anomaly storm?** A configurable concurrency cap (`PIPELINE_MAX_CONCURRENT`) and a per-node cooldown protect PostgreSQL and the event loop from runaway dispatch.
+- **Common failure modes** — memory leaks, CPU spikes, disk-full, network saturation — resolve **instantly** through pre-approved response profiles. No model latency, no token cost.
+- **Novel anomalies** invoke the LLM, which is handed **RAG context** retrieved from the most similar past incidents and the highest-rated runbooks — so it reasons from your fleet's actual history, not generic priors.
+- **Graceful by default.** If the LLM provider is unavailable, the pipeline degrades to safe deterministic defaults — **it never breaks the loop.** Each agent node is timeout-bounded and falls back to a partial result rather than failing the whole run.
+- **Storm-proof.** A configurable concurrency cap and per-node cooldown protect the database and event loop, so an anomaly storm can never spawn unbounded work.
 
-### Human-in-the-Loop
+### Remediation you can trust
 
-Low/medium severity remediations auto-apply. **High and critical** severities pause the LangGraph workflow at an approval checkpoint and resume on operator decision — safety first.
+The Remediation agent produces **production-grade, runnable playbooks** — real shell scripts with explicit validation and rollback steps, each downloadable as an artifact. This is **deliberate, safe-by-default AIOps**: the platform does the hard reasoning and hands a vetted, reversible fix to a human (or to Argus, behind a confirmation card) to apply. No AI silently running destructive commands against production — exactly the boundary a mature operations team wants. Wiring execution to live SSH, Ansible, Terraform, or cloud-API targets is a drop-in integration at the executor seam.
 
 ---
 
-## Data Sources — Pluggable by Design
+## How It All Fits Together
 
-ITOps Orchestrator ships with an abstract `DataSource` interface so any provider can be plugged in without touching the agents.
+```
+        Engineer ── asks / speaks ──┐                         ┌── live metrics & anomalies
+                                     ▼                         │      (WebSocket stream)
+                              ┌──────────────┐   React 19 SPA  │
+                              │    ARGUS     │   glassmorphism ◀┘
+                              │  SRE copilot │   UI
+                              └──────┬───────┘
+                                     │ 24 tools (read + guarded mutate)
+        ┌────────────────────────────────────────────────────────────────────┐
+        │                       FastAPI · Uvicorn (systemd)                     │
+        │   ┌──────────────────────────────────────────────────────────────┐   │
+        │   │   LangGraph Pipeline                                           │   │
+        │   │   Monitor → Predict → Diagnose → Remediate → Report           │   │
+        │   └──────────────────────────────────────────────────────────────┘   │
+        │   ┌───────────────┐   ┌─────────────────────┐   ┌────────────────┐    │
+        │   │ PostgreSQL 16 │   │ ChromaDB (RAG)      │   │  LLM Bridge    │    │
+        │   │ incidents,    │   │ institutional memory│   │ Gemini /       │    │
+        │   │ runbooks,     │   │ (S3-backed, durable)│   │ OpenAI /       │    │
+        │   │ agent runs    │   │                     │   │ Ollama         │    │
+        │   └───────────────┘   └─────────────────────┘   └────────────────┘    │
+        └───────────────────────────────▲────────────────────────────────────┘
+                                         │  live metrics + logs
+        ┌────────────────────────────────┴───────────────────────────────────┐
+        │  Pluggable Data Sources                                              │
+        │  AWS CloudWatch (LIVE) · Azure Monitor · GCP · Prometheus · Docker   │
+        │  · Built-in Simulator · Custom JSON push                            │
+        └──────────────────────────────────────────────────────────────────────┘
+```
 
-| Platform | Connectivity | Surface |
+Every resolved incident is embedded and written back into ChromaDB. The next time a similar symptom appears, the Diagnostic and Remediation agents retrieve it — so **the platform compounds its own expertise with every failure it sees.**
+
+---
+
+## Pluggable by Design
+
+Data sources, LLM providers, and remediation profiles are all interface-driven. The agents never know — or care — where a metric came from or which model is reasoning. Swap any layer without touching the pipeline.
+
+| Platform | Status | Surface |
 |:---|:---:|:---|
-| **AWS CloudWatch** | Configurable | EC2 · RDS · ELB |
-| **GCP Cloud Monitoring** | Configurable | Compute Engine · Cloud SQL |
-| **Azure Monitor** | Configurable | VM · App Service · SLI |
-| **Prometheus** | Configurable | PromQL · Node Exporter |
-| **Docker** | Configurable | Container stats via daemon API |
-| **Built-in AI Simulator** | Active | Full multi-node fleet with realistic diurnal patterns and 6 anomaly scenarios |
-| **Custom API Push** | Active | Generic JSON over a high-throughput REST endpoint |
+| **AWS CloudWatch** | **Connected · live** | EC2 · RDS · ELB metrics + CloudWatch Logs |
+| **Azure Monitor** | First-class adapter | VM · SQL · App Service |
+| **GCP Cloud Monitoring** | First-class adapter | Compute Engine · Cloud SQL |
+| **Prometheus** | First-class adapter | PromQL · Node Exporter |
+| **Docker** | First-class adapter | Container stats via daemon API |
+| **Built-in Simulator** | Active | Full multi-tier fleet with realistic diurnal patterns |
+| **Custom JSON Push** | Active | Ingest metrics from anywhere over a single REST endpoint |
 
-The simulator injects six failure modes — memory leak, CPU spike, disk fill, network saturation, connection pool exhaustion, cascading failure — so the entire incident lifecycle is demoable end-to-end without provisioning real cloud infrastructure.
+**LLM providers are switchable at runtime** — Google **Gemini 2.5 Flash**, **OpenAI GPT-4o**, or fully local **Ollama** — chosen from the Settings page with no restart. Per-agent temperatures are independently tunable (lower for critical ops, higher for narrative reporting), and the system auto-rotates to a backup Gemini key on rate-limit pressure.
+
+The **built-in simulator** runs a realistic production fleet — load balancers, app servers, databases, caches, and message queues — and injects six true-to-life failure modes (**memory leak, CPU spike, disk-fill, network saturation, connection-pool exhaustion, and cascading failure**), so the entire incident lifecycle is demoable end-to-end without provisioning a single real server.
 
 ---
 
-## The Platform — Nine Production-Grade Pages
+## Institutional Memory — The Platform That Never Forgets
 
-| Page | What It Does |
-|:---|:---|
-| **Dashboard** | Real-time fleet health · live metric charts streamed over WebSocket · incident ticker |
-| **Agents** | Interactive guide explaining the five-agent pipeline |
-| **Pipeline** | Run the full pipeline on any node with live step-by-step progress |
-| **Incidents** | Full incident history with root cause, blast radius, remediation, and approval controls |
-| **Infrastructure** | Node inventory, status indicators, drill-down metric history |
-| **Data Sources** | One-click cloud-provider configuration |
-| **Simulators** | Create, start, stop, and inspect simulated nodes for testing and demos |
-| **Runbooks** | Auto-generated knowledge base — the system's growing institutional memory |
-| **Settings** | Switch LLM provider at runtime · tune temperature · toggle auto-run pipeline |
+The knowledge base is a **ChromaDB** vector store (HNSW index, cosine similarity) that turns every resolution into searchable, reusable expertise. Embeddings are generated by your provider of choice (Gemini's `text-embedding-004` or local Ollama `nomic-embed-text`), with a hard timeout that degrades gracefully so an unreachable embedding service can never stall the app.
 
-Built with a custom **glassmorphism** design system: GlassNavbar, GlassTab, animated tab transitions powered by Framer Motion, and Recharts visualizations.
+- **Every resolved incident becomes a runbook**, written back automatically by the Reporting agent.
+- **Canonical, battle-tested runbooks ship seeded** for the most common failure modes — so the platform is useful on day one, before it has even seen its first incident.
+- **Spotted a failure mode we don't cover yet?** Add your own. If you've fought a battle the platform hasn't — a Kafka consumer-lag meltdown, an SSL-expiry outage, a thread-pool starvation — author a runbook for it and it joins the institutional memory the agents draw on. Better yet, **ask Argus to draft it for you** from a quick description; you review, refine, and save.
+
+The result: knowledge stops evaporating when people move on. It accumulates.
+
+---
+
+## The Experience
+
+A custom **glassmorphism** design system — built with React 19, Tailwind CSS 4, Framer Motion, and Recharts — makes a deeply technical platform feel calm and effortless to operate.
+
+- **Dashboard** — real-time fleet health, live metric charts streamed over WebSocket, an incident ticker, and a one-tap path to Argus.
+- **Pipeline** — run the full agent pipeline on any node and watch each step report progress live.
+- **Incidents** — complete history with root cause, blast radius, remediation playbooks, and per-artifact script downloads.
+- **Infrastructure** — node inventory with drill-down metric history and status at a glance.
+- **Data Sources** — connect a cloud provider in under a minute, test the connection, and watch nodes appear.
+- **Simulators** — create, control, and fault-inject simulated nodes for demos and testing.
+- **Runbooks** — the growing knowledge base, fully browsable, searchable, and authorable.
+- **Argus** — the full-screen conversational copilot, with voice.
+- **Settings** — switch LLM provider, tune per-agent behavior, and toggle the autonomous pipeline, all at runtime.
+
+Full, interactive API reference (Swagger UI) is always live at **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/docs" target="_blank" rel="noopener noreferrer">`/docs`</a>** — every endpoint, schema, and example, ready to try in the browser.
+
+---
+
+## Built for Production — Infrastructure, and Why
+
+Production runs from a single, cost-optimized AWS region (**Mumbai · `ap-south-1`**, chosen for the lowest latency to our users). The entire stack — reverse proxy, API, database, and vector store — runs on **one Graviton instance** for roughly **$15/month all-in**, with durable cloud-backed memory and zero-downtime deploys. Lean by intent, not by limitation.
+
+**Live at <a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">`dynamic-it-ops.tankbusters.duckdns.org`</a>.**
+
+### The AWS footprint — and the reasoning behind each piece
+
+| Resource | What it is | Why this choice |
+|:---|:---|:---|
+| **EC2 `t4g.small` (Graviton/ARM)** | The single app host: nginx, FastAPI, PostgreSQL, ChromaDB, cert renewal | ARM Graviton gives the best price/performance at this tier; one box keeps latency in-loopback and the bill tiny |
+| **S3 bucket + IAM instance role** | Durable home for the ChromaDB vector store, mounted via **S3 Files** at `/mnt/s3/itops` | **Institutional memory survives instance replacement** — rebuild the box and the agents keep every lesson learned. Least-privilege IAM (read/write to one bucket), with automatic fallback to local EBS if the mount isn't ready |
+| **Encrypted `gp3` EBS (30 GB)** | App code + Postgres data directory | Encrypted at rest; `gp3` is cheaper and faster than `gp2` at this size |
+| **Elastic IP** | Stable public IPv4 | Survives restarts; the DNS A record never has to chase a changing address |
+| **Security Group** | Stateful firewall, inbound `22 / 80 / 443` only | Everything else is loopback-only inside the box — minimal attack surface |
+| **IMDSv2 (required)** | Token-authenticated instance metadata | Defends against SSRF-based metadata exfiltration — modern AWS hardening baseline |
+| **AWS Budgets ($20/mo alert)** | Spend guardrail at 80% actual / 100% forecast | Cost governance built in — no surprise bills, ever |
+
+### What runs on the box
+
+**Nginx** terminates TLS and serves the React build, reverse-proxying the API and WebSocket — one front door, no load balancer needed. **FastAPI/Uvicorn** runs under **systemd** supervision (auto-restart, journald logging, ordered start after Postgres). **PostgreSQL 16** is co-located as the durable store for incidents, runbooks, and agent runs. **ChromaDB** powers RAG, persisted to the S3-backed mount. A **cron-driven `acme.sh`** keeps TLS certificates fresh automatically.
+
+### DNS & TLS
+
+Free, automatic HTTPS via **DuckDNS** (dynamic DNS → Elastic IP) and **ZeroSSL** certificates issued by `acme.sh` over an HTTP-01 challenge, auto-renewing on a daily cron with an nginx reload hook. TLS 1.2/1.3 only, with a hardened cipher policy and a 301 redirect from `:80`.
+
+### What we deliberately *don't* run — and why
+
+Knowing what to leave out is its own discipline. Each of these was a conscious call, not an oversight:
+
+- **No RDS** — a co-located PostgreSQL handles this workload's concurrency comfortably and saves ~$15/mo.
+- **No ALB/NLB** — a single instance with nginx as the front door needs no load balancer (~$16/mo saved).
+- **No NAT Gateway** — a single public subnet is sufficient (~$30/mo saved).
+- **No CloudFront** — the gzipped React bundle is ~1 MB; nginx serves it directly.
+- **No Secrets Manager** — credentials live in a root-only `EnvironmentFile` (mode `600`) loaded by systemd, kept entirely out of the app deploy path.
+
+The whole production footprint is **one EC2 instance, one Elastic IP, one EBS volume, and one S3 bucket** — verified by a cross-region account scan.
+
+### Ship on every push — CI/CD
+
+```
+git push main
+   │
+   ▼  ① CI — build & type-check (npm ci · tsc · vite build · pip install · import smoke test)
+   │
+   ▼  ② Deploy — rsync to EC2 (state-preserving), pip install on host, systemctl restart, nginx reload
+   │
+   ▼  ③ Health check — GET /health → per-component matrix, 503 on any degraded subsystem
+```
+
+**Zero-downtime, zero-data-loss deploys.** The deploy `rsync` explicitly excludes the database, vector store, and secrets, so user state and credentials survive every release untouched. Workflow concurrency control prevents in-flight deploys from stomping each other. A live **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/health" target="_blank" rel="noopener noreferrer">`/health`</a>** probe reports the database, vector store, every background task, and Argus's registered tool count individually — flipping to `503` the instant any subsystem degrades, ready to pull the box from rotation.
 
 ---
 
@@ -202,285 +276,43 @@ Built with a custom **glassmorphism** design system: GlassNavbar, GlassTab, anim
 
 | Layer | Technology |
 |:---|:---|
-| **Frontend** | React 19 · TypeScript · Vite 8 · Tailwind CSS 4 · Framer Motion · Recharts · React Router 7 |
+| **Copilot** | Argus — function-calling tool loop · streaming SSE · push-to-talk voice (Web Speech API) |
+| **Frontend** | React 19 · TypeScript · Vite · Tailwind CSS 4 · Framer Motion · Recharts · React Router 7 |
 | **Backend** | FastAPI · Uvicorn · SQLAlchemy 2 · Pydantic 2 · asyncio · WebSockets |
 | **Orchestration** | LangChain · **LangGraph** state machine |
 | **LLM Providers** | Google Gemini 2.5 Flash · OpenAI GPT-4o · Ollama (local) — **switchable at runtime** |
-| **Embeddings** | `nomic-embed-text` via Ollama |
-| **Memory** | NumPy cosine-similarity vector store · JSON persistence (no C++ build deps) |
-| **Database** | **PostgreSQL 16** (production, co-located on EC2) · SQLite (dev fallback) · SQLAlchemy 2 ORM |
-| **Deploy** | AWS EC2 (Amazon Linux 2023, Graviton ARM) · Nginx · systemd · GitHub Actions CI/CD |
-| **TLS / DNS** | ZeroSSL cert via `acme.sh` (HTTP-01 webroot, auto-renew via `crond`) · DuckDNS dynamic DNS |
+| **Memory / RAG** | **ChromaDB** (HNSW, cosine) · embeddings via Gemini `text-embedding-004` or Ollama `nomic-embed-text` |
+| **Database** | **PostgreSQL 16** (production) · SQLite (dev fallback) · SQLAlchemy 2 ORM |
+| **Cloud Connectors** | AWS (boto3) · Azure Monitor · GCP Cloud Monitoring · Prometheus · Docker |
+| **Deploy** | AWS EC2 (Amazon Linux 2023, Graviton/ARM) · S3 + IAM · Nginx · systemd · GitHub Actions CI/CD |
+| **TLS / DNS** | ZeroSSL via `acme.sh` (auto-renew) · DuckDNS dynamic DNS |
 
 ---
 
-## Cloud Infrastructure — What Runs Where
+## Engineering Highlights — Depth Under the Hood
 
-Production runs out of a single, cost-optimised AWS region (**Mumbai · `ap-south-1`**), chosen for the lowest p99 latency from India. The entire stack fits on **one Graviton instance** with a **co-located PostgreSQL** — no managed services, ≈ **$15 / month** all-in.
+The parts worth a closer look when you want to gauge engineering maturity:
 
-**Live at** **[`https://dynamic-it-ops.tankbusters.duckdns.org/`](https://dynamic-it-ops.tankbusters.duckdns.org/)**
-
-### AWS resources
-
-| Resource | Type | Purpose |
-|:---|:---|:---|
-| **EC2 instance** | `t4g.small` · Graviton ARM · 2 vCPU · 2 GB RAM | Hosts everything: nginx, FastAPI, PostgreSQL, ChromaDB, ACME renewal cron |
-| **EBS root volume** | 30 GB encrypted `gp3` | App code · Postgres data dir · ChromaDB persist dir — all encrypted at rest |
-| **Elastic IP** | Static IPv4 | Stable public address; DuckDNS A record points here. Survives instance restarts. |
-| **Security Group** | Stateful firewall | Inbound `22 / 80 / 443` only — everything else is loopback-only inside the box |
-| **AWS Budgets** | Monthly $20 alert | Email at 80 % actual / 100 % forecast spend — prevents credit blowout |
-| **IMDSv2** | Instance metadata mode | Token-auth required; defends against SSRF metadata exfiltration |
-
-### What's running on that single instance
-
-| Service | Role | Why local, not a managed service |
-|:---|:---|:---|
-| **Nginx** | Reverse proxy · TLS termination · serves React `dist/` | Single front door; no ALB needed (saves ~$16/mo) |
-| **FastAPI / Uvicorn** | App server, `--workers 2`, behind nginx on `127.0.0.1:8000` | systemd-supervised; logs to journald |
-| **PostgreSQL 16** | Durable store: incidents, runbooks, agent runs, simulated nodes | Co-located on EC2 instead of RDS → saves ~$15/mo, sufficient for a single-instance app |
-| **ChromaDB** | Vector store powering institutional memory (RAG) | Persistent path at `/opt/itops/chroma_db`, env-configurable |
-| **systemd** | Process supervision · auto-restart · ordered start after Postgres | Unit loads two env files: app `.env` + root-only `/etc/itops-db.env` for DB creds |
-| **cronie + acme.sh** | TLS cert auto-renewal | Daily check, renews within ACME ARI window, reloads nginx on success |
-
-### DNS & TLS
-
-| Layer | Provider | Detail |
-|:---|:---|:---|
-| **Hostname** | **DuckDNS** (free dynamic DNS) | `dynamic-it-ops.tankbusters.duckdns.org` → A record → Elastic IP |
-| **Certificate Authority** | **ZeroSSL** | Switched from Let's Encrypt — DuckDNS's authoritative DNS is chronically too slow for LE's CAA queries from its secondary validators |
-| **ACME client** | **`acme.sh`** | HTTP-01 challenge via webroot at `/opt/itops/frontend/dist/.well-known/acme-challenge` |
-| **Auto-renewal** | `crond` (system cron) | `acme.sh` registers a per-user cron entry on install; daily check, renews within ARI suggested window, reloads nginx via `--reloadcmd` |
-| **Cipher policy** | TLS 1.2 + 1.3 only | `ssl_ciphers HIGH:!aNULL:!MD5` |
-| **HTTP → HTTPS** | Nginx 301 redirect | `:80` redirects everything except `/.well-known/acme-challenge/` (kept open for cert renewals) |
-
-### What we deliberately don't use (and why)
-
-- **RDS** — overkill at this scale; co-located Postgres handles our few concurrent connections fine
-- **ALB / NLB** — single instance, no rolling-deploy story to justify ~$16/mo
-- **NAT Gateway** — single public subnet, ~$30/mo saved
-- **S3 + CloudFront** — React `dist/` is ~1 MB after gzip, nginx serves it directly
-- **Route 53** — DuckDNS is free and the auto-renewing dynamic DNS is enough
-- **Secrets Manager / Parameter Store** — credentials live in app `.env` and root-only `/etc/itops-db.env` (mode 600), loaded as systemd `EnvironmentFile`s
-- **CloudWatch agent / X-Ray** — `journalctl -u itops-backend` plus FastAPI's structured logging are sufficient
-
-The whole production footprint is **one EC2 instance, one EIP, one EBS volume** — verified via a cross-region account scan. Free-tier credits cover months of runway.
-
----
-
-## CI/CD — Push to Main, Ship to Production
-
-Every commit on `main` runs through a hardened GitHub Actions pipeline:
-
-```
-git push main
-   │
-   ▼
-┌──────────────────────────────┐
-│   ① CI — Build & Type-check  │
-│   • npm ci + tsc + vite build │
-│   • pip install + import test │
-│   • Upload dist artifact      │
-└──────────────────────────────┘
-              │ on success + push
-              ▼
-┌──────────────────────────────┐
-│   ② Deploy to EC2            │
-│   • rsync backend (preserves │
-│     DB, vector store, .env)  │
-│   • rsync built frontend     │
-│   • pip install on host      │
-│   • systemctl restart        │
-│   • nginx reload             │
-└──────────────────────────────┘
-              │
-              ▼
-┌──────────────────────────────┐
-│   ③ Health Check             │
-│   GET /health → component    │
-│   matrix · 503 on degraded   │
-└──────────────────────────────┘
-```
-
-**Zero-downtime, zero-data-loss deploys.** The deploy `rsync` explicitly excludes `itops.db`, `chroma_db/`, `.env`, and `runtime_settings.json` so user state and secrets survive every release. Concurrency control on the workflow prevents stomping in-flight deploys.
-
----
-
-## API Surface
-
-```
-POST   /api/agents/pipeline/run            Launch pipeline for a node
-POST   /api/agents/pipeline/run-all        Launch pipeline fleet-wide
-GET    /api/agents/                        List agent status + run counts
-GET    /api/agents/runbooks                Auto-generated knowledge base
-GET    /api/agents/memory/search?query=…   RAG search across institutional memory
-
-GET    /api/incidents/                     Query incident history
-GET    /api/incidents/{id}                 Full incident detail
-POST   /api/incidents/{id}/approve         Human-in-the-loop approval
-GET    /api/incidents/{id}/logs            Per-agent execution trace
-
-GET    /api/infrastructure/nodes           Full node inventory
-GET    /api/infrastructure/dashboard       Aggregate fleet stats
-
-POST   /api/datasources/ingest             Push metrics from anywhere
-GET    /api/simulators/                    Manage simulated fleet
-POST   /api/settings/llm                   Switch LLM provider at runtime
-
-GET    /health                             Component-level liveness probe
-WS     /ws/metrics                         Live metric + anomaly stream
-```
-
-Full interactive Swagger UI at `/docs`.
-
----
-
-## Project Structure
-
-```
-itops/
-├── .github/workflows/         GitHub Actions CI/CD pipeline
-├── backend/
-│   ├── app/
-│   │   ├── agents/            ← 5 autonomous pipeline agents
-│   │   │   ├── monitoring.py
-│   │   │   ├── predictive.py
-│   │   │   ├── diagnostic.py
-│   │   │   ├── remediation.py
-│   │   │   ├── reporting.py
-│   │   │   ├── llm_fallback.py
-│   │   │   └── orchestrator.py    ← LangGraph state machine
-│   │   ├── api/routes/        ← REST + WebSocket endpoints
-│   │   ├── data_sources/      ← Pluggable cloud connectors
-│   │   ├── database/          ← SQLAlchemy models + session
-│   │   ├── llm/               ← Multi-provider LLM bridge
-│   │   ├── memory/            ← Vector store (RAG)
-│   │   ├── services/          ← Core business logic
-│   │   └── main.py            ← FastAPI app + lifespan + monitoring loops
-│   ├── scripts/               ← Ops scripts
-│   │   ├── migrate_sqlite_to_postgres.py   ← One-shot data migration (FK-ordered, sequence-safe)
-│   │   └── seed_runbooks.py                ← Re-seed canonical runbooks
-│   └── requirements.txt
-├── frontend/
-│   └── src/
-│       ├── pages/             ← 9 feature-rich pages
-│       ├── components/        ← Glassmorphism UI system
-│       └── services/          ← Typed API client
-├── deployment/
-│   ├── cloud-shell-bootstrap.sh  ← One-shot AWS infra provisioner (run in CloudShell)
-│   ├── setup-ec2.sh              ← Per-instance bootstrap (Python + nginx + Postgres + systemd)
-│   ├── nginx.conf                ← Reverse proxy config
-│   ├── itops-backend.service     ← systemd unit
-│   └── sample.env
-├── quickruns/                 ← 1-click local launchers (Win / mac / Linux)
-└── README.md
-```
-
----
-
-## Running Locally
-
-> Full setup walkthrough lives in [`quickruns/howtorun.md`](quickruns/howtorun.md). The short version:
-
-```bash
-# Backend
-cd backend
-python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env                              # add GEMINI_API_KEY (or OPENAI / Ollama)
-uvicorn app.main:app --reload
-
-# Frontend (in a second terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-Visit **http://localhost:5173** for the app and **http://localhost:8000/docs** for the API.
-
-Prefer one click? Run `quickruns/run.bat` (Windows), `quickruns/run-macos.sh`, or `quickruns/run-linux.sh`.
-
----
-
-## Deploying to AWS EC2
-
-Two scripts get you from zero to a running deployment in under 15 minutes:
-
-```bash
-# ① From AWS CloudShell (in your target region) — provisions all the infra
-bash deployment/cloud-shell-bootstrap.sh
-#  Creates: SSH key pair · security group · t4g.small w/ encrypted gp3 ·
-#  Elastic IP · $20/mo Budget alert.  Prints the public IP at the end.
-
-# ② SSH into the new box, then run the per-instance bootstrap
-bash deployment/setup-ec2.sh
-#  Installs: Python 3.11 · Nginx · PostgreSQL 16 · systemd service ·
-#  passwordless sudo for service restarts.  Creates the `itops` Postgres
-#  role + database and writes DATABASE_URL into root-only
-#  /etc/itops-db.env (loaded by systemd as a second EnvironmentFile).
-```
-
-Add these three GitHub Secrets and push to `main`:
-
-```
-EC2_HOST              your Elastic IP
-EC2_USER              ec2-user
-EC2_SSH_PRIVATE_KEY   contents of your .pem
-```
-
-### Adding HTTPS (free, via DuckDNS + ZeroSSL)
-
-Point a free DuckDNS subdomain at your Elastic IP, then on the box:
-
-```bash
-sudo dnf install -y cronie && sudo systemctl enable --now crond
-curl https://get.acme.sh | sh -s email=you@example.com
-~/.acme.sh/acme.sh --set-default-ca --server zerossl
-~/.acme.sh/acme.sh --issue --webroot /opt/itops/frontend/dist \
-    -d your.subdomain.duckdns.org --keylength 2048
-```
-
-Then add a `:443` server block to `/etc/nginx/conf.d/itops.conf` pointing at the issued cert (see the `Cloud Infrastructure` section above for the cipher policy and renewal hook). Set `CORS_ALLOW_ORIGINS=https://your.subdomain.duckdns.org` in `.env` and restart the backend.
-
-> **Note:** Let's Encrypt may fail on DuckDNS subdomains with `DNS problem: query timed out looking up CAA` because DuckDNS's authoritative DNS is too slow for LE's secondary validators. **ZeroSSL** has more lenient timeouts and works reliably.
-
-### Migrating data from SQLite (optional)
-
-If you're cutting over from a SQLite-backed deployment, run the one-shot migration script:
-
-```bash
-# Copy your old SQLite file to the new box, then on the box:
-sudo -E env DATABASE_URL=$(sudo grep DATABASE_URL /etc/itops-db.env | cut -d= -f2-) \
-    /opt/itops/venv/bin/python -m scripts.migrate_sqlite_to_postgres \
-    --source sqlite:////tmp/old-itops.db
-```
-
-The script copies tables in FK-dependency order and realigns Postgres sequences so future inserts don't collide.
-
----
-
-## Engineering Highlights — What's Under the Hood
-
-These are the parts the judges should look at when they want to understand depth.
-
-- **Bounded async pipeline dispatch** — `_spawn_pipeline()` uses a semaphore + live-task set so an anomaly storm can never spawn unbounded coroutines or GC tasks mid-flight. (`backend/app/main.py:70`)
-- **Cooldown-based deduplication** — repeated anomalies on the same node/type are suppressed for 5 minutes to keep the incident table clean and the DB write-light. (`backend/app/main.py:184`)
-- **Tolerant JSON parsing for small-model output** — raw → fenced → first-balanced-brace recovery so a slightly malformed Ollama response doesn't fail the pipeline. (`backend/app/llm/provider.py:27`)
-- **Component-level health probe** — `/health` reports DB, vector store, and each background task individually with a 503 the moment any subsystem dies. (`backend/app/main.py:663`)
-- **State-preserving deploys** — `rsync --delete` with `--exclude` rules keeps the local SQLite DB (dev), vector store, `.env`, and runtime settings across every release. In production, DB credentials live in root-only `/etc/itops-db.env` (mode 600) and are loaded as a second systemd `EnvironmentFile`, so deploys never touch secrets. (`.github/workflows/`)
-- **Cross-DB engine config** — `database/session.py` branches on the URL scheme: SQLite gets `check_same_thread=False`; Postgres gets a pre-tuned connection pool (`pool_pre_ping`, `pool_recycle=1800`) so stale connections never reach the app. (`backend/app/database/session.py`)
-- **Pluggable everything** — Data sources, LLM providers, and remediation profiles are all interface-driven. New cloud? Implement `DataSource`. New model? Implement one method in `llm/provider.py`.
+- **Real, hardened CloudWatch integration** — validates credentials on connect, polls EC2/RDS/ELB, tails CloudWatch Logs incrementally with a per-instance high-water mark, retries transient errors while failing fast on permanent auth errors, and **filters its own log output to break self-monitoring feedback loops.**
+- **Trustworthy agentic actions** — Argus writes every tool call to an audit log, enforces **idempotency** per conversation turn (a mutating action can't double-fire), validates all LLM-supplied arguments against strict schemas (`extra="forbid"`), and pauses risky tools on a confirmation card before execution.
+- **Bounded async dispatch** — a semaphore plus a live-task set guarantees an anomaly storm can never spawn unbounded coroutines or lose tasks to garbage collection mid-flight.
+- **Graceful degradation everywhere** — each LangGraph node is timeout-bounded and returns a partial result on failure; the embedding layer falls back to a zero vector after a hard timeout; the pipeline retries once on transient errors before giving up cleanly.
+- **State-preserving deploys** — `rsync --delete` with explicit excludes keeps the vector store, database, and secrets across every release; production DB credentials live in a root-only systemd `EnvironmentFile`, never touched by deploys.
+- **Cross-database engine config** — the session layer branches on the URL scheme: SQLite gets `check_same_thread=False`; Postgres gets a pre-tuned pool (`pool_pre_ping`, `pool_recycle`) so a stale connection never reaches a request.
+- **Durable, portable memory** — the ChromaDB store is S3-backed in production, so institutional knowledge outlives any single instance.
 
 ---
 
 ## Enterprise Impact
 
-| Metric | Impact |
+| Outcome | Impact |
 |:---|:---|
-| **MTTR** | Minutes instead of hours — agents execute validated fixes instantly |
-| **Downtime** | Drastically reduced through predictive detection + autonomous remediation |
-| **SLA Adherence** | Proactive resolution prevents breaches before they happen |
-| **Operator Toil** | Auto-triage + auto-remediation collapses 80% of the on-call workload |
-| **Knowledge Retention** | Every resolved incident enriches institutional memory — never relearn |
+| **MTTR** | Minutes instead of hours — agents diagnose and draft validated fixes the moment an anomaly appears |
+| **Downtime** | Cut sharply through predictive detection plus instant, reviewable remediation |
+| **SLA adherence** | Proactive resolution heads off breaches before they happen |
+| **Operator toil** | Auto-triage, auto-diagnosis, and conversational control collapse the bulk of the on-call workload |
+| **Knowledge retention** | Every resolved incident enriches institutional memory — nothing is relearned, nothing walks out the door |
+| **Peace of mind** | The 3 AM page becomes a 3 AM non-event — handled, documented, understood |
 
 ---
 
@@ -490,6 +322,12 @@ These are the parts the judges should look at when they want to understand depth
 
 **P. Shiva Santhosh** · **N. S. J. S. Dhanush** · **P. Shikhar**
 
-*For the future of autonomous IT operations.*
+*For the future of autonomous IT operations — where infrastructure heals itself, and the people who run it finally get to rest.*
+
+<br />
+
+<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">
+  <img src="https://img.shields.io/badge/%F0%9F%9A%80%20Open%20the%20Live%20Platform-00C853?style=for-the-badge&labelColor=0d1117" alt="Open the live platform" height="40" />
+</a>
 
 </div>
