@@ -126,13 +126,6 @@ export default function Landing() {
                 See how it works
                 <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-1" />
               </a>
-              <Link
-                to={APP_PATH}
-                className="ml-2 inline-flex items-center gap-1.5 text-[13px] text-[var(--color-ink-mute)] hover:text-[var(--color-ink-soft)] transition-colors"
-              >
-                or jump straight to the dashboard
-                <ArrowRight size={13} />
-              </Link>
             </div>
 
             <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-y-3 gap-x-6 max-w-[640px] text-[11.5px] font-mono uppercase tracking-[0.14em] text-[var(--color-ink-mute)]">
@@ -338,23 +331,6 @@ export default function Landing() {
               against what it observes. The orchestrator would diagnose and draft a fix for its
               own host the moment anything drifts.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link
-                to={APP_PATH}
-                className="group inline-flex items-center gap-2 text-[14px] font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-dim)] transition-colors"
-              >
-                See it for yourself
-                <ArrowRight size={15} className="transition-transform duration-200 group-hover:translate-x-1" />
-              </Link>
-              <a
-                href="/health"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-[14px] font-mono text-[var(--color-ink-mute)] hover:text-[var(--color-ink-soft)] transition-colors"
-              >
-                /health
-              </a>
-            </div>
           </motion.div>
 
           <motion.dl
