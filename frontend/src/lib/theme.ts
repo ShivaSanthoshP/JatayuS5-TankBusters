@@ -9,8 +9,8 @@
  * only reach for this module when a literal colour string is unavoidable.
  */
 export const palette = {
-  canvas:       '#f7f8fb',
-  canvasSoft:   '#eef1f6',
+  canvas:       '#ffffff',
+  canvasSoft:   '#f4f6fa',
   surface:      '#ffffff',
   surfaceStrong:'#ffffff',
 

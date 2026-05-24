@@ -7,8 +7,8 @@
    ─────────────────────────────────────────────────────────────────── */
 @theme {
   /* ── Surfaces (white) ────────────────────────────────────── */
-  --color-canvas:        #f7f8fb;
-  --color-canvas-soft:   #eef1f6;
+  --color-canvas:        #ffffff;
+  --color-canvas-soft:   #f4f6fa;
   --color-surface:       #ffffff;
   --color-surface-strong:#ffffff;
 
