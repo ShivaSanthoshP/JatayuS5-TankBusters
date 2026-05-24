@@ -11,7 +11,7 @@ import { spring } from '../lib/motion';
 export default function AutoPipelineChip({ enabled }: { enabled: boolean }) {
   return (
     <Link
-      to="/workflow"
+      to="/workflow?view=auto"
       aria-label={`Automatic pipeline execution is ${enabled ? 'on' : 'off'}. Click to change it on the Workflow page.`}
       className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
     >

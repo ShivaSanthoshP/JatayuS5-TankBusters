@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, TrendingUp, Search, Wrench, FileText, Play, Loader2,
@@ -107,8 +108,26 @@ function clearPipelineState() {
 export default function Pipeline() {
   const { data: nodes, loading: nodesLoading } = useApi<InfraNode[]>(api.getNodes);
 
-  // Restore persisted state on mount
-  const saved = useRef(loadPipelineState());
+  // Entries from the Dashboard auto-pipeline chip or the Settings link
+  // arrive at /workflow?view=auto — the user explicitly chose to manage
+  // automatic execution, so we must NOT restore the previous per-node
+  // result (which would push the page into the 'results' phase and hide
+  // the auto-pipeline panel entirely). Wipe the cache and proceed with
+  // a fresh 'select' phase. The query param is stripped after the first
+  // render so a manual refresh doesn't keep re-wiping.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewAuto = searchParams.get('view') === 'auto';
+
+  const saved = useRef(viewAuto ? null : loadPipelineState());
+
+  useEffect(() => {
+    if (!viewAuto) return;
+    clearPipelineState();
+    const next = new URLSearchParams(searchParams);
+    next.delete('view');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [selectedNode, setSelectedNode] = useState<string>(saved.current?.selectedNode || '');
   const [statusFilter, setStatusFilter] = useState<string>('all');

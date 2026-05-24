@@ -1114,7 +1114,7 @@ export default function Settings() {
         <div className="border-t border-ink/8 pt-5">
           <div className="text-[11px] uppercase tracking-wide text-ink-faint mb-3">Pipeline Execution</div>
           <Link
-            to="/workflow"
+            to="/workflow?view=auto"
             className="inline-flex items-center gap-1.5 text-[13px] text-accent hover:underline"
           >
             Automatic pipeline execution now lives on the Workflow page →
