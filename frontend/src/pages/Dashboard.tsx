@@ -234,23 +234,6 @@ export default function Dashboard() {
     return Array.from(set).sort();
   }, [wsEvents]);
 
-  // Mean time to resolution, computed from resolved incidents only
-  const mttrMinutes = useMemo(() => {
-    const list = incidents ?? [];
-    const durations: number[] = [];
-    for (const inc of list) {
-      if (!inc.detected_at || !inc.resolved_at) continue;
-      const d = new Date(inc.detected_at).getTime();
-      const r = new Date(inc.resolved_at).getTime();
-      if (Number.isFinite(d) && Number.isFinite(r) && r >= d) {
-        durations.push((r - d) / 60000);
-      }
-    }
-    if (!durations.length) return null;
-    const avg = durations.reduce((s, n) => s + n, 0) / durations.length;
-    return +avg.toFixed(1);
-  }, [incidents]);
-
   // Headline that reflects real fleet state, not a static slogan
   const headline = useMemo(() => {
     if (!wsEvents.length && safeStats.total_nodes === 0) {
@@ -365,7 +348,7 @@ export default function Dashboard() {
               hint="Median (p50) request latency across the fleet — half of requests are faster than this number"
             />
           </div>
-          <div className="md:col-span-5 grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="md:col-span-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Kpi
               label="Healthy"
               value={safeStats.healthy_nodes}
@@ -380,12 +363,6 @@ export default function Dashboard() {
               label="Critical"
               value={safeStats.critical_nodes}
               hint="Nodes with severe issues that need immediate attention"
-            />
-            <Kpi
-              label="MTTR"
-              value={mttrMinutes != null ? mttrMinutes : '—'}
-              suffix={mttrMinutes != null ? 'min' : undefined}
-              hint="Mean Time To Resolution — average minutes from incident detection to resolution, across all resolved incidents"
             />
             <Kpi
               label="Auto-fix Rate"
