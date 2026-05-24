@@ -44,7 +44,7 @@ export interface PipelineResultViewProps {
 /**
  * Five-section pipeline view — Monitoring → Prediction → Diagnosis →
  * Remediation → Reporting — in the order the agents ran. Shared between
- * the incident detail page and the Run Pipeline results phase so both
+ * the incident detail page and the Run Workflow results phase so both
  * surfaces read identically.
  */
 export default function PipelineResultView({

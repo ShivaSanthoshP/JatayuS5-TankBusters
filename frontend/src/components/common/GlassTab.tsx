@@ -39,7 +39,7 @@ const GlassTab: React.FC<GlassTabProps> = ({
       ].filter(Boolean).join(' ') || undefined}
     >
       {({ isActive }) => (
-        <div className={`glass-nav-tab press-tactile ${fullWidth ? '!flex !w-full !justify-start !py-2.5 !text-[14px]' : ''} ${
+        <div title={label} className={`glass-nav-tab press-tactile ${fullWidth ? '!flex !w-full !justify-start !py-2.5 !text-[14px]' : ''} ${
           isActive ? 'glass-nav-tab-active' : pop ? 'glass-nav-tab-pop' : ''
         }`}>
           {pop && !isActive && <span aria-hidden className="argus-tab-halo" />}

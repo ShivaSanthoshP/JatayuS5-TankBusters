@@ -34,7 +34,7 @@ This platform is connected to **real AWS CloudWatch** in **Mumbai (`ap-south-1`)
 
 **Multi-cloud by design.** The same first-class connector layer plugs straight into **Azure Monitor, GCP Cloud Monitoring, Prometheus, and Docker** — switchable from the UI with no code changes. AWS is simply the provider wired to a live account, so the entire loop is demonstrable today on genuine cloud telemetry.
 
-> **Connect your own cloud in under a minute** — add credentials on the **Data Sources** page, point it at your instances, and the agents begin reasoning over *your* fleet immediately.
+> **Connect your own cloud in under a minute** — add credentials on the **Telemetry** page, point it at your instances, and the agents begin reasoning over *your* fleet immediately.
 
 ---
 
@@ -271,14 +271,14 @@ flowchart LR
 A custom **glassmorphism** design system — built with React 19, Tailwind CSS 4, Framer Motion, and Recharts — makes a deeply technical platform feel calm and effortless to operate.
 
 - **Dashboard** — real-time fleet health, live metric charts streamed over WebSocket, an incident ticker, and a one-tap path to Argus.
-- **Pipeline** — run the full agent pipeline on any node and watch each step report progress live.
+- **Workflow** — run the full agent pipeline on any node and watch each step report progress live.
 - **Incidents** — complete history with root cause, blast radius, remediation playbooks, and per-artifact script downloads.
-- **Infrastructure** — node inventory with drill-down metric history and status at a glance.
-- **Data Sources** — connect a cloud provider in under a minute, test the connection, and watch nodes appear.
-- **Simulators** — create, control, and fault-inject simulated nodes for demos and testing.
+- **Fleet** — node inventory with drill-down metric history and status at a glance.
+- **Telemetry** — connect a cloud provider in under a minute, test the connection, and watch nodes appear.
+- **Simulation** — create, control, and fault-inject simulated nodes for demos and testing.
 - **Runbooks** — the growing knowledge base, fully browsable, searchable, and authorable.
 - **Argus** — the full-screen conversational copilot, with voice.
-- **Settings** — switch LLM provider, tune per-agent behavior, and toggle the autonomous pipeline, all at runtime.
+- **Controls** — switch LLM provider, tune per-agent behavior, and toggle the autonomous pipeline, all at runtime.
 
 Full, interactive API reference (Swagger UI) is always live at **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/docs" target="_blank" rel="noopener noreferrer">`/docs`</a>** — every endpoint, schema, and example, ready to try in the browser.
 

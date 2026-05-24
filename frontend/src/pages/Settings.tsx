@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  Settings as SettingsIcon, Brain, Cpu, Timer, Plus, X, Check,
+  SlidersHorizontal, Brain, Cpu, Timer, Plus, X, Check,
   RefreshCw, ChevronDown, Loader2, Server, Cloud,
   AlertCircle, KeyRound, Eye, EyeOff, ShieldAlert,
 } from 'lucide-react';
@@ -419,8 +419,8 @@ export default function Settings() {
       <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3 sm:gap-4">
         <div>
           <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)] flex items-center gap-3">
-            <SettingsIcon size={20} className="text-[var(--color-accent)]" />
-            Settings
+            <SlidersHorizontal size={20} className="text-[var(--color-accent)]" />
+            Controls
           </h1>
           <p className="text-xs sm:text-sm text-ink-mute mt-1">
             Configure your active LLM provider, pipeline behaviour, and runtime options
@@ -1103,10 +1103,10 @@ export default function Settings() {
         <div className="border-t border-ink/8 pt-5">
           <div className="text-[11px] uppercase tracking-wide text-ink-faint mb-3">Pipeline Execution</div>
           <Link
-            to="/pipeline"
+            to="/workflow"
             className="inline-flex items-center gap-1.5 text-[13px] text-accent hover:underline"
           >
-            Automatic pipeline execution now lives on the Pipeline page →
+            Automatic pipeline execution now lives on the Workflow page →
           </Link>
         </div>
       </GlassCard>

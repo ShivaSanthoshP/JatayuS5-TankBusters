@@ -160,7 +160,7 @@ export default function Pipeline() {
   }, [nodeList]);
 
   // Source = the data adapter feeding the node (simulator vs aws cloudwatch, etc).
-  // Matches the same field used on the Infrastructure page so the two filters
+  // Matches the same field used on the Fleet page so the two filters
   // stay in sync; falls back to provider when older nodes haven't been re-tagged.
   const sourceOf = (n: typeof nodeList[number]) =>
     (n.metadata_?.data_source as string | undefined) ?? n.provider;
@@ -337,7 +337,7 @@ export default function Pipeline() {
       {/* Header + stage progress */}
       <div className="flex items-start sm:items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Run Pipeline</h1>
+          <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Run Workflow</h1>
           <p className="text-xs sm:text-sm text-ink-mute mt-1">
             Select a node, watch the agents work, then review the result
           </p>
@@ -406,7 +406,7 @@ export default function Pipeline() {
               </select>
             </div>
 
-            {/* Source filter — matches the Source dimension on Infrastructure */}
+            {/* Source filter — matches the Source dimension on Fleet */}
             <div>
               <label className="text-xs text-ink-mute block mb-1.5 font-medium">Source</label>
               <select
@@ -539,7 +539,7 @@ export default function Pipeline() {
               className="flex items-center gap-2 px-4 sm:px-6 py-2.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-bright transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-              Run Pipeline
+              Run Workflow
             </button>
             <button
               onClick={handleRunAll}

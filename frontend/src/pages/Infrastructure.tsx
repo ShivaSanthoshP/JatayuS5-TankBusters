@@ -120,7 +120,7 @@ export default function Infrastructure() {
       <div className="space-y-4">
         <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-3 sm:gap-4">
           <div>
-            <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Infrastructure</h1>
+            <h1 className="font-display text-[24px] sm:text-[28px] leading-tight text-[var(--color-ink)]">Fleet</h1>
             <p className="text-xs sm:text-sm text-ink-mute mt-1">Monitored nodes and their metric histories</p>
           </div>
           <div className="text-xs text-ink-faint">

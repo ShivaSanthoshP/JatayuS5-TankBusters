@@ -6,7 +6,7 @@ import * as api from '../../services/api';
 const INTERVAL_PRESETS = [10, 30, 60, 120, 300];
 
 /**
- * Auto-pipeline execution control — the top card of the Pipeline page.
+ * Auto-pipeline execution control — the top card of the Workflow page.
  * Self-contained: fetches and persists the auto-run settings itself, and
  * surfaces an LLM-usage warning so the cost of turning it on is explicit.
  */

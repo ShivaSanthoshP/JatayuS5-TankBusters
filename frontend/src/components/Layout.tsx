@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  LayoutDashboard, AlertTriangle, Server, Database, BookOpen, Cpu, Play, Settings, Wand2,
+  LayoutDashboard, AlertTriangle, Server, Boxes, BookOpen, Activity, Workflow, FlaskConical, SlidersHorizontal, Wand2,
   type LucideIcon,
 } from 'lucide-react';
 import GlassNavbar from './common/GlassNavbar';
@@ -15,14 +15,14 @@ import GlobalRunbookForm from './runbooks/GlobalRunbookForm';
 const NAV: { to: string; icon: LucideIcon; label: string; pop?: boolean }[] = [
   // Argus sits leftmost and is "popped" — the accent CTA of the nav.
   { to: '/copilot', icon: Wand2, label: 'Argus', pop: true },
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/pipeline', icon: Play, label: 'Pipeline' },
-  { to: '/incidents', icon: AlertTriangle, label: 'Incidents' },
-  { to: '/infrastructure', icon: Server, label: 'Infrastructure' },
-  { to: '/datasources', icon: Database, label: 'Data Sources' },
-  { to: '/simulators', icon: Cpu, label: 'Simulators' },
-  { to: '/runbooks', icon: BookOpen, label: 'Runbooks' },
-  { to: '/settings', icon: Settings, label: 'Settings' },
+  { to: '/', icon: LayoutDashboard, label: 'DASHBOARD' },
+  { to: '/fleet', icon: Boxes, label: 'FLEET' },
+  { to: '/telemetry', icon: Activity, label: 'TELEMETRY' },
+  { to: '/workflow', icon: Workflow, label: 'WORKFLOW' },
+  { to: '/incidents', icon: AlertTriangle, label: 'INCIDENTS' },
+  { to: '/runbooks', icon: BookOpen, label: 'RUNBOOKS' },
+  { to: '/simulation', icon: FlaskConical, label: 'SIMULATION' },
+  { to: '/controls', icon: SlidersHorizontal, label: 'CONTROLS' },
 ];
 
 export default function Layout() {

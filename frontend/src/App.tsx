@@ -18,16 +18,16 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="/workflow" element={<Pipeline />} />
           <Route path="/incidents" element={<Incidents />} />
           <Route path="/incidents/:id" element={<IncidentDetail />} />
-          <Route path="/infrastructure" element={<Infrastructure />} />
-          <Route path="/datasources" element={<DataSources />} />
-          <Route path="/simulators" element={<Simulators />} />
+          <Route path="/fleet" element={<Infrastructure />} />
+          <Route path="/telemetry" element={<DataSources />} />
+          <Route path="/simulation" element={<Simulators />} />
           <Route path="/runbooks" element={<Runbooks />} />
           <Route path="/runbooks/:id" element={<RunbookDetail />} />
           <Route path="/copilot" element={<Copilot />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/controls" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>
