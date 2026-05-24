@@ -32,7 +32,14 @@ export default function IncidentDetailBody({
     reasons?: string[];
     issue_type?: string;
     confidence?: number;
-    recommended_actions?: string[];
+    // Backend returns either bare strings or rich objects keyed by
+    // {action, type, priority, description}. Accept both.
+    recommended_actions?: Array<string | {
+      action?: string;
+      type?: string;
+      priority?: string;
+      description?: string;
+    }>;
   };
   const prediction = (incident.prediction_details || {}) as {
     failure_probability?: number;
@@ -84,21 +91,21 @@ export default function IncidentDetailBody({
             {prediction.predicted_impact && (
               <Subblock label="Predicted impact">
                 <p className="text-[13px] text-ink-mute leading-relaxed">
-                  {prediction.predicted_impact}
+                  {toText(prediction.predicted_impact)}
                 </p>
               </Subblock>
             )}
             {prediction.estimated_time_to_failure && (
               <Subblock label="Estimated time to failure">
                 <p className="text-[13px] text-ink-mute leading-relaxed">
-                  {prediction.estimated_time_to_failure}
+                  {toText(prediction.estimated_time_to_failure)}
                 </p>
               </Subblock>
             )}
             {prediction.reasoning && (
               <Subblock label="Model reasoning">
                 <p className="text-[12px] text-ink-faint leading-relaxed">
-                  {prediction.reasoning}
+                  {toText(prediction.reasoning)}
                 </p>
               </Subblock>
             )}
@@ -127,7 +134,7 @@ export default function IncidentDetailBody({
                   className="text-[13px] text-ink-mute flex items-start gap-2 bg-canvas-soft rounded-lg px-3 py-2"
                 >
                   <span className="w-1.5 h-1.5 mt-2 rounded-full bg-warning/70 shrink-0" />
-                  <span className="leading-relaxed">{reason}</span>
+                  <span className="leading-relaxed">{toText(reason)}</span>
                 </div>
               ))}
             </div>
@@ -145,7 +152,7 @@ export default function IncidentDetailBody({
                   <span className="text-[11px] font-mono text-ink-faint w-5 shrink-0 mt-0.5">
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <span>{step}</span>
+                  <span>{toText(step)}</span>
                 </li>
               ))}
             </ol>
@@ -160,7 +167,7 @@ export default function IncidentDetailBody({
                   key={i}
                   className="px-2 py-0.5 rounded bg-critical/10 text-critical text-xs"
                 >
-                  {s}
+                  {toText(s)}
                 </span>
               ))}
             </div>
@@ -169,13 +176,44 @@ export default function IncidentDetailBody({
 
         {diagnostic.recommended_actions && diagnostic.recommended_actions.length > 0 && (
           <Subblock label="Recommended actions">
-            <ul className="space-y-1">
-              {diagnostic.recommended_actions.map((action, i) => (
-                <li key={i} className="text-[13px] text-ink-mute flex items-start gap-2 leading-relaxed">
-                  <Shield size={12} className="text-info shrink-0 mt-1" />
-                  <span>{action}</span>
-                </li>
-              ))}
+            <ul className="space-y-2">
+              {diagnostic.recommended_actions.map((raw, i) => {
+                const action =
+                  typeof raw === 'string'
+                    ? { action: raw, description: '', type: '', priority: '' }
+                    : {
+                        action: String(raw.action || ''),
+                        description: String(raw.description || ''),
+                        type: String(raw.type || ''),
+                        priority: String(raw.priority || ''),
+                      };
+                return (
+                  <li
+                    key={i}
+                    className="text-[13px] text-ink-mute flex items-start gap-2 leading-relaxed bg-canvas-soft rounded-lg px-3 py-2"
+                  >
+                    <Shield size={12} className="text-info shrink-0 mt-1" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-ink-soft font-medium">{action.action}</span>
+                        {action.type && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-info/10 text-info uppercase tracking-wide">
+                            {action.type}
+                          </span>
+                        )}
+                        {action.priority && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning uppercase tracking-wide">
+                            {action.priority}
+                          </span>
+                        )}
+                      </div>
+                      {action.description && (
+                        <p className="mt-1 text-ink-mute">{action.description}</p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </Subblock>
         )}
@@ -336,6 +374,27 @@ function Note({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[12px] text-ink-faint leading-relaxed italic">{children}</p>
   );
+}
+
+/**
+ * Coerce any backend field to a renderable string. The agents sometimes
+ * return objects where the schema implies strings (e.g. a `reasons`
+ * entry shaped {text, source}); rendering those would throw React #31.
+ */
+function toText(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (Array.isArray(v)) return v.map(toText).join(' · ');
+  if (typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    // Prefer the most descriptive field we usually see from the agents.
+    for (const key of ['text', 'message', 'description', 'action', 'reason', 'value', 'name']) {
+      if (typeof o[key] === 'string' && o[key]) return o[key] as string;
+    }
+    try { return JSON.stringify(v); } catch { return ''; }
+  }
+  return '';
 }
 
 function PredictionStat({ value, label }: { value: string; label: string }) {
