@@ -8,9 +8,7 @@
 
 <a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/status-live%20on%20AWS-00C853?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Live on AWS" /></a> <a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/AWS%20CloudWatch-connected%20%C2%B7%20live-FF9900?style=for-the-badge&logo=amazoncloudwatch&logoColor=white" alt="AWS CloudWatch connected and live" /></a> <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white" alt="CI/CD via GitHub Actions" />
 
-<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer"><img src="https://img.shields.io/badge/%F0%9F%9A%80%20Launch%20the%20Live%20Platform-Live%20Demo-00C853?style=for-the-badge&labelColor=0d1117&logoColor=white" alt="Launch the live platform" height="44" /></a>
-
-🔗 **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">https://dynamic-it-ops.tankbusters.duckdns.org</a>**
+🚀 **Live demo — <a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">https://dynamic-it-ops.tankbusters.duckdns.org</a>**
 
 **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/" target="_blank" rel="noopener noreferrer">Live App</a>** &nbsp;·&nbsp; **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/docs" target="_blank" rel="noopener noreferrer">Interactive API (Swagger)</a>** &nbsp;·&nbsp; **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/health" target="_blank" rel="noopener noreferrer">Component Health</a>**
 
