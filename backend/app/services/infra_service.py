@@ -54,6 +54,18 @@ class InfraService:
             existing = node.metadata_ or {}
             new_meta = dict(existing)
             changed = False
+            if node.node_type != event.node_type:
+                node.node_type = event.node_type
+                changed = True
+            if node.provider != event.provider:
+                node.provider = event.provider
+                changed = True
+            if node.region != event.region:
+                node.region = event.region
+                changed = True
+            if event.ip_address and node.ip_address != event.ip_address:
+                node.ip_address = event.ip_address
+                changed = True
             if data_source and existing.get("data_source") != data_source:
                 new_meta["data_source"] = data_source
                 changed = True
@@ -62,6 +74,7 @@ class InfraService:
                 changed = True
             if changed:
                 node.metadata_ = new_meta
+                node.updated_at = utc_now()
                 self.db.flush()
         return node
 

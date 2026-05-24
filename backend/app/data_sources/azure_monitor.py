@@ -88,6 +88,10 @@ def _vm_to_event(resource_id: str, vm_name: str, region: str, results) -> Metric
     else:
         mem_pct = 0.0  # metric unavailable; do not report false 0% usage
 
+    measured = ["cpu_percent", "network_in_mbps", "network_out_mbps"]
+    if avail_mem_b is not None:
+        measured.append("memory_percent")
+
     return MetricEvent(
         node_name=vm_name,
         node_type="server",
@@ -104,7 +108,7 @@ def _vm_to_event(resource_id: str, vm_name: str, region: str, results) -> Metric
         latency_ms=0.0,
         metadata={
             "data_source": "azure",
-            "measured_metrics": ["cpu_percent", "memory_percent", "network_in_mbps", "network_out_mbps"],
+            "measured_metrics": measured,
             "azure_monitor": raw,
             "resource_id": resource_id,
         },

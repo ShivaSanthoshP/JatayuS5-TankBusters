@@ -168,6 +168,9 @@ class GCPMonitoringDataSource(DataSource):
             mem_pct = (ram_used / max(ram_size, 1)) * 100.0 if ram_used else 0.0
             net_in_bps = net_in_map.get(inst_id, 0.0)
             net_out_bps = net_out_map.get(inst_id, 0.0)
+            measured = ["cpu_percent", "network_in_mbps", "network_out_mbps"]
+            if inst_id in ram_used_map:
+                measured.append("memory_percent")
 
             events.append(MetricEvent(
                 node_name=inst_id,
@@ -185,7 +188,7 @@ class GCPMonitoringDataSource(DataSource):
                 latency_ms=0.0,
                 metadata={
                     "data_source": "gcp",
-                    "measured_metrics": ["cpu_percent", "memory_percent", "network_in_mbps", "network_out_mbps"],
+                    "measured_metrics": measured,
                     "gcp": {
                         "cpu_utilization": cpu_map.get(inst_id),
                         "ram_used_bytes": ram_used,
@@ -214,6 +217,9 @@ class GCPMonitoringDataSource(DataSource):
         db_ids = set(cpu_map) | set(conn_map) | set(disk_used_map)
         events = []
         for db_id in db_ids:
+            measured = ["cpu_percent", "request_rate"]
+            if db_id in disk_used_map:
+                measured.append("disk_percent")
             events.append(MetricEvent(
                 node_name=db_id,
                 node_type="database",
@@ -222,7 +228,7 @@ class GCPMonitoringDataSource(DataSource):
                 ip_address="",
                 cpu_percent=round(min(cpu_map.get(db_id, 0.0) * 100.0, 100.0), 2),
                 memory_percent=0.0,
-                disk_percent=0.0,
+                disk_percent=round(min(disk_used_map.get(db_id, 0.0) / (100 * 1024 ** 3) * 100.0, 100.0), 2) if db_id in disk_used_map else 0.0,
                 network_in_mbps=0.0,
                 network_out_mbps=0.0,
                 request_rate=round(conn_map.get(db_id, 0.0), 2),
@@ -230,7 +236,7 @@ class GCPMonitoringDataSource(DataSource):
                 latency_ms=0.0,
                 metadata={
                     "data_source": "gcp",
-                    "measured_metrics": ["cpu_percent", "request_rate"],
+                    "measured_metrics": measured,
                     "gcp": {
                         "database_connections": conn_map.get(db_id),
                         "disk_bytes_used": disk_used_map.get(db_id),

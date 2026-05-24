@@ -221,6 +221,42 @@ This is the Azure/GCP equivalent of the AWS datasource productization work.
 - Azure and GCP now follow the same UX/API lifecycle as AWS: persisted settings, redacted responses, connection tests, live activation, and cleanup.
 - The current follow-up hardening closes a lifecycle gap across all three providers: disabling a cloud source now disconnects the live adapter without wiping saved configuration.
 
+### 2.8 Cloud Metric Refinement / Infra Rendering Hardening — `7226e45` plus follow-up multi-cloud normalization
+**Original AWS message:** `fixed metrics in cloud watch`
+
+This is the refinement / hardening pass that proves the CloudWatch integration was exercised against real infrastructure behavior rather than left at adapter-only level.
+
+**Files changed in the AWS refinement pass:**
+- `backend/app/data_sources/cloudwatch.py`
+- `backend/app/services/infra_service.py`
+- `frontend/src/pages/Infrastructure.tsx`
+
+**What Shiva fixed in AWS:**
+- Corrected metric mapping and display behavior for CloudWatch-fed nodes
+- Adjusted infrastructure aggregation / service logic
+- Fixed frontend handling so AWS nodes display properly
+
+**Likely impact of the AWS refinement:**
+- Better normalization of AWS metric values
+- Better presentation of CloudWatch-backed infrastructure in the UI
+- Reduced mismatch between raw CloudWatch values and the app’s charts / status model
+
+**Judgment on the AWS refinement:**
+- This is a strong sign of real integration work.
+- Teams that fake cloud support usually stop at adapter creation; this commit shows the team hit real-data issues and fixed them.
+
+**Equivalent final hardening now applied across Azure and GCP as well:**
+- `infra_service.ensure_node_exists()` now refreshes canonical node type, provider, region, and IP data when cloud adapters report updated values
+- Azure VM events only advertise memory as measured when Azure Monitor actually returned the memory signal, preventing misleading zero-value charts
+- GCP compute events now do the same for memory
+- GCP Cloud SQL events now normalize `disk_bytes_used` into the canonical `disk_percent` field used by the infrastructure UI
+- AWS RDS and ELB events now expose `measured_metrics` consistently, so detail charts only render metrics that are truly backed by provider data
+- Infrastructure page rendering now handles cloud resources with no IP address more cleanly, especially Azure/GCP resources that are better identified by provider metadata than by host IP
+
+**Engineering judgment:**
+- This closes the last obvious product gap between “adapter exists” and “multi-cloud telemetry displays credibly in the infrastructure UI”.
+- The platform now treats AWS, Azure, and GCP more consistently from raw provider metrics through backend normalization to frontend rendering.
+
 ---
 
 ## SECTION 3 — S3 FILES IMPLEMENTATION PLAN

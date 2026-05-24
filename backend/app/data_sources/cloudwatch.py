@@ -222,6 +222,10 @@ class CloudWatchDataSource(DataSource):
         if free_storage is not None:
             assumed_total = 100 * 1024 ** 3  # assume 100 GB if AllocatedStorage unknown
             disk_pct = max(0.0, min(100.0, (1.0 - free_storage / assumed_total) * 100.0))
+        measured = ["cpu_percent", "request_rate", "latency_ms"]
+        if free_storage is not None:
+            measured.append("disk_percent")
+
         return MetricEvent(
             node_name=db_id,
             node_type="database",
@@ -236,11 +240,15 @@ class CloudWatchDataSource(DataSource):
             request_rate=round(db_conns, 2),
             error_rate=0.0,
             latency_ms=round(read_lat * 1000, 2),
-            metadata={"data_source": "aws", "cloudwatch": {
-                "DatabaseConnections": db_conns,
-                "FreeStorageSpace": free_storage,
-                "ReadLatency_s": read_lat,
-            }},
+            metadata={
+                "data_source": "aws",
+                "measured_metrics": measured,
+                "cloudwatch": {
+                    "DatabaseConnections": db_conns,
+                    "FreeStorageSpace": free_storage,
+                    "ReadLatency_s": read_lat,
+                },
+            },
         )
 
     def _elb_event(self, lb_name: str) -> MetricEvent | None:
@@ -265,11 +273,15 @@ class CloudWatchDataSource(DataSource):
             request_rate=round(req_count, 2),
             error_rate=round(error_rate, 2),
             latency_ms=round((resp_time or 0.0) * 1000, 2),
-            metadata={"data_source": "aws", "cloudwatch": {
-                "RequestCount": req_count,
-                "TargetResponseTime_s": resp_time,
-                "HTTPCode_Target_5XX_Count": err_5xx,
-            }},
+            metadata={
+                "data_source": "aws",
+                "measured_metrics": ["request_rate", "error_rate", "latency_ms"],
+                "cloudwatch": {
+                    "RequestCount": req_count,
+                    "TargetResponseTime_s": resp_time,
+                    "HTTPCode_Target_5XX_Count": err_5xx,
+                },
+            },
         )
 
     def _event_for_resource(self, resource_id: str) -> MetricEvent | None:

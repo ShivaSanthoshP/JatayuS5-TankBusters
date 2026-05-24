@@ -79,6 +79,16 @@ export default function Infrastructure() {
   const sourceOf = (n: InfraNode): string =>
     (n.metadata_?.data_source as string | undefined) ?? n.provider;
 
+  const locationLine = (n: InfraNode): string => {
+    const parts = [n.node_type, SOURCE_LABELS[sourceOf(n)] ?? sourceOf(n), n.region];
+    if (n.ip_address) parts.push(n.ip_address);
+    else {
+      const resourceId = typeof n.metadata_?.resource_id === 'string' ? n.metadata_.resource_id : undefined;
+      if (resourceId) parts.push(resourceId);
+    }
+    return parts.filter(Boolean).join(' · ');
+  };
+
   const statusValues = STATUS_ORDER.filter((s) => all.some((n) => n.status === s));
   const typeValues = [...new Set(all.map((n) => n.node_type))].sort();
   const sourceValues = [...new Set(all.map(sourceOf))].sort();
@@ -172,7 +182,7 @@ export default function Infrastructure() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-ink">{node.node_name}</p>
-                    <p className="text-[10px] text-ink-faint">{node.node_type} &middot; {node.region}</p>
+                    <p className="text-[10px] text-ink-faint">{locationLine(node)}</p>
                   </div>
                 </div>
                 <StatusBadge status={node.status} pulse={node.status !== 'healthy'} />
@@ -335,7 +345,7 @@ function NodeDetail({ node, onClose }: { node: InfraNode; onClose: () => void })
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-base sm:text-lg font-bold text-ink truncate">{node.node_name}</h2>
-            <p className="text-[11px] sm:text-xs text-ink-mute break-words">{node.node_type} &middot; {SOURCE_LABELS[(node.metadata_?.data_source as string) ?? node.provider] ?? node.provider} &middot; {node.region} &middot; {node.ip_address}</p>
+            <p className="text-[11px] sm:text-xs text-ink-mute break-words">{locationLine(node)}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-black/8 rounded-lg transition-colors">
             <X size={18} className="text-ink-mute" />
