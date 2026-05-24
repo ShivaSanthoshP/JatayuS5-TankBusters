@@ -117,71 +117,55 @@ The platform answers every part of the brief — and extends it.
 
 Argus is the leftmost, highlighted item in the navigation for a reason: it's the fastest way to operate the entire platform.
 
-### How a request flows through Argus
-
-The sequence below traces a single instruction — including the safety branch that pauses any state-changing tool on a confirmation card before it runs.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Eng as Engineer
-    participant Ar as Argus · orchestrator
-    participant LLM as LLM · Gemini
-    participant Reg as Tool Registry
-    participant DB as Postgres · ChromaDB
-
-    Eng->>Ar: "Stop the prod-redis simulator" (typed or spoken)
-    Ar->>LLM: prompt + 24 tool declarations
-    LLM-->>Ar: tool call — control_simulator(stop)
-
-    alt read-only (safe) tool
-        Ar->>Reg: dispatch
-        Reg->>DB: query
-        DB-->>Reg: result
-        Reg-->>Ar: ToolOutput (audited · idempotent)
-    else state-changing (risky) tool
-        Ar-->>Eng: confirmation card — "Stop prod-redis?"
-        Eng->>Ar: approve
-        Ar->>Reg: dispatch (was_confirmed = true)
-        Reg->>DB: mutate + write audit row
-        DB-->>Reg: result
-        Reg-->>Ar: ToolOutput
-    end
-
-    Ar->>LLM: tool result
-    LLM-->>Ar: final answer
-    Ar-->>Eng: streamed reply, token by token
-```
-
 ---
 
 ## The Five Autonomous Agents
 
-A request flows through a **LangGraph** state machine — a stateful, fault-tolerant graph where each agent is a node and shared context accumulates as it executes. The graph short-circuits intelligently: if the Monitoring agent sees no anomaly, the pipeline ends immediately and nothing downstream wastes a cycle.
+The five agents run as nodes in a **LangGraph** graph — a stateful, fault-tolerant pipeline where shared context accumulates as it executes. It **short-circuits** when nothing is wrong, takes a **deterministic fast path** for known issues, and calls the **LLM (augmented with RAG memory)** only for novel ones — then writes every resolution back as a runbook the agents reuse next time.
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Monitor
+flowchart TB
+    telemetry(["Live telemetry stream — metrics + logs"]):::mon
+    done(["Resolved · back to watching"]):::ok
+    mem[("ChromaDB<br/>institutional memory")]:::mem
 
-    Monitor  : ① Monitoring — detect anomaly (thresholds + log signals)
-    Predict  : ② Predictive — failure probability + time-to-failure
-    Diagnose : ③ Diagnostic — root cause + blast radius
-    Remediate: ④ Remediation — runnable fix playbook + rollback
-    Report   : ⑤ Reporting — summary + auto-written runbook
+    subgraph pipeline["LangGraph agent pipeline"]
+        direction TB
+        mon["① Monitor<br/>detect anomaly"]:::agent
+        anomaly{"anomaly?"}:::dec
+        pred["② Predict<br/>failure probability · time-to-failure"]:::agent
+        diag["③ Diagnose<br/>root cause · blast radius"]:::agent
+        route{"known issue?"}:::dec
+        fast["Fast path<br/>pre-approved profile · deterministic · no LLM"]:::ok
+        llmcall["LLM reasoning<br/>augmented with RAG context"]:::llm
+        rem["④ Remediate<br/>runnable fix + rollback"]:::agent
+        rep["⑤ Report<br/>summary + new runbook"]:::agent
 
-    Monitor --> [*] : all healthy (short-circuit)
-    Monitor --> Predict : anomaly detected
-    Predict --> Diagnose
-    Diagnose --> Remediate
-    Remediate --> Report
-    Report --> [*]
+        mon --> anomaly
+        anomaly -->|"yes"| pred
+        pred --> diag
+        diag --> route
+        route -->|"yes"| fast
+        route -->|"novel"| llmcall
+        fast --> rem
+        llmcall --> rem
+        rem --> rep
+    end
 
-    note right of Diagnose
-      Diagnostic + Remediation retrieve RAG context
-      from ChromaDB — the most similar past incidents
-      and the highest-rated proven runbooks
-    end note
+    telemetry --> mon
+    anomaly -->|"no · short-circuit"| done
+    rep --> done
+    diag -.->|"RAG lookup"| mem
+    mem -.->|"similar incidents + proven runbooks"| llmcall
+    rep -->|"writes new runbook"| mem
+    mem -.->|"reused next time"| mon
+
+    classDef mon fill:#E4F0EA,stroke:#7FA99A,color:#244A40;
+    classDef agent fill:#E8EEF4,stroke:#92A8BE,color:#2B3D4D;
+    classDef dec fill:#EFEDE6,stroke:#BCB7A6,color:#4C4A40;
+    classDef llm fill:#F3EAD6,stroke:#C9B27D,color:#5E4A1E;
+    classDef ok fill:#E6F0E2,stroke:#93B98A,color:#33572B;
+    classDef mem fill:#ECE8F4,stroke:#A99CC9,color:#3D3366;
 ```
 
 | Agent | Role | Intelligence Stack |
@@ -248,77 +232,19 @@ flowchart TB
     sources -->|"metrics + logs"| rest
     aws -.->|"watches its own host"| api
 
-    classDef live fill:#FF9900,stroke:#b36b00,color:#1a1a1a;
-    classDef brand fill:#7C4DFF,stroke:#4a25c9,color:#ffffff;
-    class aws live
+    classDef live fill:#DCEDE7,stroke:#5E9A88,color:#1F4A3F;
+    classDef brand fill:#ECE8F4,stroke:#A99CC9,color:#3D3366;
+    classDef store fill:#EEF1F4,stroke:#A7B2BD,color:#34404B;
+    classDef agent fill:#E8EEF4,stroke:#92A8BE,color:#2B3D4D;
+    classDef src fill:#E4F0EA,stroke:#7FA99A,color:#244A40;
     class argus brand
+    class aws live
+    class other src
+    class pg,chroma,llm store
+    class pipeline agent
 ```
 
 Every resolved incident is embedded and written back into ChromaDB. The next time a similar symptom appears, the Diagnostic and Remediation agents retrieve it — so **the platform compounds its own expertise with every failure it sees.**
-
-### Core domain model
-
-The persistent entities and how they relate. Note the closing loop: a `RunbookEntry` can be distilled from the very `Incident` it later helps resolve, and `ChatAction` is Argus's append-only audit trail.
-
-```mermaid
-classDiagram
-    direction LR
-
-    class InfrastructureNode {
-        +int id
-        +string node_name
-        +string node_type
-        +string provider
-        +string status
-    }
-    class MetricSnapshot {
-        +float cpu_percent
-        +float memory_percent
-        +bool is_anomaly
-        +json anomaly_scores
-        +datetime timestamp
-    }
-    class Incident {
-        +int id
-        +string title
-        +Severity severity
-        +IncidentStatus status
-        +text root_cause
-    }
-    class Remediation {
-        +string action_type
-        +text script_content
-        +text rollback_script
-        +string canary_stage
-        +RemediationStatus status
-    }
-    class AgentLog {
-        +string agent_name
-        +string action
-        +int duration_ms
-    }
-    class RunbookEntry {
-        +string title
-        +string issue_type
-        +bool is_seeded
-        +float effectiveness_score
-        +int times_used
-    }
-    class ChatAction {
-        +string tool_name
-        +bool was_confirmed
-        +string status
-        +int latency_ms
-    }
-
-    InfrastructureNode "1" o-- "0..*" MetricSnapshot : metrics
-    InfrastructureNode "1" o-- "0..*" Incident : incidents
-    Incident "1" o-- "0..*" Remediation : remediations
-    Incident "1" o-- "0..*" AgentLog : agent trace
-    Incident "1" --> "0..1" MetricSnapshot : snapshot at detection
-    RunbookEntry "0..*" ..> "0..1" Incident : distilled from
-    note for ChatAction "Argus audit trail — one row per tool call"
-```
 
 ---
 
@@ -355,16 +281,16 @@ The result: knowledge stops evaporating when people move on. It accumulates.
 ### The learning loop
 
 ```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Detected
-    Detected --> Diagnosed : root cause + blast radius
-    Diagnosed --> FixDrafted : runnable playbook generated
-    FixDrafted --> Resolved : applied / reviewed
-    Resolved --> Learned : embedded into ChromaDB as a runbook
-    Learned --> [*]
-    Learned --> Detected : retrieved to resolve the next similar incident
-    note right of Learned : every resolution makes the platform smarter
+flowchart LR
+    d(["Detected"]):::step --> dg(["Diagnosed"]):::step
+    dg --> fx(["Fix drafted"]):::step
+    fx --> rs(["Resolved"]):::ok
+    rs --> rb(["Runbook written to ChromaDB"]):::mem
+    rb -.->|"retrieved to resolve the next similar incident"| d
+
+    classDef step fill:#E8EEF4,stroke:#92A8BE,color:#2B3D4D;
+    classDef ok fill:#E6F0E2,stroke:#93B98A,color:#33572B;
+    classDef mem fill:#ECE8F4,stroke:#A99CC9,color:#3D3366;
 ```
 
 ---
@@ -430,28 +356,36 @@ The whole production footprint is **one EC2 instance, one Elastic IP, one EBS vo
 Every push to `main` runs the same gated pipeline. A red build never reaches production, and the health gate confirms the box is serving before the deploy is called done.
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor Dev as Developer
-    participant GH as GitHub · main
-    participant CI as Actions · CI
-    participant CD as Actions · Deploy
-    participant EC2 as AWS EC2 · Mumbai
+flowchart TB
+    push(["git push to main"]):::trigger --> ci
 
-    Dev->>GH: git push main
-    GH->>CI: trigger workflow
-    CI->>CI: npm ci · tsc · vite build
-    CI->>CI: pip install · import smoke test
-    alt build / type-check fails
-        CI-->>Dev: red — deploy blocked
-    else all green
-        CI->>CD: hand off dist artifact
-        CD->>EC2: rsync (skips DB · vectors · secrets)
-        CD->>EC2: pip install · systemctl restart · nginx reload
-        CD->>EC2: GET /health
-        EC2-->>CD: 200 healthy  /  503 degraded
-        CD-->>Dev: shipped to production
+    subgraph ci["① CI — build & verify"]
+        direction TB
+        b1["npm ci · tsc · vite build"]:::step
+        b2["pip install · import smoke test"]:::step
+        b1 --> b2
     end
+
+    ci --> gate{"build & type-check green?"}:::dec
+    gate -->|"no"| blocked(["Deploy blocked — a red build never ships"]):::stop
+    gate -->|"yes"| cd
+
+    subgraph cd["② Deploy to EC2 · Mumbai"]
+        direction TB
+        d1["rsync app — skips DB · vectors · secrets"]:::step
+        d2["pip install · systemctl restart · nginx reload"]:::step
+        d1 --> d2
+    end
+
+    cd --> health{"GET /health — all components ok?"}:::dec
+    health -->|"503 degraded"| held(["Held back from rotation"]):::stop
+    health -->|"200 healthy"| shipped(["Shipped to production"]):::ok
+
+    classDef trigger fill:#E8EEF4,stroke:#92A8BE,color:#2B3D4D;
+    classDef step fill:#EEF1F4,stroke:#A7B2BD,color:#34404B;
+    classDef dec fill:#EFEDE6,stroke:#BCB7A6,color:#4C4A40;
+    classDef ok fill:#E6F0E2,stroke:#93B98A,color:#33572B;
+    classDef stop fill:#F4E7E6,stroke:#CBA09C,color:#7C3F3B;
 ```
 
 **Zero-downtime, zero-data-loss deploys.** The deploy `rsync` explicitly excludes the database, vector store, and secrets, so user state and credentials survive every release untouched. Workflow concurrency control prevents in-flight deploys from stomping each other. A live **<a href="https://dynamic-it-ops.tankbusters.duckdns.org/health" target="_blank" rel="noopener noreferrer">`/health`</a>** probe reports the database, vector store, every background task, and Argus's registered tool count individually — flipping to `503` the instant any subsystem degrades, ready to pull the box from rotation.
