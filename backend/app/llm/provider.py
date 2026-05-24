@@ -323,20 +323,36 @@ def _parse_response(response) -> ChatWithToolsResponse:
     return out
 
 
-def chat_with_tools(
+def _resolve_chat_fallback(primary_key: str) -> tuple[str | None, str | None]:
+    """Look up the configured fallback Gemini key + model from settings.
+
+    Returns (key, model) if a usable fallback is configured, else (None, None).
+    Skips the fallback when it's missing or identical to the primary — no
+    point retrying with the same credentials.
+    """
+    try:
+        from app.services.settings_service import settings as _settings
+        fb_key = _settings.get_secret("fallback_api_key") or ""
+        fb_model = (_settings.fallback_model or "").strip()
+    except Exception:
+        fb_key, fb_model = "", ""
+    fb_key = fb_key or _config.GEMINI_API_KEY_BACKUP
+    if not fb_key or fb_key == primary_key:
+        return (None, None)
+    return (fb_key, fb_model or None)
+
+
+def _chat_with_tools_once(
     *,
-    messages: list[dict],          # [{"role": "user"|"assistant", "content": "..."}]
+    messages: list[dict],
     tools: list[ToolDecl],
     model: str,
     api_key: str,
     temperature: float = 0.0,
-    tool_results: list[dict] | None = None,  # [{"name","args","result"}]
+    tool_results: list[dict] | None = None,
     system_instruction: str | None = None,
 ) -> ChatWithToolsResponse:
-    """One Gemini turn with function-calling. Returns either text or tool calls.
-
-    The caller owns the loop: execute tool calls, append results, call again.
-    """
+    """Single Gemini turn — no fallback. Public wrapper handles rotation."""
     from google import genai
     from google.genai import types as gt
 
@@ -376,7 +392,48 @@ def chat_with_tools(
     return _parse_response(response)
 
 
-async def chat_with_tools_stream(
+def chat_with_tools(
+    *,
+    messages: list[dict],          # [{"role": "user"|"assistant", "content": "..."}]
+    tools: list[ToolDecl],
+    model: str,
+    api_key: str,
+    temperature: float = 0.0,
+    tool_results: list[dict] | None = None,  # [{"name","args","result"}]
+    system_instruction: str | None = None,
+) -> ChatWithToolsResponse:
+    """One Gemini turn with function-calling. Returns either text or tool calls.
+
+    The caller owns the loop: execute tool calls, append results, call again.
+    On a 429/503 from the primary key, transparently rotates to the configured
+    fallback Gemini key (and fallback model, if one is set in Settings).
+    """
+    fb_key, fb_model = _resolve_chat_fallback(api_key)
+    attempts: list[tuple[str, str]] = [(api_key, model)]
+    if fb_key:
+        attempts.append((fb_key, fb_model or model))
+    last_exc: Exception | None = None
+    for i, (k, m) in enumerate(attempts):
+        try:
+            return _chat_with_tools_once(
+                messages=messages, tools=tools, model=m, api_key=k,
+                temperature=temperature, tool_results=tool_results,
+                system_instruction=system_instruction,
+            )
+        except Exception as exc:
+            last_exc = exc
+            if i < len(attempts) - 1 and _is_rate_limit_error(exc):
+                logger.warning(
+                    "chat_with_tools: primary key rate-limited (%s), rotating to fallback", exc
+                )
+                continue
+            raise
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("chat_with_tools: no attempts and no exception captured")
+
+
+async def _chat_with_tools_stream_once(
     *,
     messages: list[dict],
     tools: list[ToolDecl],
@@ -386,16 +443,7 @@ async def chat_with_tools_stream(
     tool_results: list[dict] | None = None,
     system_instruction: str | None = None,
 ) -> AsyncIterator[dict]:
-    """Streaming variant of ``chat_with_tools``. Async generator yielding:
-
-      {"type": "text",  "delta": "<token text>"}            — as the model writes
-      {"type": "final", "response": ChatWithToolsResponse}  — exactly once, last
-
-    Uses the google-genai *async* client, so the event loop is never blocked
-    while the model generates. A pure-text turn streams token-by-token; a
-    tool-calling turn yields no text and surfaces the accumulated tool calls
-    (with their thought signatures) on the final event.
-    """
+    """Single streaming Gemini turn — no fallback. Public wrapper handles rotation."""
     from google import genai
     from google.genai import types as gt
 
@@ -442,3 +490,55 @@ async def chat_with_tools_stream(
                     out.text += part.text
                     yield {"type": "text", "delta": part.text}
     yield {"type": "final", "response": out}
+
+
+async def chat_with_tools_stream(
+    *,
+    messages: list[dict],
+    tools: list[ToolDecl],
+    model: str,
+    api_key: str,
+    temperature: float = 0.0,
+    tool_results: list[dict] | None = None,
+    system_instruction: str | None = None,
+) -> AsyncIterator[dict]:
+    """Streaming variant of ``chat_with_tools``. Async generator yielding:
+
+      {"type": "text",  "delta": "<token text>"}            — as the model writes
+      {"type": "final", "response": ChatWithToolsResponse}  — exactly once, last
+
+    On a 429/503 from the primary key BEFORE any token is emitted, transparently
+    rotates to the configured fallback Gemini key (and fallback model). Once a
+    chunk has been yielded we can't rewind, so mid-stream failures bubble up.
+    """
+    fb_key, fb_model = _resolve_chat_fallback(api_key)
+    attempts: list[tuple[str, str]] = [(api_key, model)]
+    if fb_key:
+        attempts.append((fb_key, fb_model or model))
+    last_exc: Exception | None = None
+    for i, (k, m) in enumerate(attempts):
+        gen = _chat_with_tools_stream_once(
+            messages=messages, tools=tools, model=m, api_key=k,
+            temperature=temperature, tool_results=tool_results,
+            system_instruction=system_instruction,
+        )
+        try:
+            first = await gen.__anext__()
+        except StopAsyncIteration:
+            return
+        except Exception as exc:
+            last_exc = exc
+            await gen.aclose()
+            if i < len(attempts) - 1 and _is_rate_limit_error(exc):
+                logger.warning(
+                    "chat_with_tools_stream: primary key rate-limited (%s), rotating to fallback", exc
+                )
+                continue
+            raise
+        # First chunk landed — commit to this stream.
+        yield first
+        async for chunk in gen:
+            yield chunk
+        return
+    if last_exc:
+        raise last_exc
