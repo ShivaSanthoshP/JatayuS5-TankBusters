@@ -40,10 +40,12 @@ const GlassTab: React.FC<GlassTabProps> = ({
     >
       {({ isActive }) => (
         <div title={label} className={`glass-nav-tab press-tactile ${fullWidth ? '!flex !w-full !justify-start !py-2.5 !text-[14px]' : ''} ${
-          isActive ? 'glass-nav-tab-active' : pop ? 'glass-nav-tab-pop' : ''
+          pop ? 'glass-nav-tab-pop' : isActive ? 'glass-nav-tab-active' : ''
         }`}>
-          {pop && !isActive && <span aria-hidden className="argus-tab-halo" />}
-          {isActive && (
+          {/* Argus (pop) always shows its filled CTA surface — active or not.
+              Other tabs get the soft layout-id indicator when active. */}
+          {pop && <span aria-hidden className="argus-tab-halo" />}
+          {!pop && isActive && (
             <motion.div
               layoutId={layoutId}
               className="absolute inset-0 glass-nav-tab-indicator"

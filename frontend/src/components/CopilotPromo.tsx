@@ -52,14 +52,15 @@ export default function CopilotPromo() {
 
             {/* Copy */}
             <div className="flex-1 min-w-0">
-              <span className="label-eyebrow !text-[9.5px]" style={{ color: 'rgba(1,249,101,0.95)' }}>
+              <span className="label-eyebrow !text-[9.5px]" style={{ color: '#01f965' }}>
                 Meet Argus
               </span>
-              <h2 className="font-display text-[20px] sm:text-[25px] leading-[1.16] mt-1.5 text-[var(--color-surface)]">
+              <h2 className="font-display font-semibold text-[20px] sm:text-[25px] leading-[1.16] mt-1.5"
+                style={{ color: '#ffffff' }}>
                 Stop reading dashboards. Start asking Argus.
               </h2>
               <p className="text-[12.5px] sm:text-[13px] leading-relaxed mt-2 max-w-[64ch]"
-                style={{ color: 'rgba(251,248,241,0.74)' }}>
+                style={{ color: 'rgba(255,255,255,0.88)' }}>
                 Nothing on your fleet goes unwatched — Argus reads live telemetry,
                 runs the five-agent pipeline, and resolves incidents.
               </p>
