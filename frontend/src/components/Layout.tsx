@@ -97,13 +97,15 @@ export default function Layout() {
 
       <GlassNavbar condense={condense} className="liquid-glass">
         {/* Left Branding — clickable on tablets/small laptops to toggle menu.
-            The desktop tab strip only appears at xl+ (1280 px) because nine
-            tabs plus the brand block can't fit any narrower without crowding
-            or clipping. Below xl, this button opens the slide-down drawer. */}
+            The desktop tab strip appears at ≥1180 px: nine tabs plus the
+            logo fit comfortably there (~1108 px of navbar interior vs the
+            ~990 px the row needs), while staying clear of the 1280 px line
+            that Windows 150 % scaling + scrollbar rounding straddles. Below
+            1180 px, this button opens the slide-down drawer. */}
         <button
           type="button"
           onClick={() => setMobileOpen((v) => !v)}
-          className="xl:hidden flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+          className="min-[1180px]:hidden flex items-center gap-2 sm:gap-3 shrink-0 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
         >
           <div
             className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl overflow-hidden flex items-center justify-center gpu shrink-0"
@@ -124,11 +126,11 @@ export default function Layout() {
         </button>
 
         {/* Desktop branding — non-clickable.
-            At xl (1280–1535 px) the brand collapses to the logo only so
-            the nine-tab strip plus the wordmark don't fight for the same
-            1208 px of usable navbar interior. The full wordmark returns
-            at 2xl (≥ 1536 px) where there's room for both. */}
-        <div className="hidden xl:flex items-center gap-2 2xl:gap-3 shrink-0 min-w-0">
+            At 1180–1535 px the brand collapses to the logo only so the
+            nine-tab strip plus the wordmark don't fight for the same
+            navbar interior. The full wordmark returns at 2xl (≥ 1536 px)
+            where there's room for both. */}
+        <div className="hidden min-[1180px]:flex items-center gap-2 2xl:gap-3 shrink-0 min-w-0">
           <div
             className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center gpu shrink-0"
             style={{
@@ -147,11 +149,11 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Desktop nav tabs (visible xl+). gap-2 (8 px) so every pill reads
-            as its own destination — anything tighter and the row collapses
-            into a single slab. Combined with the per-pill hover background
-            this gives a clear pointer-target for each item. */}
-        <nav className="hidden xl:flex items-center gap-2 mx-auto">
+        {/* Desktop nav tabs (visible ≥ 1180 px). gap-2 (8 px) so every pill
+            reads as its own destination — anything tighter and the row
+            collapses into a single slab. Combined with the per-pill hover
+            background this gives a clear pointer-target for each item. */}
+        <nav className="hidden min-[1180px]:flex items-center gap-2 mx-auto">
           {NAV.map((item) => (
             <GlassTab
               key={item.to}
@@ -175,7 +177,7 @@ export default function Layout() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="xl:hidden fixed inset-0 z-40 bg-[rgba(21,25,26,0.18)] backdrop-blur-sm"
+              className="min-[1180px]:hidden fixed inset-0 z-40 bg-[rgba(21,25,26,0.18)] backdrop-blur-sm"
               onClick={() => setMobileOpen(false)}
             />
             <motion.div
@@ -184,7 +186,7 @@ export default function Layout() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-              className="xl:hidden fixed top-[80px] inset-x-3 z-50 glass-mica p-3"
+              className="min-[1180px]:hidden fixed top-[80px] inset-x-3 z-50 glass-mica p-3"
             >
               <nav className="flex flex-col gap-1">
                 {NAV.map((item) => (

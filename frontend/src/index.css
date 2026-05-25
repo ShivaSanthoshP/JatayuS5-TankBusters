@@ -364,10 +364,10 @@ button {
   display: inline-flex;
   align-items: center;
   /* Pill geometry — sized to fit all nine tabs (Argus + 8) in the navbar
-     on a 1280-px laptop without overflow. The padding scales gently
-     between 1280 px and 1536 px so the row gains breathing room on
-     wider displays without any breakpoint jumps. The pop variant
-     inherits this geometry; it only overrides colour. */
+     down to the ~1180-px point where the strip first appears, without
+     overflow. The padding/font scale gently up to ~1536 px so the row
+     gains breathing room on wider displays without any breakpoint jumps.
+     The pop variant inherits this geometry; it only overrides colour. */
   gap: 7px;
   padding: 7px clamp(11px, 0.95vw, 16px);
   font-size: clamp(10.75px, 0.78vw, 11.75px);
